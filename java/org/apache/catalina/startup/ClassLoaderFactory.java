@@ -46,6 +46,7 @@ import org.apache.juli.logging.LogFactory;
  *     the new class loader.</li>
  * </ul>
  *
+ * 类加载器工厂
  * @author Craig R. McClanahan
  */
 public final class ClassLoaderFactory {
@@ -141,9 +142,9 @@ public final class ClassLoaderFactory {
      *
      * @param repositories List of class directories, jar files, jar directories
      *                     or URLS that should be added to the repositories of
-     *                     the class loader.
+     *                     the class loader.  代表该类加载器 会加载的特殊资源
      * @param parent Parent class loader for the new class loader, or
-     *  <code>null</code> for the system class loader.
+     *  <code>null</code> for the system class loader. 代表该类加载器对应的父加载器
      * @return the new class loader
      *
      * @exception Exception if an error occurs constructing the class loader
@@ -160,17 +161,22 @@ public final class ClassLoaderFactory {
 
         if (repositories != null) {
             for (Repository repository : repositories)  {
+                // 如果资源是 url 将字符串构建成 url对象
                 if (repository.getType() == RepositoryType.URL) {
                     URL url = buildClassLoaderUrl(repository.getLocation());
                     if (log.isDebugEnabled())
                         log.debug("  Including URL " + url);
                     set.add(url);
+                // 如果是目录类型 转换成目录并校验
                 } else if (repository.getType() == RepositoryType.DIR) {
                     File directory = new File(repository.getLocation());
+                    // 返回规范名称 暂时不知道是什么用
                     directory = directory.getCanonicalFile();
+                    // 无效的目录跳过解析
                     if (!validateFile(directory, RepositoryType.DIR)) {
                         continue;
                     }
+                    // 使用目录构建url
                     URL url = buildClassLoaderUrl(directory);
                     if (log.isDebugEnabled())
                         log.debug("  Including directory " + url);
@@ -224,6 +230,7 @@ public final class ClassLoaderFactory {
                 log.debug("  location " + i + " is " + array[i]);
             }
 
+        // 通过一组指定资源构建类加载器
         return AccessController.doPrivileged(
                 new PrivilegedAction<URLClassLoader>() {
                     @Override
@@ -236,6 +243,14 @@ public final class ClassLoaderFactory {
                 });
     }
 
+
+    /**
+     * 校验文件是否有效
+     * @param file  文件对象
+     * @param type  对应的类型
+     * @return
+     * @throws IOException
+     */
     private static boolean validateFile(File file,
             RepositoryType type) throws IOException {
         if (RepositoryType.DIR == type || RepositoryType.GLOB == type) {
@@ -263,6 +278,7 @@ public final class ClassLoaderFactory {
                 }
                 return false;
             }
+        // 确保jar包可读
         } else if (RepositoryType.JAR == type) {
             if (!file.canRead()) {
                 log.warn("Problem with JAR file [" + file +
@@ -297,7 +313,9 @@ public final class ClassLoaderFactory {
         return new URL(fileUrlString);
     }
 
-
+    /**
+     * 资源存储的类型
+     */
     public enum RepositoryType {
         DIR,
         GLOB,
@@ -305,8 +323,17 @@ public final class ClassLoaderFactory {
         URL
     }
 
+    /**
+     * 用于表示资源存储
+     */
     public static class Repository {
+        /**
+         * 资源所在位置
+         */
         private final String location;
+        /**
+         * 存储类型
+         */
         private final RepositoryType type;
 
         public Repository(String location, RepositoryType type) {

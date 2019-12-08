@@ -66,6 +66,7 @@ import org.xml.sax.SAXParseException;
  * <li><b>stop</b>       - Stop the currently running instance of Catalina.</li>
  * </ul>
  *
+ * tomcat 内部的核心类  用来启动应用服务 该对象在 bootstrap.init() 方法中创建
  * @author Craig R. McClanahan
  * @author Remy Maucherat
  */
@@ -82,18 +83,18 @@ public class Catalina {
     // ----------------------------------------------------- Instance Variables
 
     /**
-     * Use await.
+     * Use await.  是否阻塞等待 server初始化
      */
     protected boolean await = false;
 
     /**
-     * Pathname to the server configuration file.
+     * Pathname to the server configuration file.   server相关的配置文件 默认路径为conf/server.xml
      */
     protected String configFile = "conf/server.xml";
 
     // XXX Should be moved to embedded
     /**
-     * The shared extensions class loader for this server.
+     * The shared extensions class loader for this server.  获取加载该类的加载器 实际上就是commonClassLoader
      */
     protected ClassLoader parentClassLoader =
         Catalina.class.getClassLoader();
@@ -101,12 +102,13 @@ public class Catalina {
 
     /**
      * The server component we are starting or stopping.
+     * catalina  内部维护了 server  而server 内部由维护了下级的 engine
      */
     protected Server server = null;
 
 
     /**
-     * Use shutdown hook flag.
+     * Use shutdown hook flag.  是否使用终结钩子
      */
     protected boolean useShutdownHook = true;
 
@@ -118,19 +120,22 @@ public class Catalina {
 
 
     /**
-     * Is naming enabled ?
+     * Is naming enabled ?   命名服务 先不看
      */
     protected boolean useNaming = true;
 
 
     /**
-     * Prevent duplicate loads.
+     * Prevent duplicate loads.  避免重复加载
      */
     protected boolean loaded = false;
 
 
     // ----------------------------------------------------------- Constructors
 
+    /**
+     * catalina 在初始化时 会做一些加载工作
+     */
     public Catalina() {
         setSecurityProtection();
         ExceptionUtils.preload();
@@ -161,7 +166,7 @@ public class Catalina {
 
     /**
      * Set the shared extensions class loader.
-     *
+     * 该方法会在 bootstrap.init中被触发
      * @param parentClassLoader The shared extensions class loader.
      */
     public void setParentClassLoader(ClassLoader parentClassLoader) {
@@ -215,7 +220,7 @@ public class Catalina {
 
     /**
      * Process the specified command line arguments.
-     *
+     * 校验参数是否有效
      * @param args Command line arguments to process
      * @return <code>true</code> if we should continue processing
      */
@@ -228,14 +233,18 @@ public class Catalina {
             return false;
         }
 
+        // 使用的参数 可以是指定server.xml文件 或者 关闭 naming服务
+
         for (int i = 0; i < args.length; i++) {
             if (isConfig) {
                 configFile = args[i];
                 isConfig = false;
+                // 如果发现了 -config 那么后面的参数都是针对该 指令的
             } else if (args[i].equals("-config")) {
                 isConfig = true;
             } else if (args[i].equals("-nonaming")) {
                 setUseNaming(false);
+                // help指令 仅输出控制台
             } else if (args[i].equals("-help")) {
                 usage();
                 return false;
@@ -272,6 +281,7 @@ public class Catalina {
 
     /**
      * Create and configure the Digester we will be using for startup.
+     * 初始化xml 解析工具
      * @return the main digester to parse server.xml
      */
     protected Digester createStartDigester() {
@@ -527,9 +537,11 @@ public class Catalina {
 
     /**
      * Start a new server instance.
+     * 如果没有传入特定参数 触发该方法  否则触发 load(Object o)
      */
     public void load() {
 
+        // 如果已经初始化 无法再次load
         if (loaded) {
             return;
         }
@@ -537,12 +549,13 @@ public class Catalina {
 
         long t1 = System.nanoTime();
 
+        // 初始化临时文件目录
         initDirs();
 
-        // Before digester - it may be needed
+        // Before digester - it may be needed  先不看naming 相关的
         initNaming();
 
-        // Create and execute our Digester
+        // Create and execute our Digester  初始化一个xml 解析工具 用于解析 server.xml
         Digester digester = createStartDigester();
 
         InputSource inputSource = null;
@@ -654,11 +667,14 @@ public class Catalina {
 
     /*
      * Load using arguments
+     * 通过指定参数进行初始化
      */
     public void load(String args[]) {
 
         try {
+            // 校验参数是否有效 并进行配置
             if (arguments(args)) {
+                // 确认参数后进行加载
                 load();
             }
         } catch (Exception e) {
@@ -792,7 +808,11 @@ public class Catalina {
     }
 
 
+    /**
+     * Catalina 在启动时会初始化相关目录
+     */
     protected void initDirs() {
+        // 获取临时文件目录
         String temp = System.getProperty("java.io.tmpdir");
         if (temp == null || (!(new File(temp)).isDirectory())) {
             log.error(sm.getString("embedded.notmp", temp));
@@ -839,6 +859,7 @@ public class Catalina {
 
     /**
      * Set the security package access/protection.
+     * 设置安全处理器
      */
     protected void setSecurityProtection(){
         SecurityConfig securityConfig = SecurityConfig.newInstance();

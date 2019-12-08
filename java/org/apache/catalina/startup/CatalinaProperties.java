@@ -30,7 +30,7 @@ import org.apache.juli.logging.LogFactory;
 
 /**
  * Utility class to read the bootstrap Catalina configuration.
- *
+ * 该对象内部维护了 tomcat 中所有必要的配置
  * @author Remy Maucherat
  */
 public class CatalinaProperties {
@@ -40,6 +40,9 @@ public class CatalinaProperties {
     private static Properties properties = null;
 
 
+    /**
+     * 初始化时 从配置文件中加载相关属性
+     */
     static {
         loadProperties();
     }
@@ -56,11 +59,13 @@ public class CatalinaProperties {
 
     /**
      * Load properties.
+     * 加载配置
      */
     private static void loadProperties() {
 
         InputStream is = null;
         try {
+            // 读取catalina.config文件
             String configUrl = System.getProperty("catalina.config");
             if (configUrl != null) {
                 is = (new URL(configUrl)).openStream();
@@ -69,10 +74,14 @@ public class CatalinaProperties {
             handleThrowable(t);
         }
 
+        // 这里相当于就是从 catalina的根目录下加载相关配置文件
         if (is == null) {
             try {
+                // 默认情况下 CatalinaBase 就是 CatalinaHome
                 File home = new File(Bootstrap.getCatalinaBase());
+                // 获取下面的conf 文件
                 File conf = new File(home, "conf");
+                // 获取属性文件
                 File propsFile = new File(conf, "catalina.properties");
                 is = new FileInputStream(propsFile);
             } catch (Throwable t) {
@@ -80,11 +89,13 @@ public class CatalinaProperties {
             }
         }
 
+        // 还是没有获取到就从一个默认路径中加载
         if (is == null) {
             try {
                 is = CatalinaProperties.class.getResourceAsStream
                     ("/org/apache/catalina/startup/catalina.properties");
             } catch (Throwable t) {
+                // 出现 Error 时抛出 其余异常忽略
                 handleThrowable(t);
             }
         }
@@ -105,6 +116,7 @@ public class CatalinaProperties {
             }
         }
 
+        // 还是没有读取到配置时  生成空对象
         if ((is == null)) {
             // Do something
             log.warn("Failed to load catalina.properties");
@@ -118,6 +130,7 @@ public class CatalinaProperties {
             String name = (String) enumeration.nextElement();
             String value = properties.getProperty(name);
             if (value != null) {
+                // 将prop 的属性转移到 系统变量中
                 System.setProperty(name, value);
             }
         }
