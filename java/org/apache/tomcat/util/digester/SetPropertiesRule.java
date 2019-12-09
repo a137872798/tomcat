@@ -45,6 +45,7 @@ public class SetPropertiesRule extends Rule {
             throws Exception {
 
         // Populate the corresponding properties of the top object
+        // 从栈中弹出对应的元素  一般先通过ObjectCreateRule 创建对象并设置到栈中
         Object top = digester.peek();
         if (digester.log.isDebugEnabled()) {
             if (top != null) {
@@ -69,6 +70,7 @@ public class SetPropertiesRule extends Rule {
                         "} Setting property '" + name + "' to '" +
                         value + "'");
             }
+            // 只有 非 faker的属性才会触发 set方法  当set失败时打印日志
             if (!digester.isFakeAttribute(top, name)
                     && !IntrospectionUtils.setProperty(top, name, value)
                     && digester.getRulesValidation()) {

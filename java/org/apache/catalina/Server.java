@@ -44,6 +44,7 @@ import org.apache.catalina.startup.Catalina;
  * register the (singleton) instance with the <code>ServerFactory</code>
  * class in its constructor(s).
  *
+ * server 对应 catalina 也就是最高级别的容器 内部属性是全局性的 一个server下允许存在多个service
  * @author Craig R. McClanahan
  */
 public interface Server extends Lifecycle {
@@ -52,6 +53,7 @@ public interface Server extends Lifecycle {
 
     /**
      * @return the global naming resources.
+     * 获取Naming 服务
      */
     public NamingResourcesImpl getGlobalNamingResources();
 
@@ -67,12 +69,14 @@ public interface Server extends Lifecycle {
 
     /**
      * @return the global naming resources context.
+     * 获取 naming对应的上下文对象
      */
     public javax.naming.Context getGlobalNamingContext();
 
 
     /**
      * @return the port number we listen to for shutdown commands.
+     * 获取当前server 绑定的端口   tomcat 绑定接口看来是以 server 为级别的
      */
     public int getPort();
 
@@ -87,6 +91,7 @@ public interface Server extends Lifecycle {
 
     /**
      * @return the address on which we listen to for shutdown commands.
+     * 绑定的ip地址
      */
     public String getAddress();
 
@@ -117,6 +122,7 @@ public interface Server extends Lifecycle {
      * @return the parent class loader for this component. If not set, return
      * {@link #getCatalina()} {@link Catalina#getParentClassLoader()}. If
      * catalina has not been set, return the system class loader.
+     * 获取父类加载器
      */
     public ClassLoader getParentClassLoader();
 
@@ -131,6 +137,7 @@ public interface Server extends Lifecycle {
 
     /**
      * @return the outer Catalina startup/shutdown component if present.
+     * 获取该server 绑定的 catalina 实例
      */
     public Catalina getCatalina();
 
@@ -146,6 +153,7 @@ public interface Server extends Lifecycle {
      * @return the configured base (instance) directory. Note that home and base
      * may be the same (and are by default). If this is not set the value
      * returned by {@link #getCatalinaHome()} will be used.
+     * 获取 base路径文件
      */
     public File getCatalinaBase();
 
@@ -161,6 +169,7 @@ public interface Server extends Lifecycle {
     /**
      * @return the configured home (binary) directory. Note that home and base
      * may be the same (and are by default).
+     * 获取home 路径文件
      */
     public File getCatalinaHome();
 
@@ -180,19 +189,21 @@ public interface Server extends Lifecycle {
      * Add a new Service to the set of defined Services.
      *
      * @param service The Service to be added
+     *                为server 增加一个 service
      */
     public void addService(Service service);
 
 
     /**
      * Wait until a proper shutdown command is received, then return.
+     * 阻塞接收请求  直到收到 shutdown 命令
      */
     public void await();
 
 
     /**
      * Find the specified Service
-     *
+     * 从server 中查找对应的 service
      * @param name Name of the Service to be returned
      * @return the specified Service, or <code>null</code> if none exists.
      */
@@ -200,6 +211,7 @@ public interface Server extends Lifecycle {
 
 
     /**
+     * 查找server下所有的 service
      * @return the set of Services defined within this Server.
      */
     public Service[] findServices();
@@ -217,6 +229,7 @@ public interface Server extends Lifecycle {
     /**
      * @return the token necessary for operations on the associated JNDI naming
      * context.
+     * JNDI(naming服务) 先不看
      */
     public Object getNamingToken();
 }

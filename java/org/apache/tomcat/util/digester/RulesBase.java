@@ -51,12 +51,14 @@ public class RulesBase implements Rules {
      * The set of registered Rule instances, keyed by the matching pattern.
      * Each value is a List containing the Rules for that pattern, in the
      * order that they were originally registered.
+     * 内部维护一个 命名空间(元素对应的标签)以及对应所有的规则
      */
     protected HashMap<String,List<Rule>> cache = new HashMap<>();
 
 
     /**
      * The Digester instance with which this Rules instance is associated.
+     * 规则关联的 xml解析对象
      */
     protected Digester digester = null;
 
@@ -75,6 +77,7 @@ public class RulesBase implements Rules {
     /**
      * The set of registered Rule instances, in the order that they were
      * originally registered.
+     * 内部维护的规则对象
      */
     protected ArrayList<Rule> rules = new ArrayList<>();
 
@@ -140,7 +143,8 @@ public class RulesBase implements Rules {
     /**
      * Register a new Rule instance matching the specified pattern.
      *
-     * @param pattern Nesting pattern to be matched for this Rule
+     * 往当前 rules中插入一个新的rule
+     * @param pattern Nesting pattern to be matched for this Rule  代表解析的标签
      * @param rule Rule instance to be registered
      */
     @Override

@@ -21,6 +21,7 @@ import org.xml.sax.Attributes;
 /**
  * Concrete implementations of this class implement actions to be taken when
  * a corresponding nested pattern of XML elements has been matched.
+ * 当遇到匹配的表达式时 采用指定规则解析
  */
 public abstract class Rule {
 

@@ -77,7 +77,7 @@ package org.apache.catalina;
  * The {@link LifecycleEvent}s fired during state changes are defined in the
  * methods that trigger the changed. No {@link LifecycleEvent}s are fired if the
  * attempted transition is not valid.
- *
+ * tomcat 中核心组件都实现该接口 标注生命周期各个阶段
  * @author Craig R. McClanahan
  */
 public interface Lifecycle {
@@ -148,6 +148,7 @@ public interface Lifecycle {
 
     /**
      * The LifecycleEvent type for the "periodic" event.
+     * 代表周期性的事件
      */
     public static final String PERIODIC_EVENT = "periodic";
 
@@ -157,6 +158,7 @@ public interface Lifecycle {
      * components that use a separate component to perform configuration and
      * need to signal when configuration should be performed - usually after
      * {@link #BEFORE_START_EVENT} and before {@link #START_EVENT}.
+     * 代表开始配置
      */
     public static final String CONFIGURE_START_EVENT = "configure_start";
 
@@ -166,6 +168,7 @@ public interface Lifecycle {
      * components that use a separate component to perform configuration and
      * need to signal when de-configuration should be performed - usually after
      * {@link #STOP_EVENT} and before {@link #AFTER_STOP_EVENT}.
+     * 代表结束配置
      */
     public static final String CONFIGURE_STOP_EVENT = "configure_stop";
 
@@ -187,6 +190,7 @@ public interface Lifecycle {
      * @return An array containing the life cycle listeners associated with this
      *         life cycle. If this component has no listeners registered, a
      *         zero-length array is returned.
+     *         实现生命周期接口的对象都会维护一组监听器
      */
     public LifecycleListener[] findLifecycleListeners();
 
@@ -293,6 +297,7 @@ public interface Lifecycle {
      * Obtain the current state of the source component.
      *
      * @return The current state of the source component.
+     * 获取当前生命周期状态
      */
     public LifecycleState getState();
 

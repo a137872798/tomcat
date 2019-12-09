@@ -46,7 +46,7 @@ public final class IntrospectionUtils {
         return setProperty(o,name,value,true);
     }
 
-    @SuppressWarnings("null") // setPropertyMethodVoid is not null when used
+    @SuppressWarnings("null") // setPropertyMethodVoid is not null when used  通过反射为指定对象设置属性
     public static boolean setProperty(Object o, String name, String value,
             boolean invokeSetProperty) {
         if (log.isDebugEnabled())
@@ -180,6 +180,12 @@ public final class IntrospectionUtils {
         return false;
     }
 
+    /**
+     * 从某个对象中通过反射 获取属性
+     * @param o
+     * @param name
+     * @return
+     */
     public static Object getProperty(Object o, String name) {
         String getter = "get" + capitalize(name);
         String isGetter = "is" + capitalize(name);

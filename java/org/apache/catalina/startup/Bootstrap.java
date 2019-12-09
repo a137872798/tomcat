@@ -368,6 +368,7 @@ public final class Bootstrap {
             init();
         }
 
+        // 触发catalina.start
         Method method = catalinaDaemon.getClass().getMethod("start", (Class [])null);
         method.invoke(catalinaDaemon, (Object [])null);
     }
@@ -495,6 +496,7 @@ public final class Bootstrap {
             }
 
             // 利用传入的参数和特定的指令来初始化 catalina 对象
+            // load() 方法会解析xml 文件 并初始化 tomcat 核心组件
             if (command.equals("startd")) {
                 args[args.length - 1] = "start";
                 daemon.load(args);

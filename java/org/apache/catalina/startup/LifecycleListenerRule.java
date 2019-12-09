@@ -87,11 +87,13 @@ public class LifecycleListenerRule extends Rule {
      * @param attributes The attributes of this element
      *
      * @exception Exception if a processing error occurs
+     * 解析 生命周期相关的xml元素
      */
     @Override
     public void begin(String namespace, String name, Attributes attributes)
         throws Exception {
 
+        // HOST CONTEXT ENGINE 都是 Container 的子接口
         Container c = (Container) digester.peek();
         Container p = null;
         Object obj = digester.peek(1);
@@ -109,7 +111,9 @@ public class LifecycleListenerRule extends Rule {
         }
 
         // Check the container's parent for the specified attribute
+        // 如果xml 元素中没有找到对应元素
         if (p != null && className == null) {
+            // 从Container 中获取元素
             String configClass =
                 (String) IntrospectionUtils.getProperty(p, attributeName);
             if (configClass != null && configClass.length() > 0) {
@@ -117,12 +121,13 @@ public class LifecycleListenerRule extends Rule {
             }
         }
 
-        // Use the default
+        // Use the default  如果还是没有就使用默认实现
         if (className == null) {
             className = listenerClass;
         }
 
         // Instantiate a new LifecycleListener implementation object
+        // 初始化该监听器对象后并设置到 需要被监听的对象上
         Class<?> clazz = Class.forName(className);
         LifecycleListener listener = (LifecycleListener) clazz.getConstructor().newInstance();
 

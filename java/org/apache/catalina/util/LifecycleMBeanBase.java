@@ -31,6 +31,9 @@ import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.modeler.Registry;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * 该对象包含 MBean 特性 就是可以从 jdk工具包远程设置属性  这一层可以先不看
+ */
 public abstract class LifecycleMBeanBase extends LifecycleBase
         implements JmxEnabled {
 

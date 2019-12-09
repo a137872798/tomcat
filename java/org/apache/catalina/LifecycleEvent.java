@@ -22,6 +22,7 @@ import java.util.EventObject;
  * General event for notifying listeners of significant changes on a component
  * that implements the Lifecycle interface.
  *
+ * 生命周期事件源对象
  * @author Craig R. McClanahan
  */
 public final class LifecycleEvent extends EventObject {
@@ -44,13 +45,13 @@ public final class LifecycleEvent extends EventObject {
 
 
     /**
-     * The event data associated with this event.
+     * The event data associated with this event.   事件携带的数据
      */
     private final Object data;
 
 
     /**
-     * The event type this instance represents.
+     * The event type this instance represents.  代表事件类型
      */
     private final String type;
 

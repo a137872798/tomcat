@@ -285,6 +285,7 @@ public class Catalina {
      * @return the main digester to parse server.xml
      */
     protected Digester createStartDigester() {
+        // 记录解析时间
         long t1=System.currentTimeMillis();
         // Initialize the digester
         Digester digester = new Digester();
@@ -301,15 +302,24 @@ public class Catalina {
         digester.setFakeAttributes(fakeAttributes);
         digester.setUseContextClassLoader(true);
 
-        // Configure the actions we will be using
+        // Configure the actions we will be using   一些少用的标签先不看 主要是看 如何解析请求已经使用Context 来处理req生成res的 以及tomcat使用的线程模型
+        /**
+         * 代表解析 <Server 开头的标签  一般在 server.xml 文件中 作为主标签
+         * addObjectCreate  param2代表 使用的默认值  param3 代表允许被覆盖的属性  也就是允许覆盖server实现类
+         */
         digester.addObjectCreate("Server",
                                  "org.apache.catalina.core.StandardServer",
                                  "className");
+        // 代表 从 <Server 标签开始 读到的其他元素都会设置到 server中
         digester.addSetProperties("Server");
+        // 之后解析的对象会通过 setServer 将 server设置进去
         digester.addSetNext("Server",
                             "setServer",
                             "org.apache.catalina.Server");
 
+        /**
+         * Naming 服务
+         */
         digester.addObjectCreate("Server/GlobalNamingResources",
                                  "org.apache.catalina.deploy.NamingResourcesImpl");
         digester.addSetProperties("Server/GlobalNamingResources");
@@ -317,6 +327,9 @@ public class Catalina {
                             "setGlobalNamingResources",
                             "org.apache.catalina.deploy.NamingResourcesImpl");
 
+        /**
+         * 该server 相关的一组监听器对象
+         */
         digester.addObjectCreate("Server/Listener",
                                  null, // MUST be specified in the element
                                  "className");
@@ -351,9 +364,10 @@ public class Catalina {
                             "addExecutor",
                             "org.apache.catalina.Executor");
 
-
+        // 抽取 Connector 标签 并生成 Connector 对象
         digester.addRule("Server/Service/Connector",
                          new ConnectorCreateRule());
+        // 设置所有属性 排除掉 executor 和 ssl
         digester.addRule("Server/Service/Connector",
                          new SetAllPropertiesRule(new String[]{"executor", "sslImplementationName"}));
         digester.addSetNext("Server/Service/Connector",
@@ -405,19 +419,23 @@ public class Catalina {
                             "addUpgradeProtocol",
                             "org.apache.coyote.UpgradeProtocol");
 
-        // Add RuleSets for nested elements
+        // Add RuleSets for nested elements  一些特殊的rule
         digester.addRuleSet(new NamingRuleSet("Server/GlobalNamingResources/"));
+        // 设置引擎解析规则
         digester.addRuleSet(new EngineRuleSet("Server/Service/"));
+        // 设置host解析规则
         digester.addRuleSet(new HostRuleSet("Server/Service/Engine/"));
+        // 设置context解析规则
         digester.addRuleSet(new ContextRuleSet("Server/Service/Engine/Host/"));
         addClusterRuleSet(digester, "Server/Service/Engine/Host/Cluster/");
         digester.addRuleSet(new NamingRuleSet("Server/Service/Engine/Host/Context/"));
 
-        // When the 'engine' is found, set the parentClassLoader.
+        // When the 'engine' is found, set the parentClassLoader.   将commonClassLoader 作为下面每个engine单独的类加载器
         digester.addRule("Server/Service/Engine",
                          new SetParentClassLoaderRule(parentClassLoader));
         addClusterRuleSet(digester, "Server/Service/Engine/Cluster/");
 
+        // 记录解析xml完成时间
         long t2=System.currentTimeMillis();
         if (log.isDebugEnabled()) {
             log.debug("Digester for server.xml created " + ( t2-t1 ));
@@ -547,6 +565,7 @@ public class Catalina {
         }
         loaded = true;
 
+        // 用于记录整个初始化流程耗时
         long t1 = System.nanoTime();
 
         // 初始化临时文件目录
@@ -556,6 +575,7 @@ public class Catalina {
         initNaming();
 
         // Create and execute our Digester  初始化一个xml 解析工具 用于解析 server.xml
+        // 这里定义了一系列的解析规则
         Digester digester = createStartDigester();
 
         InputSource inputSource = null;
@@ -564,6 +584,7 @@ public class Catalina {
         try {
             try {
                 file = configFile();
+                // 通过 server.xml 生成输入流
                 inputStream = new FileInputStream(file);
                 inputSource = new InputSource(file.toURI().toURL().toString());
             } catch (Exception e) {
@@ -620,6 +641,7 @@ public class Catalina {
 
             try {
                 inputSource.setByteStream(inputStream);
+                // 将本对象作为第一个对象 并开始解析 xml 文件 同时会触发tomcat核心组件的初始化
                 digester.push(this);
                 digester.parse(inputSource);
             } catch (SAXParseException spe) {
@@ -640,15 +662,19 @@ public class Catalina {
             }
         }
 
+        // 以上解析完成
+
+        // 设置 server相关属性
         getServer().setCatalina(this);
         getServer().setCatalinaHome(Bootstrap.getCatalinaHomeFile());
         getServer().setCatalinaBase(Bootstrap.getCatalinaBaseFile());
 
-        // Stream redirection
+        // Stream redirection  输出流相关先不管
         initStreams();
 
         // Start the new server
         try {
+            // server.init() 会向下传播 直到所有组件初始化完成
             getServer().init();
         } catch (LifecycleException e) {
             if (Boolean.getBoolean("org.apache.catalina.startup.EXIT_ON_INIT_FAILURE")) {
@@ -685,6 +711,7 @@ public class Catalina {
 
     /**
      * Start a new server instance.
+     * catalina 作为server 的入口 通过start 会向下启动所有tomcat组件
      */
     public void start() {
 

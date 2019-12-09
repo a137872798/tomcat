@@ -77,12 +77,16 @@ import org.xml.sax.helpers.AttributesImpl;
  * <p><strong>IMPLEMENTATION NOTE</strong> - A bug in Xerces 2.0.2 prevents
  * the support of XML schema. You need Xerces 2.1/2.3 and up to make
  * this class working with XML schema</p>
+ * 该对象实现了一个 第三方的xml解析类
  */
 public class Digester extends DefaultHandler2 {
 
     // ---------------------------------------------------------- Static Fields
 
     protected static IntrospectionUtils.PropertySource propertySource;
+    /**
+     * 代表是否有属性可以设置 有的话要从 propertySource中获取属性
+     */
     private static boolean propertySourceSet = false;
     protected static final StringManager sm = StringManager.getManager(Digester.class);
 
@@ -90,6 +94,7 @@ public class Digester extends DefaultHandler2 {
         String className = System.getProperty("org.apache.tomcat.util.digester.PROPERTY_SOURCE");
         IntrospectionUtils.PropertySource source = null;
         if (className != null) {
+            // 这里依次将加载该class 的类加载器 以及 catalina当前类加载器读取出来  优先使用跟digester同级的类加载器
             ClassLoader[] cls = new ClassLoader[] { Digester.class.getClassLoader(),
                     Thread.currentThread().getContextClassLoader() };
             for (int i = 0; i < cls.length; i++) {
@@ -109,6 +114,7 @@ public class Digester extends DefaultHandler2 {
             propertySource = source;
             propertySourceSet = true;
         }
+        // 如果系统变量存在 占位符 则需要从 propSource中获取属性并进行替换
         if (Boolean.getBoolean("org.apache.tomcat.util.digester.REPLACE_SYSTEM_PROPERTIES")) {
             replaceSystemProperties();
         }
@@ -123,7 +129,9 @@ public class Digester extends DefaultHandler2 {
 
     // --------------------------------------------------- Instance Variables
 
-
+    /**
+     * 该 propSource是 tomcat 内置的 包含一个指定name获取属性的方法
+     */
     private static class SystemPropertySource implements IntrospectionUtils.SecurePropertySource {
 
         @Override
@@ -132,19 +140,31 @@ public class Digester extends DefaultHandler2 {
             return getProperty(key, null);
         }
 
+        /**
+         * 通过key 获取到对应属性
+         * @param key           The key of the requested property
+         * @param classLoader   The class loader associated with the code that
+         *                      trigger the property lookup
+         * @return
+         */
         @Override
         public String getProperty(String key, ClassLoader classLoader) {
             if (classLoader instanceof PermissionCheck) {
                 Permission p = new PropertyPermission(key, "read");
+                // 当权限校验未通过时返回null
                 if (!((PermissionCheck) classLoader).check(p)) {
                     return null;
                 }
             }
+            // 默认就是从系统变量中获取属性
             return System.getProperty(key);
         }
     }
 
 
+    /**
+     * 从环境变量中获取
+     */
     public static class EnvironmentPropertySource implements IntrospectionUtils.SecurePropertySource {
 
         @Override
@@ -164,7 +184,9 @@ public class Digester extends DefaultHandler2 {
         }
     }
 
-
+    /**
+     * 最差情况还是会设置 系统变量
+     */
     protected IntrospectionUtils.PropertySource source[] = new IntrospectionUtils.PropertySource[] {
             new SystemPropertySource() };
 
@@ -299,6 +321,7 @@ public class Digester extends DefaultHandler2 {
      * <code>Rule</code> instances and associated matching policy.  If not
      * established before the first rule is added, a default implementation
      * will be provided.
+     * 该对象内 存放了 设置的一组规则对象
      */
     protected Rules rules = null;
 
@@ -346,18 +369,23 @@ public class Digester extends DefaultHandler2 {
 
     public Digester() {
         propertySourceSet = true;
+        // 如果 存在 propSource 那么 将引用指向一个新数组
         if (propertySource != null) {
             source = new IntrospectionUtils.PropertySource[] { propertySource, source[0] };
         }
     }
 
 
+    /**
+     * 先遍历当前所有系统变量  如果当中发现了占位符 从propSource中寻找可替换属性，并进行替换
+     */
     public static void replaceSystemProperties() {
         Log log = LogFactory.getLog(Digester.class);
         if (propertySource != null) {
             IntrospectionUtils.PropertySource[] propertySources =
                     new IntrospectionUtils.PropertySource[] { propertySource };
             Properties properties = System.getProperties();
+            // 获取所有属性名
             Set<String> names = properties.stringPropertyNames();
             for (String name : names) {
                 String value = System.getProperty(name);
@@ -738,6 +766,7 @@ public class Digester extends DefaultHandler2 {
      * to resolve/load classes that are defined in various rules.  If not
      * using Context ClassLoader, then the class-loading defaults to
      * using the calling-class' ClassLoader.
+     * 代表要从当前线程中获取对应的类加载器
      *
      * @param use determines whether to use Context ClassLoader.
      */
@@ -760,6 +789,7 @@ public class Digester extends DefaultHandler2 {
      * Set the validating parser flag.  This must be called before
      * <code>parse()</code> is called the first time.
      *
+     * 该方法必须在解析前调用
      * @param validating The new validating parser flag.
      */
     public void setValidating(boolean validating) {
@@ -779,6 +809,7 @@ public class Digester extends DefaultHandler2 {
      * Set the rules validation flag.  This must be called before
      * <code>parse()</code> is called the first time.
      *
+     * 必须在解析前调用 代表需要对规则进行校验
      * @param rulesValidation The new rules validation flag.
      */
     public void setRulesValidation(boolean rulesValidation) {
@@ -1550,12 +1581,14 @@ public class Digester extends DefaultHandler2 {
      * <p>Register a new Rule matching the specified pattern.
      * This method sets the <code>Digester</code> property on the rule.</p>
      *
+     * 将一组规则对象注册到 DefaultHandler2 中
      * @param pattern Element matching pattern
      * @param rule Rule to be registered
      */
     public void addRule(String pattern, Rule rule) {
 
         rule.setDigester(this);
+        // 往rulesBase 中插入规则
         getRules().add(pattern, rule);
 
     }
@@ -1663,11 +1696,13 @@ public class Digester extends DefaultHandler2 {
     /**
      * Add an "object create" rule for the specified parameters.
      *
-     * @param pattern Element matching pattern
-     * @param className Default Java class name to be created
-     * @param attributeName Attribute name that optionally overrides
+     * @param pattern Element matching pattern   代表匹配的标签
+     * @param className Default Java class name to be created   默认使用的class
+     * @param attributeName Attribute name that optionally overrides   代表允许被覆盖的属性
      *  the default Java class name to be created
      * @see ObjectCreateRule
+     *
+     * 开始添加一组 xml 解析规则 那么在解析到对应的元素时 就会按照xml对应标签生成实体
      */
     public void addObjectCreate(String pattern, String className, String attributeName) {
 
@@ -1696,7 +1731,7 @@ public class Digester extends DefaultHandler2 {
 
     /**
      * Add a "set properties" rule for the specified parameters.
-     *
+     * 获取 xml标签中的元素 并解析成属性设置到父标签的 对象中
      * @param pattern Element matching pattern
      * @see SetPropertiesRule
      */
@@ -1791,11 +1826,13 @@ public class Digester extends DefaultHandler2 {
     /**
      * Push a new object onto the top of the object stack.
      *
+     * 该对象内部存放了所有的解析结果 注意是一个栈结构 越上层的标签,解析出来的类在越下面
      * @param object The new object
      */
     public void push(Object object) {
 
         if (stack.size() == 0) {
+            // server标签解析出来的类会作为root
             root = object;
         }
         stack.push(object);

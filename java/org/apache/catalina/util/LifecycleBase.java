@@ -33,6 +33,7 @@ import org.apache.tomcat.util.res.StringManager;
  * Base implementation of the {@link Lifecycle} interface that implements the
  * state transition rules for {@link Lifecycle#start()} and
  * {@link Lifecycle#stop()}
+ * 每个实现 Lifecycle接口的对象都持有的公共逻辑
  */
 public abstract class LifecycleBase implements Lifecycle {
 
@@ -43,16 +44,21 @@ public abstract class LifecycleBase implements Lifecycle {
 
     /**
      * The list of registered LifecycleListeners for event notifications.
+     * 在实时性要求不强的场景使用 CopyOnWriterArrayList
      */
     private final List<LifecycleListener> lifecycleListeners = new CopyOnWriteArrayList<>();
 
 
     /**
      * The current state of the source component.
+     * 代表当前所处生命周期阶段
      */
     private volatile LifecycleState state = LifecycleState.NEW;
 
 
+    /**
+     * 当启动失败时抛出异常
+     */
     private boolean throwOnFailure = true;
 
 
@@ -114,8 +120,9 @@ public abstract class LifecycleBase implements Lifecycle {
     /**
      * Allow sub classes to fire {@link Lifecycle} events.
      *
-     * @param type  Event type
-     * @param data  Data associated with event.
+     * 依据当前生命周期状态生成对应事件 并通知监听器
+     * @param type  Event type  事件类型
+     * @param data  Data associated with event.  事件携带的数据
      */
     protected void fireLifecycleEvent(String type, Object data) {
         LifecycleEvent event = new LifecycleEvent(this, type, data);
@@ -125,14 +132,22 @@ public abstract class LifecycleBase implements Lifecycle {
     }
 
 
+    /**
+     * init() 方法骨架
+     * @throws LifecycleException
+     */
     @Override
     public final synchronized void init() throws LifecycleException {
+        // 必须确保当前状态为  NEW
         if (!state.equals(LifecycleState.NEW)) {
+            // 抛出异常
             invalidTransition(Lifecycle.BEFORE_INIT_EVENT);
         }
 
         try {
+            // 该方法是 同步方法  修改state 并且做校验 和 触发监听器
             setStateInternal(LifecycleState.INITIALIZING, null, false);
+            // 实际的初始化方法由子类实现
             initInternal();
             setStateInternal(LifecycleState.INITIALIZED, null, false);
         } catch (Throwable t) {
@@ -383,6 +398,13 @@ public abstract class LifecycleBase implements Lifecycle {
     }
 
 
+    /**
+     * 该方法使用 synchronized 修饰 确保线程安全
+     * @param state
+     * @param data
+     * @param check  是否需要做检查
+     * @throws LifecycleException
+     */
     private synchronized void setStateInternal(LifecycleState state, Object data, boolean check)
             throws LifecycleException {
 
@@ -394,6 +416,7 @@ public abstract class LifecycleBase implements Lifecycle {
             // Must have been triggered by one of the abstract methods (assume
             // code in this class is correct)
             // null is never a valid state
+            // 如果需要做检查 那么 state不能为空
             if (state == null) {
                 invalidTransition("null");
                 // Unreachable code - here to stop eclipse complaining about
@@ -405,6 +428,7 @@ public abstract class LifecycleBase implements Lifecycle {
             // startInternal() permits STARTING_PREP to STARTING
             // stopInternal() permits STOPPING_PREP to STOPPING and FAILED to
             // STOPPING
+            // 确保 生命周期状态 是从上个状态转变过来 而不是发生了越级
             if (!(state == LifecycleState.FAILED ||
                     (this.state == LifecycleState.STARTING_PREP &&
                             state == LifecycleState.STARTING) ||
@@ -418,6 +442,7 @@ public abstract class LifecycleBase implements Lifecycle {
         }
 
         this.state = state;
+        // 如果该状态有对应的事件 那么触发监听器
         String lifecycleEvent = state.getLifecycleEvent();
         if (lifecycleEvent != null) {
             fireLifecycleEvent(lifecycleEvent, data);

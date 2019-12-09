@@ -42,6 +42,7 @@ import java.util.EmptyStackException;
  *
  * @see java.util.Stack
  * @since Digester 1.6 (from Commons Collections 1.0)
+ * 基于数组实现的栈结构  同时该类是非线程安全的
  */
 public class ArrayStack<E> extends ArrayList<E> {
 
@@ -82,6 +83,7 @@ public class ArrayStack<E> extends ArrayList<E> {
     /**
      * Returns the top item off of this stack without removing it.
      *
+     * 弹出元素就是返回 数组最后一个元素
      * @return the top item on the stack
      * @throws EmptyStackException  if the stack is empty
      */
@@ -115,6 +117,7 @@ public class ArrayStack<E> extends ArrayList<E> {
     /**
      * Pops the top item off of this stack and return it.
      *
+     * 从底部弹出元素
      * @return the top item on the stack
      * @throws EmptyStackException  if the stack is empty
      */

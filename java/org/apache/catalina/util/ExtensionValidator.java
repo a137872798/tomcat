@@ -57,6 +57,9 @@ public final class ExtensionValidator {
 
     private static volatile ArrayList<Extension> containerAvailableExtensions =
             null;
+    /**
+     * 如果某些jar 包存在清单 那么保存到 list中
+     */
     private static final ArrayList<ManifestResource> containerManifestResources =
             new ArrayList<>();
 
@@ -171,6 +174,7 @@ public final class ExtensionValidator {
      */
     public static void addSystemResource(File jarFile) throws IOException {
         try (InputStream is = new FileInputStream(jarFile)) {
+            // 如果jar包存在清单 那么设置到容器中
             Manifest manifest = getManifest(is);
             if (manifest != null) {
                 ManifestResource mre = new ManifestResource(jarFile.getAbsolutePath(), manifest,

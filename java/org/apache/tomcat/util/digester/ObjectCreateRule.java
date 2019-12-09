@@ -26,6 +26,7 @@ import org.xml.sax.Attributes;
  * Rule implementation that creates a new object and pushes it
  * onto the object stack.  When the element is complete, the
  * object will be popped
+ * 实现父类对外开放的钩子
  */
 
 public class ObjectCreateRule extends Rule {
@@ -50,8 +51,8 @@ public class ObjectCreateRule extends Rule {
      * Construct an object create rule with the specified class name and an
      * optional attribute name containing an override.
      *
-     * @param className Java class name of the object to be created
-     * @param attributeName Attribute name which, if present, contains an
+     * @param className Java class name of the object to be created    代表该类默认实现类全限定名
+     * @param attributeName Attribute name which, if present, contains an   代表用于重写实现类的标签名
      *  override of the class name to create
      */
     public ObjectCreateRule(String className,
@@ -89,14 +90,16 @@ public class ObjectCreateRule extends Rule {
      * @param name the local name if the parser is namespace aware, or just
      *   the element name otherwise
      * @param attributes The attribute list for this element
+     *                   重写解析规则
      */
     @Override
     public void begin(String namespace, String name, Attributes attributes)
             throws Exception {
 
-        // Identify the name of the class to instantiate
+        // Identify the name of the class to instantiate  默认使用实现类
         String realClassName = className;
         if (attributeName != null) {
+            // 尝试读取xml中对应标签
             String value = attributes.getValue(attributeName);
             if (value != null) {
                 realClassName = value;
@@ -113,6 +116,7 @@ public class ObjectCreateRule extends Rule {
         }
 
         // Instantiate the new object and push it on the context stack
+        // 使用指定类加载器进行浇在 并将结果存放到 digester中
         Class<?> clazz = digester.getClassLoader().loadClass(realClassName);
         Object instance = clazz.getConstructor().newInstance();
         digester.push(instance);
@@ -127,10 +131,12 @@ public class ObjectCreateRule extends Rule {
      *   no namespace
      * @param name the local name if the parser is namespace aware, or just
      *   the element name otherwise
+     *             当解析完成后
      */
     @Override
     public void end(String namespace, String name) throws Exception {
 
+        // 弹出元素 并打印日志
         Object top = digester.pop();
         if (digester.log.isDebugEnabled()) {
             digester.log.debug("[ObjectCreateRule]{" + digester.match +

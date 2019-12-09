@@ -122,6 +122,7 @@ public class SetNextRule extends Rule {
      *   no namespace
      * @param name the local name if the parser is namespace aware, or just
      *   the element name otherwise
+     *             当结束了某个元素的设置时
      */
     @Override
     public void end(String namespace, String name) throws Exception {

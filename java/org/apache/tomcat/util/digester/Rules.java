@@ -27,6 +27,8 @@ import java.util.List;
  * matching patterns) plus an implementation of a matching policy that selects
  * the rules that match a particular pattern of nested elements discovered
  * during parsing.
+ *
+ * 内部维护了一组 rule
  */
 
 public interface Rules {
@@ -36,6 +38,7 @@ public interface Rules {
 
 
     /**
+     * 代表该组规则对应的 digester 对象
      * @return the Digester instance with which this Rules instance is
      * associated.
      */
@@ -79,7 +82,7 @@ public interface Rules {
 
     /**
      * Register a new Rule instance matching the specified pattern.
-     *
+     * 增加一组规则对象
      * @param pattern Nesting pattern to be matched for this Rule
      * @param rule Rule instance to be registered
      */
@@ -88,6 +91,7 @@ public interface Rules {
 
     /**
      * Clear all existing Rule instance registrations.
+     * 清空当前所有规则
      */
     public void clear();
 
@@ -99,6 +103,7 @@ public interface Rules {
      * in the order originally registered through the <code>add()</code>
      * method.
      *
+     * 返回匹配命名空间的所有 rule
      * @param namespaceURI Namespace URI for which to select matching rules,
      *  or <code>null</code> to match regardless of namespace URI
      * @param pattern Nesting pattern to be matched
@@ -113,6 +118,7 @@ public interface Rules {
      * instance has been registered, they <strong>must</strong> be returned
      * in the order originally registered through the <code>add()</code>
      * method.
+     * 返回当前所有规则
      * @return a rules list
      */
     public List<Rule> rules();

@@ -56,7 +56,7 @@ import org.apache.tomcat.util.res.StringManager;
 /**
  * Standard implementation of the <b>Server</b> interface, available for use
  * (but not required) when deploying and starting Catalina.
- *
+ * 首个被tomcat 加载的类就是 该类 tomcat的启动分为2步 一步是解析xml文件并初始化tomcat核心组件 第二步就是启动相关组件
  * @author Craig R. McClanahan
  */
 public final class StandardServer extends LifecycleMBeanBase implements Server {
@@ -69,11 +69,13 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
 
     /**
      * Construct a default instance of this class.
+     * 解析xml 后 首先会创建该对象
      */
     public StandardServer() {
 
         super();
 
+        // 初始化 Naming 服务  这个也不看
         globalNamingResources = new NamingResourcesImpl();
         globalNamingResources.setContainer(this);
 
@@ -91,7 +93,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
 
 
     /**
-     * Global naming resources context.
+     * Global naming resources context.  naming服务相关的监听器  先不看
      */
     private javax.naming.Context globalNamingContext = null;
 
@@ -795,6 +797,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
     /**
      * Invoke a pre-startup initialization. This is used to allow connectors
      * to bind to restricted ports under Unix operating environments.
+     * 当server 对象被初始化时 触发该方法
      */
     @Override
     protected void initInternal() throws LifecycleException {
@@ -805,9 +808,10 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
         // Note although the cache is global, if there are multiple Servers
         // present in the JVM (may happen when embedding) then the same cache
         // will be registered under multiple names
+        // 生成一个缓存对象 并注册到 server 中
         onameStringCache = register(new StringCache(), "type=StringCache");
 
-        // Register the MBeanFactory
+        // Register the MBeanFactory  MBean 先忽略
         MBeanFactory factory = new MBeanFactory();
         factory.setContainer(this);
         onameMBeanFactory = register(factory, "type=MBeanFactory");
@@ -818,6 +822,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
         // Populate the extension validator with JARs from common and shared
         // class loaders
         if (getCatalina() != null) {
+            // 获取 commonClassLoader
             ClassLoader cl = getCatalina().getParentClassLoader();
             // Walk the class loader hierarchy. Stop at the system class loader.
             // This will add the shared (if present) and common class loaders
@@ -825,9 +830,11 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
                 if (cl instanceof URLClassLoader) {
                     URL[] urls = ((URLClassLoader) cl).getURLs();
                     for (URL url : urls) {
+                        // 如果是某个 file:***
                         if (url.getProtocol().equals("file")) {
                             try {
                                 File f = new File (url.toURI());
+                                // 如果是某个jar 包
                                 if (f.isFile() &&
                                         f.getName().endsWith(".jar")) {
                                     ExtensionValidator.addSystemResource(f);

@@ -27,7 +27,7 @@ import org.apache.juli.logging.LogFactory;
 
 /**
  * This class implements a String cache for ByteChunk and CharChunk.
- *
+ * 用于缓存一些字符串
  * @author Remy Maucherat
  */
 public class StringCache {
@@ -65,6 +65,7 @@ public class StringCache {
 
    /**
      * Statistics hash map for byte chunk.
+     * 缓存实体
      */
     protected static final HashMap<ByteEntry,int[]> bcStats =
             new HashMap<>(cacheSize);
@@ -102,13 +103,13 @@ public class StringCache {
 
 
     /**
-     * Access count.
+     * Access count.   针对该缓存的访问数
      */
     protected static int accessCount = 0;
 
 
     /**
-     * Hit count.
+     * Hit count.   缓存命中数
      */
     protected static int hitCount = 0;
 
@@ -199,6 +200,9 @@ public class StringCache {
     // -------------------------------------------------- Public Static Methods
 
 
+    /**
+     * 重置缓存
+     */
     public void reset() {
         hitCount = 0;
         accessCount = 0;
@@ -653,13 +657,16 @@ public class StringCache {
     }
 
 
-    // -------------------------------------------------- ByteEntry Inner Class
+    // -------------------------------------------------- ByteEntry Inner Class   byte对象存在于 stringCache 中时 以byteEntry 的形式存在
 
 
     private static class ByteEntry {
 
         private byte[] name = null;
         private Charset charset = null;
+        /**
+         * 内部存放的属性
+         */
         private String value = null;
 
         @Override
