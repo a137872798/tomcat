@@ -46,6 +46,10 @@ import org.apache.tomcat.util.net.SocketEvent;
 import org.apache.tomcat.util.net.SocketWrapperBase;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * 协议处理器骨架类
+ * @param <S>
+ */
 public abstract class AbstractProtocol<S> implements ProtocolHandler,
         MBeanRegistration {
 
@@ -58,12 +62,14 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
     /**
      * Counter used to generate unique JMX names for connectors using automatic
      * port binding.
+     * 用于生成唯一名字相关的对象
      */
     private static final AtomicInteger nameCounter = new AtomicInteger(0);
 
 
     /**
      * Name of MBean for the Global Request Processor.
+     * 全局资源处理器的名字
      */
     protected ObjectName rgOname = null;
 
@@ -72,6 +78,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
      * Unique ID for this connector. Only used if the connector is configured
      * to use a random port as the port will change if stop(), start() is
      * called.
+     * 该连接器的唯一标识
      */
     private int nameIndex = 0;
 
@@ -80,19 +87,25 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
      * Endpoint that provides low-level network I/O - must be matched to the
      * ProtocolHandler implementation (ProtocolHandler using NIO, requires NIO
      * Endpoint etc.).
+     * 该协议对象绑定的端点
      */
     private final AbstractEndpoint<S> endpoint;
 
-
+    /**
+     * 处理器对象
+     */
     private Handler<S> handler;
 
-
+    /**
+     * 维护待处理的请求
+     */
     private final Set<Processor> waitingProcessors =
             Collections.newSetFromMap(new ConcurrentHashMap<Processor, Boolean>());
 
 
     /**
      * The timeout thread.
+     *
      */
     private AsyncTimeout asyncTimeout = null;
 
@@ -1144,9 +1157,13 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
 
     /**
      * Async timeout thread
+     * 异步超时线程
      */
     protected class AsyncTimeout implements Runnable {
 
+        /**
+         * 该变量相当于是对外开放的开关 当该值变成false 时 停止定时任务 同时终止线程
+         */
         private volatile boolean asyncTimeoutRunning = true;
 
         /**
@@ -1164,6 +1181,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
                     // Ignore
                 }
                 long now = System.currentTimeMillis();
+                // 遍历所有等待中的 processor 判断是否超时
                 for (Processor processor : waitingProcessors) {
                    processor.timeoutAsync(now);
                 }

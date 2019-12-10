@@ -26,6 +26,7 @@ import org.apache.tomcat.util.net.SocketWrapperBase;
 
 /**
  * Common interface for processors of all protocols.
+ * 代表 protocols中待处理的请求
  */
 public interface Processor {
 
@@ -34,15 +35,16 @@ public interface Processor {
      * data arrives) that allows processing to continue for a connection that is
      * not currently being processed.
      *
-     * @param socketWrapper The connection to process
+     * @param socketWrapper The connection to process   连接的包装对象
      * @param status The status of the connection that triggered this additional
-     *               processing
+     *               processing     代表本次处理的事件类型
      *
      * @return The state the caller should put the socket in when this method
-     *         returns
+     *         returns   返回当前状态
      *
      * @throws IOException If an I/O error occurs during the processing of the
      *         request
+     *         处理一个等待接入的连接
      */
     SocketState process(SocketWrapperBase<?> socketWrapper, SocketEvent status) throws IOException;
 
@@ -76,6 +78,7 @@ public interface Processor {
      *            use as the current time to determine whether the timeout has
      *            expired. If negative, the timeout will always be treated as ifq
      *            it has expired.
+     *            检查当前 processor 是否已经超时
      */
     void timeoutAsync(long now);
 

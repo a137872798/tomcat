@@ -28,23 +28,36 @@ import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * socket 包装对象基类
+ * @param <E>
+ */
 public abstract class SocketWrapperBase<E> {
 
     private static final Log log = LogFactory.getLog(SocketWrapperBase.class);
 
     protected static final StringManager sm = StringManager.getManager(SocketWrapperBase.class);
 
+    /**
+     * 套接字实现类型 可能是  BIO socket 也可能是 nio socket
+     */
     private final E socket;
+    /**
+     * 该套接字是绑定在哪个端口上的  因为可能会开启 tcp选项 使得一个端口可以绑定多个socket
+     */
     private final AbstractEndpoint<E> endpoint;
 
     // Volatile because I/O and setting the timeout values occurs on a different
-    // thread to the thread checking the timeout.
+    // thread to the thread checking the timeout.  该对象本身会在多线程中被并发访问 所以相关变量要用 volatile 修饰
     private volatile long readTimeout = -1;
     private volatile long writeTimeout = -1;
 
     private volatile int keepAliveLeft = 100;
     private volatile boolean upgraded = false;
     private boolean secure = false;
+    /**
+     * 谈判协议
+     */
     private String negotiatedProtocol = null;
     /*
      * Following cached for speed / reduced GC

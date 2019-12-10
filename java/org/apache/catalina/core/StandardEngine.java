@@ -49,6 +49,7 @@ import org.apache.juli.logging.LogFactory;
  * fully qualified host name of that virtual host. <br>
  * You can set the jvmRoute direct or with the System.property <b>jvmRoute</b>.
  *
+ * 引擎标准实现
  * @author Craig R. McClanahan
  */
 public class StandardEngine extends ContainerBase implements Engine {

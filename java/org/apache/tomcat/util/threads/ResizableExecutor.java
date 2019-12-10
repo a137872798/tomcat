@@ -18,6 +18,9 @@ package org.apache.tomcat.util.threads;
 
 import java.util.concurrent.Executor;
 
+/**
+ * 可以在运行过程中随时调整线程数量的执行器对象
+ */
 public interface ResizableExecutor extends Executor {
 
     /**

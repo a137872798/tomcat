@@ -530,23 +530,28 @@ public class StandardService extends LifecycleMBeanBase implements Service {
 
         super.initInternal();
 
+        // engine 会在解析xml的时候被设置  TODO 先不看 engine相关的
         if (engine != null) {
             engine.init();
         }
 
-        // Initialize any Executors
+        // Initialize any Executors   寻找指定的 执行器对象
+        // 在写入了  Executor 标签时  没有指定实现类 默认情况会构建 StandardThreadExecutor 一般情况是不需要设置的 该线程池的特性是 支持context热部署 ， 当触发contextStop时
+        // 会渐渐停止当前所有线程 这样 上一个context强引用的相关变量就会被回收 同时不接受新任务， 之后开始创建新线程 接收新任务
         for (Executor executor : findExecutors()) {
+            // MBean 相关先不看
             if (executor instanceof JmxEnabled) {
                 ((JmxEnabled) executor).setDomain(getDomain());
             }
             executor.init();
         }
 
-        // Initialize mapper listener
+        // Initialize mapper listener  TODO 先看连接器
         mapperListener.init();
 
         // Initialize our defined Connectors
         synchronized (connectorsLock) {
+            // 遍历 该service 下所有的连接器 并进行初始化
             for (Connector connector : connectors) {
                 try {
                     connector.init();

@@ -27,6 +27,8 @@ import org.apache.juli.logging.LogFactory;
  * Shared latch that allows the latch to be acquired a limited number of times
  * after which all subsequent requests to acquire the latch will be placed in a
  * FIFO queue until one of the shares is returned.
+ *
+ * 类似信号量
  */
 public class LimitLatch {
 
@@ -38,14 +40,21 @@ public class LimitLatch {
         public Sync() {
         }
 
+        /**
+         * 注意这里获取锁是共享模式
+         * @param ignored
+         * @return
+         */
         @Override
         protected int tryAcquireShared(int ignored) {
             long newCount = count.incrementAndGet();
+            // 当前尝试获取的多批锁 超过了限制时 获取锁失败
             if (!released && newCount > limit) {
                 // Limit exceeded
                 count.decrementAndGet();
                 return -1;
             } else {
+                // released == true 的情况 总是能成功获取锁
                 return 1;
             }
         }
@@ -58,13 +67,24 @@ public class LimitLatch {
     }
 
     private final Sync sync;
+
+    /**
+     * 应该是调用该对象的线程数量
+     */
     private final AtomicLong count;
+    /**
+     * 门票数量
+     */
     private volatile long limit;
+    /**
+     * 代表持有的线程还没有被释放
+     */
     private volatile boolean released = false;
 
     /**
      * Instantiates a LimitLatch object with an initial limit.
      * @param limit - maximum number of concurrent acquisitions of this latch
+     *              初始化阀门对象
      */
     public LimitLatch(long limit) {
         this.limit = limit;
@@ -75,6 +95,7 @@ public class LimitLatch {
     /**
      * Returns the current count for the latch
      * @return the current count for latch
+     * 获取当前阀门拦截的数量
      */
     public long getCount() {
         return count.get();
@@ -83,6 +104,7 @@ public class LimitLatch {
     /**
      * Obtain the current limit.
      * @return the limit
+     * 获取门票数量
      */
     public long getLimit() {
         return limit;
@@ -109,6 +131,7 @@ public class LimitLatch {
      * Acquires a shared latch if one is available or waits for one if no shared
      * latch is current available.
      * @throws InterruptedException If the current thread is interrupted
+     * 尝试获取共享锁
      */
     public void countUpOrAwait() throws InterruptedException {
         if (log.isDebugEnabled()) {
