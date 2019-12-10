@@ -25,8 +25,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.jar.JarEntry;
 import java.util.jar.Manifest;
 
+/**
+ * 可存档资源
+ */
 public abstract class AbstractArchiveResource extends AbstractResource {
 
+    /**
+     * 可存档set
+     */
     private final AbstractArchiveResourceSet archiveResourceSet;
     private final String baseUrl;
     private final JarEntry resource;

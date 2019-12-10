@@ -24,17 +24,34 @@ import org.apache.juli.logging.Log;
 import org.apache.tomcat.util.http.FastHttpDateFormat;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * web应用资源的 骨架类
+ */
 public abstract class AbstractResource implements WebResource {
 
     protected static final StringManager sm = StringManager.getManager(AbstractResource.class);
 
+    /**
+     * 该资源对应的根路径
+     */
     private final WebResourceRoot root;
+    /**
+     * 应用对应的路径
+     */
     private final String webAppPath;
 
+    /**
+     * 本资源对应的多媒体类型  Multipurpose Internet Mail Extensions
+     */
     private String mimeType = null;
     private volatile String weakETag;
 
 
+    /**
+     * 每个资源对象 通过根路径 和 应用路径进行初始化
+     * @param root
+     * @param webAppPath
+     */
     protected AbstractResource(WebResourceRoot root, String webAppPath) {
         this.root = root;
         this.webAppPath = webAppPath;
@@ -53,12 +70,17 @@ public abstract class AbstractResource implements WebResource {
     }
 
 
+    /**
+     * 将最后修改时间 以 http标准格式输出
+     * @return
+     */
     @Override
     public final String getLastModifiedHttp() {
         return FastHttpDateFormat.formatDate(getLastModified());
     }
 
 
+    // TODO 忽略
     @Override
     public final String getETag() {
         if (weakETag == null) {
@@ -96,9 +118,14 @@ public abstract class AbstractResource implements WebResource {
             return is;
         }
 
+        // 如果输入流资源不为空 包装后返回
         return new TrackedInputStream(root, getName(), is);
     }
 
+    /**
+     * 获取资源方式由子类实现
+     * @return
+     */
     protected abstract InputStream doGetInputStream();
 
 

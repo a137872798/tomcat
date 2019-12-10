@@ -23,6 +23,7 @@ import java.util.Set;
 /**
  * Represents a set of resources that are part of a web application. Examples
  * include a directory structure, a resources JAR and a WAR file.
+ * 用于存放一组资源的容器
  */
 public interface WebResourceSet extends Lifecycle {
     /**
@@ -33,6 +34,7 @@ public interface WebResourceSet extends Lifecycle {
      *              of the web application. It must start with '/'.
      *
      * @return  The object that represents the resource at the given path
+     * 通过path 找到某个对应的资源
      */
     WebResource getResource(String path);
 
@@ -45,6 +47,7 @@ public interface WebResourceSet extends Lifecycle {
      *
      * @return  The list of resources. If path does not refer to a directory
      *          then a zero length array will be returned.
+     *          获取某个路径下所有资源
      */
     String[] list(String path);
 
@@ -151,6 +154,7 @@ public interface WebResourceSet extends Lifecycle {
     /**
      * Implementations may cache some information to improve performance. This
      * method triggers the clean-up of those resources.
+     * 回收一些无效的数据
      */
     void gc();
 }

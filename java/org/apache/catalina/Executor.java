@@ -18,8 +18,15 @@ package org.apache.catalina;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * catalina 内部的线程池 也实现了 lifecycle 接口
+ */
 public interface Executor extends java.util.concurrent.Executor, Lifecycle {
 
+    /**
+     * 获取该执行器的名称
+     * @return
+     */
     public String getName();
 
     /**
@@ -37,6 +44,7 @@ public interface Executor extends java.util.concurrent.Executor, Lifecycle {
      * @throws java.util.concurrent.RejectedExecutionException if this task
      * cannot be accepted for execution - the queue is full
      * @throws NullPointerException if command or unit is null
+     * 执行某个任务
      */
     void execute(Runnable command, long timeout, TimeUnit unit);
 }

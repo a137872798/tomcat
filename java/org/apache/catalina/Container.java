@@ -72,14 +72,14 @@ import org.apache.juli.logging.Log;
  *     resources, enabling custom linkages to existing server components when
  *     Catalina is embedded in a larger server.
  * </ul>
- *
+ * 容器对象   Engine Host Wrapper Context 都属于 container
  * @author Craig R. McClanahan
  * @author Remy Maucherat
  */
 public interface Container extends Lifecycle {
 
 
-    // ----------------------------------------------------- Manifest Constants
+    // ----------------------------------------------------- Manifest Constants   对应的生命周期事件
 
 
     /**
@@ -118,6 +118,7 @@ public interface Container extends Lifecycle {
      * @return The Logger with which this Container is associated.  If there is
      *         no associated Logger, return the Logger associated with the
      *         parent Container (if any); otherwise return <code>null</code>.
+     *         获取该容器对应的日志对象
      */
     public Log getLogger();
 

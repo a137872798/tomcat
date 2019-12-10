@@ -42,6 +42,7 @@ import org.apache.tomcat.util.res.StringManager;
  * Mapper, which implements the servlet API mapping rules (which are derived
  * from the HTTP rules).
  *
+ * 用于 映射 http请求
  * @author Remy Maucherat
  */
 public final class Mapper {
@@ -1560,10 +1561,19 @@ public final class Mapper {
 
     // ------------------------------------------------- MapElement Inner Class
 
-
+    /**
+     * 映射元素 基类
+     * @param <T>
+     */
     protected abstract static class MapElement<T> {
 
+        /**
+         * 元素对应的名称
+         */
         public final String name;
+        /**
+         * 元素对象本身
+         */
         public final T object;
 
         public MapElement(String name, T object) {
@@ -1576,12 +1586,15 @@ public final class Mapper {
     // ------------------------------------------------------- Host Inner Class
 
 
+    /**
+     * 用于映射端口的对象
+     */
     protected static final class MappedHost extends MapElement<Host> {
 
         public volatile ContextList contextList;
 
         /**
-         * Link to the "real" MappedHost, shared by all aliases.
+         * Link to the "real" MappedHost, shared by all aliases.  内部存放的真正映射的host
          */
         private final MappedHost realHost;
 
@@ -1589,6 +1602,7 @@ public final class Mapper {
          * Links to all registered aliases, for easy enumeration. This field
          * is available only in the "real" MappedHost. In an alias this field
          * is <code>null</code>.
+         * 一组别名对象
          */
         private final List<MappedHost> aliases;
 
@@ -1651,6 +1665,9 @@ public final class Mapper {
     // ------------------------------------------------ ContextList Inner Class
 
 
+    /**
+     * 映射上下文数组对象
+     */
     protected static final class ContextList {
 
         public final MappedContext[] contexts;
@@ -1691,7 +1708,9 @@ public final class Mapper {
 
     // ---------------------------------------------------- Context Inner Class
 
-
+    /**
+     * 映射上下文对象
+     */
     protected static final class MappedContext extends MapElement<Void> {
         public volatile ContextVersion[] versions;
 
@@ -1701,8 +1720,17 @@ public final class Mapper {
         }
     }
 
+    /**
+     * context版本信息    context 就是servlet级别的容器
+     */
     protected static final class ContextVersion extends MapElement<Context> {
+        /**
+         * 本次请求的路径
+         */
         public final String path;
+        /**
+         * 斜线数量
+         */
         public final int slashCount;
         public final WebResourceRoot resources;
         public String[] welcomeResources;

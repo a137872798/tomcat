@@ -25,14 +25,30 @@ import org.apache.catalina.WebResourceSet;
 import org.apache.catalina.util.LifecycleBase;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * 该对象代表一组资源的容器
+ */
 public abstract class AbstractResourceSet extends LifecycleBase
         implements WebResourceSet {
 
+    /**
+     * 该组资源对应的 root
+     */
     private WebResourceRoot root;
     private String base;
     private String internalPath = "";
+    /**
+     * 应用山
+     */
     private String webAppMount;
+
+    /**
+     * 是否只允许通过类加载器进行加载
+     */
     private boolean classLoaderOnly;
+    /**
+     * 只允许使用静态资源进行加载
+     */
     private boolean staticOnly;
     private Manifest manifest;
 
@@ -40,6 +56,10 @@ public abstract class AbstractResourceSet extends LifecycleBase
     protected static final StringManager sm = StringManager.getManager(AbstractResourceSet.class);
 
 
+    /**
+     * 检查路径是否合法  路径必须以 / 开头
+     * @param path
+     */
     protected final void checkPath(String path) {
         if (path == null || path.length() == 0 || path.charAt(0) != '/') {
             throw new IllegalArgumentException(
@@ -61,6 +81,10 @@ public abstract class AbstractResourceSet extends LifecycleBase
         return internalPath;
     }
 
+    /**
+     * 当设置内部路径的是否要做校验
+     * @param internalPath
+     */
     public final void setInternalPath(String internalPath) {
         checkPath(internalPath);
         // Optimise internal processing

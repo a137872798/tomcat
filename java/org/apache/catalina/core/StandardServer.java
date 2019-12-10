@@ -340,7 +340,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
 
     /**
      * Add a new Service to the set of defined Services.
-     *
+     * 当从xml中解析到 service 后 会设置到server 中
      * @param service The Service to be added
      */
     @Override
@@ -348,12 +348,15 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
 
         service.setServer(this);
 
+        // 确保线程安全
         synchronized (servicesLock) {
+            // 每添加一个 service 会采用拷贝 + 扩容的方法
             Service results[] = new Service[services.length + 1];
             System.arraycopy(services, 0, results, 0, services.length);
             results[services.length] = service;
             services = results;
 
+            // 判断当前是否处在启动阶段 一般的流程先通过 server.init 往下传播 进而初始化全部 service 如果已经处在可以运行的状态 那么就直接启动service
             if (getState().isAvailable()) {
                 try {
                     service.start();
@@ -363,6 +366,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
             }
 
             // Report this property change to interested listeners
+            // 通知监听器 当前 某个属性发生了变化  support 属于 java.beans 下的类 先忽略
             support.firePropertyChange("service", null, service);
         }
 
@@ -826,6 +830,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
             ClassLoader cl = getCatalina().getParentClassLoader();
             // Walk the class loader hierarchy. Stop at the system class loader.
             // This will add the shared (if present) and common class loaders
+            // 一般来说进入到这里 该classLoader 是 commonClassLoader
             while (cl != null && cl != ClassLoader.getSystemClassLoader()) {
                 if (cl instanceof URLClassLoader) {
                     URL[] urls = ((URLClassLoader) cl).getURLs();
@@ -850,7 +855,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
                 cl = cl.getParent();
             }
         }
-        // Initialize our defined Services
+        // Initialize our defined Services  初始化server 下的所有service  到这一步会触发监听器
         for (int i = 0; i < services.length; i++) {
             services[i].init();
         }

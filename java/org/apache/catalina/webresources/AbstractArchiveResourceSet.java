@@ -33,14 +33,23 @@ import org.apache.catalina.WebResourceRoot;
 import org.apache.catalina.util.ResourceSet;
 import org.apache.tomcat.util.compat.JreCompat;
 
+/**
+ * 可存档的资源容器
+ */
 public abstract class AbstractArchiveResourceSet extends AbstractResourceSet {
 
+    /**
+     * 基础url
+     */
     private URL baseUrl;
     private String baseUrlString;
 
     private JarFile archive = null;
     protected HashMap<String,JarEntry> archiveEntries = null;
     protected final Object archiveLock = new Object();
+    /**
+     * 当前正在使用的文档数量
+     */
     private long archiveUseCount = 0;
 
 
@@ -63,9 +72,18 @@ public abstract class AbstractArchiveResourceSet extends AbstractResourceSet {
     }
 
 
+    /**
+     * 获得目标路径下的一组资源
+     * @param path  The path for the resource of interest relative to the root
+     *              of the web application. It must start with '/'.
+     *
+     * @return
+     */
     @Override
     public final String[] list(String path) {
+        // 确保路径以 / 开头
         checkPath(path);
+        // 应用山?
         String webAppMount = getWebAppMount();
 
         ArrayList<String> result = new ArrayList<>();
@@ -167,10 +185,11 @@ public abstract class AbstractArchiveResourceSet extends AbstractResourceSet {
      * @param single Is this request being make to support a single lookup? If
      *               false, a map will always be returned. If true,
      *               implementations may use this as a hint in determining the
-     *               optimum way to respond.
+     *               optimum way to respond.   代表是否允许返回单个元素
      *
      * @return The archives entries mapped to their names or null if
      *         {@link #getArchiveEntry(String)} should be used.
+     *         获得存储的文档
      */
     protected abstract HashMap<String,JarEntry> getArchiveEntries(boolean single);
 

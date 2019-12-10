@@ -18,7 +18,19 @@ package org.apache.catalina;
 
 import java.io.Closeable;
 
+/**
+ * 该资源对象可以追踪轨迹
+ */
 public interface TrackedWebResource extends Closeable {
+    /**
+     * 实现 trackedWebResource 接口的对象 内部都包含一个异常对象  用于保存栈轨迹信息
+     * @return
+     */
     Exception getCreatedBy();
+
+    /**
+     * 获取资源名字
+     * @return
+     */
     String getName();
 }

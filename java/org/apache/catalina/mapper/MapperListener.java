@@ -41,7 +41,7 @@ import org.apache.tomcat.util.res.StringManager;
 
 /**
  * Mapper listener.
- *
+ * 针对mapper 的监听器
  * @author Remy Maucherat
  * @author Costin Manolache
  */
@@ -55,11 +55,13 @@ public class MapperListener extends LifecycleMBeanBase
     // ----------------------------------------------------- Instance Variables
     /**
      * Associated mapper.
+     * 本监听器监听的mapper 对象
      */
     private final Mapper mapper;
 
     /**
      * Associated service
+     * 关联的service 对象
      */
     private final Service service;
 

@@ -24,11 +24,26 @@ import java.io.StringWriter;
 import org.apache.catalina.TrackedWebResource;
 import org.apache.catalina.WebResourceRoot;
 
+/**
+ * 可追踪轨迹的输入流对象
+ */
 class TrackedInputStream extends InputStream implements TrackedWebResource {
 
+    /**
+     * 根资源
+     */
     private final WebResourceRoot root;
+    /**
+     * 资源对应的名称
+     */
     private final String name;
+    /**
+     * 通过读取该输入流可以获取资源信息
+     */
     private final InputStream is;
+    /**
+     * 当该对象被初始化时 就会创建一个 异常  看来 tracked 就是使用该异常对象记录栈轨迹信息
+     */
     private final Exception creation;
 
     TrackedInputStream(WebResourceRoot root, String name, InputStream is) {
@@ -37,8 +52,11 @@ class TrackedInputStream extends InputStream implements TrackedWebResource {
         this.is = is;
         this.creation = new Exception();
 
+        // 将资源注册到 root上
         root.registerTrackedResource(this);
     }
+
+    // 相关方法委托给 内部的inputStream
 
     @Override
     public int read() throws IOException {

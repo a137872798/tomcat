@@ -123,7 +123,7 @@ import org.apache.tomcat.util.res.StringManager;
  * </table>
  * Subclasses that fire additional events should document them in the
  * class comments of the implementation class.
- *
+ * 容器基类  engine  host wrapper context 都继承于该类
  * @author Craig R. McClanahan
  */
 public abstract class ContainerBase extends LifecycleMBeanBase

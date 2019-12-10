@@ -81,6 +81,7 @@ import java.util.Set;
  *   resource came from
  * - how to handle PUT when the target is read-only but it could be written to
  *   a higher priority ResourceSet that is read-write
+ *   根路径资源
  */
 public interface WebResourceRoot extends Lifecycle {
     /**
@@ -93,6 +94,7 @@ public interface WebResourceRoot extends Lifecycle {
      *              of the web application. It must start with '/'.
      *
      * @return  The object that represents the resource at the given path
+     * 通过指定的路径查找资源
      */
     WebResource getResource(String path);
 
@@ -108,6 +110,7 @@ public interface WebResourceRoot extends Lifecycle {
      *              of the web application. It must start with '/'.
      *
      * @return  The objects that represents the resource at the given path
+     * 返回目标路径下的一组资源
      */
     WebResource[] getResources(String path);
 
@@ -124,6 +127,7 @@ public interface WebResourceRoot extends Lifecycle {
      *
      * @return  The object that represents the class loader resource at the
      *          given path
+     *          使用类加载器 获取指定路径资源
      */
     WebResource getClassLoaderResource(String path);
 
@@ -141,6 +145,7 @@ public interface WebResourceRoot extends Lifecycle {
      *
      * @return  The objects that represents the class loader resources at the
      *          given path
+     *          获取指定路径下的一组资源
      */
     WebResource[] getClassLoaderResources(String path);
 
@@ -153,6 +158,7 @@ public interface WebResourceRoot extends Lifecycle {
      *
      * @return  The list of resources. If path does not refer to a directory
      *          then a zero length array will be returned.
+     *          获取指定路径下的一组目录
      */
     String[] list(String path);
 
@@ -166,6 +172,7 @@ public interface WebResourceRoot extends Lifecycle {
      *
      * @return  The Set of resources. If path does not refer to a directory
      *          then null will be returned.
+     *          获取指定路径下 所有应用路径
      */
     Set<String> listWebAppPaths(String path);
 
@@ -177,6 +184,7 @@ public interface WebResourceRoot extends Lifecycle {
      *
      * @return  The list of resources. If path does not refer to a directory
      *          then a zero length array will be returned.
+     *          获取指定路径下的一组资源
      */
     WebResource[] listResources(String path);
 
@@ -188,6 +196,7 @@ public interface WebResourceRoot extends Lifecycle {
      *
      * @return  <code>true</code> if the directory was created, otherwise
      *          <code>false</code>
+     *          在指定路径下创建文件夹
      */
     boolean mkdir(String path);
 
@@ -202,9 +211,10 @@ public interface WebResourceRoot extends Lifecycle {
      *                  new Resource.
      * @param overwrite If <code>true</code> and the resource already exists it
      *                  will be overwritten. If <code>false</code> and the
-     *                  resource already exists the write will fail.
+     *                  resource already exists the write will fail.  如果文件存在的话是否进行覆盖
      *
      * @return  <code>true</code> if and only if the new Resource is written
+     * 将 输入流中的数据写入到 目标路径
      */
     boolean write(String path, InputStream is, boolean overwrite);
 
@@ -409,6 +419,7 @@ public interface WebResourceRoot extends Lifecycle {
      * Add a specified resource to track to be able to later release
      * resources on stop.
      * @param trackedResource the resource that will be tracked
+     *                        将某个可追踪的资源对象注册到root上
      */
     void registerTrackedResource(TrackedWebResource trackedResource);
 
@@ -430,6 +441,9 @@ public interface WebResourceRoot extends Lifecycle {
      */
     void gc();
 
+    /**
+     * 资源集合类型
+     */
     enum ResourceSetType {
         PRE,
         RESOURCE_JAR,

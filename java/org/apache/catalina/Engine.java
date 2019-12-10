@@ -39,18 +39,20 @@ package org.apache.catalina;
  * should throw <code>IllegalArgumentException</code>.
  *
  * @author Craig R. McClanahan
+ * 引擎对象 每个 service 会绑定一个 引擎对象
  */
 public interface Engine extends Container {
 
     /**
      * @return the default host name for this Engine.
+     * 获取引擎对应的 host
      */
     public String getDefaultHost();
 
 
     /**
      * Set the default hostname for this Engine.
-     *
+     * 设置默认的host
      * @param defaultHost The new default host
      */
     public void setDefaultHost(String defaultHost);
@@ -64,7 +66,7 @@ public interface Engine extends Container {
 
     /**
      * Set the JvmRouteId for this engine.
-     *
+     * 设置jvm路径  在 cluster 中 每个节点对应唯一一个 jvmId
      * @param jvmRouteId the (new) JVM Route ID. Each Engine within a cluster
      *        must have a unique JVM Route ID.
      */
@@ -72,6 +74,7 @@ public interface Engine extends Container {
 
 
     /**
+     * 获取该 engine对应的 service
      * @return the <code>Service</code> with which we are associated (if any).
      */
     public Service getService();

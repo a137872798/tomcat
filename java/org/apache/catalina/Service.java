@@ -29,6 +29,7 @@ import org.apache.catalina.mapper.Mapper;
  * completely independent of each other and share only the basic JVM facilities
  * and classes on the system class path.
  *
+ * service 属于 server 下的容器 同样实现了 lifecycle 接口
  * @author Craig R. McClanahan
  */
 public interface Service extends Lifecycle {
@@ -38,6 +39,7 @@ public interface Service extends Lifecycle {
     /**
      * @return the <code>Engine</code> that handles requests for all
      * <code>Connectors</code> associated with this Service.
+     * 每个service 对应一个engine  再往下是 host 和 context
      */
     public Engine getContainer();
 
@@ -45,11 +47,13 @@ public interface Service extends Lifecycle {
      * Set the <code>Engine</code> that handles requests for all
      * <code>Connectors</code> associated with this Service.
      *
+     * 为 该service 设置指定的引擎来处理 connector 接收到的请求
      * @param engine The new Engine
      */
     public void setContainer(Engine engine);
 
     /**
+     * 获取本service 对应的名字
      * @return the name of this Service.
      */
     public String getName();
@@ -63,6 +67,7 @@ public interface Service extends Lifecycle {
 
     /**
      * @return the <code>Server</code> with which we are associated (if any).
+     * 获取本service 关联的server 对象
      */
     public Server getServer();
 
@@ -77,6 +82,7 @@ public interface Service extends Lifecycle {
      * @return the parent class loader for this component. If not set, return
      * {@link #getServer()} {@link Server#getParentClassLoader()}. If no server
      * has been set, return the system class loader.
+     * 实际上就是 commonClassLoader
      */
     public ClassLoader getParentClassLoader();
 
@@ -90,6 +96,7 @@ public interface Service extends Lifecycle {
     /**
      * @return the domain under which this container will be / has been
      * registered.
+     * 获取对应的域名
      */
     public String getDomain();
 
@@ -99,6 +106,7 @@ public interface Service extends Lifecycle {
     /**
      * Add a new Connector to the set of defined Connectors, and associate it
      * with this Service's Container.
+     * 为该服务设置 connector (该对象负责处理 http请求 并将数据包封装成req 和 res 对象)
      *
      * @param connector The Connector to be added
      */
@@ -106,7 +114,7 @@ public interface Service extends Lifecycle {
 
     /**
      * Find and return the set of Connectors associated with this Service.
-     *
+     * 获取本service 所有连接器
      * @return the set of associated Connectors
      */
     public Connector[] findConnectors();
@@ -122,6 +130,7 @@ public interface Service extends Lifecycle {
 
     /**
      * Adds a named executor to the service
+     * 设置指定的线程池
      * @param ex Executor
      */
     public void addExecutor(Executor ex);

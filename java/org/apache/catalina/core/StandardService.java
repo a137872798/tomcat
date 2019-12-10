@@ -44,7 +44,7 @@ import org.apache.tomcat.util.res.StringManager;
  * Standard implementation of the <code>Service</code> interface.  The
  * associated Container is generally an instance of Engine, but this is
  * not required.
- *
+ * 标准 service 对象
  * @author Craig R. McClanahan
  */
 
@@ -57,6 +57,7 @@ public class StandardService extends LifecycleMBeanBase implements Service {
 
     /**
      * The name of this service.
+     * 本service  对应的名称
      */
     private String name = null;
 
@@ -74,33 +75,46 @@ public class StandardService extends LifecycleMBeanBase implements Service {
 
     /**
      * The property change support for this component.
+     * java.beans相关的 先不看
      */
     protected final PropertyChangeSupport support = new PropertyChangeSupport(this);
 
 
     /**
      * The set of Connectors associated with this Service.
+     * 每个service 内部维护了 多个负责处理 http 请求的连接对象
      */
     protected Connector connectors[] = new Connector[0];
+    /**
+     * 应该是针对 addConnector 的对象锁
+     */
     private final Object connectorsLock = new Object();
 
     /**
-     *
+     * 内部维护的执行器
      */
     protected final ArrayList<Executor> executors = new ArrayList<>();
 
+    /**
+     * 实际处理请求 会委托给 engine 对象
+     */
     private Engine engine = null;
 
+    /**
+     * commonClassLoader  用于加载 servlet.api 等tomcat全局范围内使用的类加载器
+     */
     private ClassLoader parentClassLoader = null;
 
     /**
      * Mapper.
+     * 映射对象 用于将 http请求 与对应的资源关联起来
      */
     protected final Mapper mapper = new Mapper();
 
 
     /**
      * Mapper listener.
+     * 映射对象监听器
      */
     protected final MapperListener mapperListener = new MapperListener(this);
 
@@ -113,12 +127,20 @@ public class StandardService extends LifecycleMBeanBase implements Service {
     }
 
 
+    /**
+     * 获取 container 就是获取内部的引擎对象
+     * @return
+     */
     @Override
     public Engine getContainer() {
         return engine;
     }
 
 
+    /**
+     * 将引擎对象设置到 service 中
+     * @param engine The new Engine
+     */
     @Override
     public void setContainer(Engine engine) {
         Engine oldEngine = this.engine;
@@ -129,6 +151,7 @@ public class StandardService extends LifecycleMBeanBase implements Service {
         if (this.engine != null) {
             this.engine.setService(this);
         }
+        // 如果当前service 处在启动状态 那么同时启动 engine对象
         if (getState().isAvailable()) {
             if (this.engine != null) {
                 try {
@@ -209,11 +232,13 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      * with this Service's Container.
      *
      * @param connector The Connector to be added
+     *                  往service 中添加 connector 对象
      */
     @Override
     public void addConnector(Connector connector) {
 
         synchronized (connectorsLock) {
+            // 为连接对象设置 service
             connector.setService(this);
             Connector results[] = new Connector[connectors.length + 1];
             System.arraycopy(connectors, 0, results, 0, connectors.length);
@@ -334,6 +359,7 @@ public class StandardService extends LifecycleMBeanBase implements Service {
     /**
      * Adds a named executor to the service
      * @param ex Executor
+     *           这些代码都是类似的
      */
     @Override
     public void addExecutor(Executor ex) {
@@ -524,12 +550,14 @@ public class StandardService extends LifecycleMBeanBase implements Service {
     /**
      * Invoke a pre-startup initialization. This is used to allow connectors
      * to bind to restricted ports under Unix operating environments.
+     * 当上层的 server 触发 init() 后 会往下传播 触发service 的init
      */
     @Override
     protected void initInternal() throws LifecycleException {
 
         super.initInternal();
 
+        // 判断是否存在引擎对象 在的话就进行初始化
         if (engine != null) {
             engine.init();
         }
