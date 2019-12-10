@@ -20,16 +20,34 @@ import java.nio.ByteBuffer;
 
 import org.apache.tomcat.util.buf.ByteBufferUtils;
 
+/**
+ * socket 缓冲区 处理器
+ */
 public class SocketBufferHandler {
 
+    /**
+     * socket 读缓冲区 存储收到的 IO 数据
+     */
     private volatile boolean readBufferConfiguredForWrite = true;
     private volatile ByteBuffer readBuffer;
 
+    /**
+     * socket 写缓冲区 之后会通过内核态 将数据发送到远端
+     */
     private volatile boolean writeBufferConfiguredForWrite = true;
     private volatile ByteBuffer writeBuffer;
 
+    /**
+     * 是否使用堆外内存
+     */
     private final boolean direct;
 
+    /**
+     * 当声明 缓冲区大小后 初始化缓冲区
+     * @param readBufferSize
+     * @param writeBufferSize
+     * @param direct
+     */
     public SocketBufferHandler(int readBufferSize, int writeBufferSize,
             boolean direct) {
         this.direct = direct;
@@ -53,19 +71,27 @@ public class SocketBufferHandler {
     }
 
 
+    /**
+     * 是否为了 写入数据 读取bufferConfiguration
+     * @param readBufferConFiguredForWrite
+     */
     private void setReadBufferConfiguredForWrite(boolean readBufferConFiguredForWrite) {
         // NO-OP if buffer is already in correct state
         if (this.readBufferConfiguredForWrite != readBufferConFiguredForWrite) {
+            // 如果开启了 读取readBuffer配置
             if (readBufferConFiguredForWrite) {
                 // Switching to write
                 int remaining = readBuffer.remaining();
+                // 如果当前buffer内部没有数据 重置相关指针
                 if (remaining == 0) {
                     readBuffer.clear();
                 } else {
+                    // 丢弃掉当前指针之前的数据
                     readBuffer.compact();
                 }
             } else {
                 // Switching to read
+                // 反转成读模式
                 readBuffer.flip();
             }
             this.readBufferConfiguredForWrite = readBufferConFiguredForWrite;
