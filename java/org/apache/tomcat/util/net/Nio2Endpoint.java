@@ -72,6 +72,7 @@ public class Nio2Endpoint extends AbstractJsseEndpoint<Nio2Channel> {
 
     /**
      * Allows detecting if a completion handler completes inline.
+     * 代表是否允许 内联执行
      */
     private static ThreadLocal<Boolean> inlineCompletion = new ThreadLocal<>();
 
@@ -80,6 +81,9 @@ public class Nio2Endpoint extends AbstractJsseEndpoint<Nio2Channel> {
      */
     private AsynchronousChannelGroup threadGroup = null;
 
+    /**
+     * 是否全部关闭
+     */
     private volatile boolean allClosed;
 
     /**

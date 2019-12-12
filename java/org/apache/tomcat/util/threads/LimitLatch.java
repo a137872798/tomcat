@@ -41,8 +41,8 @@ public class LimitLatch {
         }
 
         /**
-         * 注意这里获取锁是共享模式  这样当触发 release 时 所有线程都会被唤醒
-         * 而 每次调用acquire 就会增加一次 count 用于记录当前有效的连接数
+         * 每次调用acquire 就会增加一次 count 用于记录当前有效的连接数
+         * 当调用 release 时 会往下传播 挨个判断该方法是否允许释放
          * @param ignored
          * @return
          */

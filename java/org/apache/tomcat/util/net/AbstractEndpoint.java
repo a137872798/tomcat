@@ -1336,7 +1336,6 @@ public abstract class AbstractEndpoint<S> {
                 return false;
             }
             // 该容器 暂存了所有需要处理的processor 对象 一般只有做异步时才需要一个 额外的队列帮助消费者生产者解耦  同时要很注重任务队列本身的性能问题
-            // TODO 这个 processorCache 到底怎么用
             SocketProcessorBase<S> sc = processorCache.pop();
             if (sc == null) {
                 // 如果当前队列中没有元素 则将当前socket 包装成processor 对象  具体由子类实现

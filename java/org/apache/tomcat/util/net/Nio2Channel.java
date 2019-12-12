@@ -30,6 +30,7 @@ import java.util.concurrent.TimeoutException;
  * Base class for a SocketChannel wrapper used by the endpoint.
  * This way, logic for an SSL socket channel remains the same as for
  * a non SSL, making sure we don't need to code for any exception cases.
+ * nio2Channel 是 基于 AIO的
  */
 public class Nio2Channel implements AsynchronousByteChannel {
 
