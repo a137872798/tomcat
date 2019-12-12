@@ -22,10 +22,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Simple wrapper for a {@link ByteBuffer} that remembers if the buffer has been
  * flipped or not.
+ * byteBuffer 的包装对象  在WriterBuffer中使用 (存在于阻塞双端队列中)
  */
 public class ByteBufferHolder {
 
+    /**
+     * 内部维护的 byteBuffer 对象
+     */
     private final ByteBuffer buf;
+    /**
+     * 该buffer 是否翻转过 (读写模式更改)
+     */
     private final AtomicBoolean flipped;
 
     public ByteBufferHolder(ByteBuffer buf, boolean flipped) {

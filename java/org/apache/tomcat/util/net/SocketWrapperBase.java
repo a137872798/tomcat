@@ -108,11 +108,12 @@ public abstract class SocketWrapperBase<E> {
 
     /**
      * The buffers used for communicating with the socket.
+     * socketBuffer 处理器对象 内部维护一个 writerBuffer 对象 和 一个 ReaderBuffer
      */
     protected volatile SocketBufferHandler socketBufferHandler = null;
 
     /**
-     * The max size of the individual buffered write buffers
+     * The max size of the individual buffered write buffers   每个socket 各自的写缓冲区大小
      */
     protected int bufferedWriteSize = 64 * 1024; // 64k default write buffer
 
@@ -125,9 +126,15 @@ public abstract class SocketWrapperBase<E> {
      * Not that while the Servlet API only allows one non-blocking write at a
      * time, due to buffering and the possible need to write HTTP headers, this
      * layer may see multiple writes.
+     * 该对象内部维护了 一组 bytebuffer 对外暴露 可以将数据转移到 socket的api
      */
     protected final WriteBuffer nonBlockingWriteBuffer = new WriteBuffer(bufferedWriteSize);
 
+    /**
+     * 通过某个socket 对象 进行初始化
+     * @param socket   套接字对象
+     * @param endpoint  该套接字绑定的 端点
+     */
     public SocketWrapperBase(E socket, AbstractEndpoint<E> endpoint) {
         this.socket = socket;
         this.endpoint = endpoint;
@@ -136,10 +143,18 @@ public abstract class SocketWrapperBase<E> {
         this.blockingStatusWriteLock = lock.writeLock();
     }
 
+    /**
+     * 获取内部的 socket 对象
+     * @return
+     */
     public E getSocket() {
         return socket;
     }
 
+    /**
+     * 该 socket 关联的端点对象
+     * @return
+     */
     public AbstractEndpoint<E> getEndpoint() {
         return endpoint;
     }
@@ -171,7 +186,7 @@ public abstract class SocketWrapperBase<E> {
     /**
      * Set the timeout for reading. Values of zero or less will be changed to
      * -1.
-     *
+     * 等待读取的超时时间 -1 代表无明确的超时时间
      * @param readTimeout The timeout in milliseconds. A value of -1 indicates
      *                    an infinite timeout.
      */
@@ -190,7 +205,7 @@ public abstract class SocketWrapperBase<E> {
     /**
      * Set the timeout for writing. Values of zero or less will be changed to
      * -1.
-     *
+     * 获取等待写入的超时时间
      * @param writeTimeout The timeout in milliseconds. A value of zero or less
      *                    indicates an infinite timeout.
      */
@@ -210,12 +225,22 @@ public abstract class SocketWrapperBase<E> {
     public void setKeepAliveLeft(int keepAliveLeft) { this.keepAliveLeft = keepAliveLeft;}
     public int decrementKeepAlive() { return (--keepAliveLeft);}
 
+    // 远端地址和 本机地址如何获取 由子类实现 应该就是基于不同的 socket类型
+
+    /**
+     * 获取远端主机
+     * @return
+     */
     public String getRemoteHost() {
         if (remoteHost == null) {
             populateRemoteHost();
         }
         return remoteHost;
     }
+
+    /**
+     * 填充远端主机  由子类实现
+     */
     protected abstract void populateRemoteHost();
 
     public String getRemoteAddr() {
@@ -268,11 +293,19 @@ public abstract class SocketWrapperBase<E> {
     }
     public SocketBufferHandler getSocketBufferHandler() { return socketBufferHandler; }
 
+    /**
+     * 判断是否有可读的数据
+     * @return
+     */
     public boolean hasDataToRead() {
         // Return true because it is always safe to make a read attempt
         return true;
     }
 
+    /**
+     * 判断是否有可写的数据
+     * @return
+     */
     public boolean hasDataToWrite() {
         return !socketBufferHandler.isWriteBufferEmpty() || !nonBlockingWriteBuffer.isEmpty();
     }
@@ -290,16 +323,22 @@ public abstract class SocketWrapperBase<E> {
      *
      * @return <code>true</code> if no writes are pending and data can be
      *         written otherwise <code>false</code>
+     *         准备进入可写状态
      */
     public boolean isReadyForWrite() {
         boolean result = canWrite();
         if (!result) {
+            // 如果当前不可写 要在选择器上注册写事件
             registerWriteInterest();
         }
         return result;
     }
 
 
+    /**
+     * 判断当前状态是否可写
+     * @return
+     */
     public boolean canWrite() {
         if (socketBufferHandler == null) {
             throw new IllegalStateException(sm.getString("socket.closed"));
@@ -320,20 +359,31 @@ public abstract class SocketWrapperBase<E> {
     }
 
 
+    // 读相关事件由子类实现
     public abstract int read(boolean block, byte[] b, int off, int len) throws IOException;
     public abstract int read(boolean block, ByteBuffer to) throws IOException;
     public abstract boolean isReadyForRead() throws IOException;
     public abstract void setAppReadBufHandler(ApplicationBufferHandler handler);
 
+    /**
+     * 将 socketBufferHandler 内部的数据 转移到 byte[]中
+     * @param b
+     * @param off
+     * @param len
+     * @return
+     */
     protected int populateReadBuffer(byte[] b, int off, int len) {
+        // 将内部的 readBuffer 配置成读模式
         socketBufferHandler.configureReadBufferForRead();
         ByteBuffer readBuffer = socketBufferHandler.getReadBuffer();
         int remaining = readBuffer.remaining();
 
         // Is there enough data in the read buffer to satisfy this request?
         // Copy what data there is in the read buffer to the byte array
+        // 获取可读的数据长度
         if (remaining > 0) {
             remaining = Math.min(remaining, len);
+            // 从起始位置开始 读取指定长度并保存到 byte[] 中
             readBuffer.get(b, off, remaining);
 
             if (log.isDebugEnabled()) {
@@ -344,10 +394,16 @@ public abstract class SocketWrapperBase<E> {
     }
 
 
+    /**
+     * 将 socketBufferHandler 内 readBuffer 的数据 转移到传入的 byteBuffer 中
+     * @param to
+     * @return
+     */
     protected int populateReadBuffer(ByteBuffer to) {
         // Is there enough data in the read buffer to satisfy this request?
         // Copy what data there is in the read buffer to the byte array
         socketBufferHandler.configureReadBufferForRead();
+        // 将 readBuffer 内部的数据转移到 传入的byteBuffer 中
         int nRead = transfer(socketBufferHandler.getReadBuffer(), to);
 
         if (log.isDebugEnabled()) {
@@ -365,12 +421,15 @@ public abstract class SocketWrapperBase<E> {
      * data associated with the upgraded protocol before the HTTP upgrade
      * completes, the HTTP handler may read it. This method provides a way for
      * that data to be returned so it can be processed by the correct component.
+     * 将 参数bytebuffer 内部的数据 写回到 socketBufferHandler 中
      *
      * @param returnedInput The input to return to the input buffer.
      */
     public void unRead(ByteBuffer returnedInput) {
         if (returnedInput != null) {
+            // 将readBuffer 转换成写模式
             socketBufferHandler.configureReadBufferForWrite();
+            // 将数据重新设置进去
             socketBufferHandler.getReadBuffer().put(returnedInput);
         }
     }
@@ -405,6 +464,7 @@ public abstract class SocketWrapperBase<E> {
      * @param len   The length of the data to be written
      *
      * @throws IOException If an IO error occurs during the write
+     * 将byte[] 内的数据写入到 bytebuffer 中
      */
     public final void write(boolean block, byte[] buf, int off, int len) throws IOException {
         if (len == 0 || buf == null) {
@@ -422,6 +482,7 @@ public abstract class SocketWrapperBase<E> {
          *   use of the non-blocking write buffer
          *   TODO: Explore re-factoring options to remove the split into
          *         separate methods
+         *         选择阻塞写入 或者 非阻塞写入
          */
         if (block) {
             writeBlocking(buf, off, len);
@@ -494,15 +555,22 @@ public abstract class SocketWrapperBase<E> {
      * @param len   The length of the data to be written
      *
      * @throws IOException If an IO error occurs during the write
+     * 使用阻塞的方式 将byt[] 中数据写入到 writeBuffer 中
      */
     protected void writeBlocking(byte[] buf, int off, int len) throws IOException {
+        // 将 writeBuffer 转换成 写入状态
         socketBufferHandler.configureWriteBufferForWrite();
+        // 将byte[] 中的数据转移到 writeBuffer 中   为什么要拆分出 一个 readBuffer 和一个 writeBuffer 呢
         int thisTime = transfer(buf, off, len, socketBufferHandler.getWriteBuffer());
+        // 如果当前没有写入空间了
         while (socketBufferHandler.getWriteBuffer().remaining() == 0) {
             len = len - thisTime;
             off = off + thisTime;
+            // 阻塞等待写事件 应该是等待缓冲区的数据写入到 remote
             doWrite(true);
+            // 写入完成后 清理之前缓冲区维护的数据
             socketBufferHandler.configureWriteBufferForWrite();
+            // 将缓冲区中 未写入的数据 继续写入到 buffer 中
             thisTime = transfer(buf, off, len, socketBufferHandler.getWriteBuffer());
         }
     }
@@ -520,20 +588,25 @@ public abstract class SocketWrapperBase<E> {
      * @param from The ByteBuffer containing the data to be written
      *
      * @throws IOException If an IO error occurs during the write
+     * 从某个buffer 中 将数据 写入到remote (也就是等待IO 缓冲区的数据 通过内核态写入到远端主机)
      */
     protected void writeBlocking(ByteBuffer from) throws IOException {
         if (socketBufferHandler.isWriteBufferEmpty()) {
             // Socket write buffer is empty. Write the provided buffer directly
             // to the network.
             // TODO Shouldn't smaller writes be buffered anyway?
+            // 这里尝试直接写入到网络???  是不是此时bytebuffer 已经是堆外内存了
             writeBlockingDirect(from);
         } else {
             // Socket write buffer has some data.
+            // 将缓冲区配置成可写状态 也就是清空 writeBuffer
             socketBufferHandler.configureWriteBufferForWrite();
             // Put as much data as possible into the write buffer
+            // 将参数的数据转移到 writeBuffer 中
             transfer(from, socketBufferHandler.getWriteBuffer());
             // If the buffer is now full, write it to the network and then write
             // the remaining data directly to the network.
+            // 代表没有足够空间 无法再写入了 那么就 阻塞等待 数据写入 到网络
             if (!socketBufferHandler.isWriteBufferWritable()) {
                 doWrite(true);
                 writeBlockingDirect(from);
@@ -548,19 +621,24 @@ public abstract class SocketWrapperBase<E> {
      * @param from The ByteBuffer containing the data to be written
      *
      * @throws IOException If an IO error occurs during the write
+     * 以阻塞方式 将 缓冲区内的数据 直接写入到 网络中
      */
     protected void writeBlockingDirect(ByteBuffer from) throws IOException {
         // The socket write buffer capacity is socket.appWriteBufSize
         // TODO This only matters when using TLS. For non-TLS connections it
         //      should be possible to write the ByteBuffer in a single write
+        // 获取当前可用容量
         int limit = socketBufferHandler.getWriteBuffer().capacity();
+        // 获取 from 内总共需要写入的长度
         int fromLimit = from.limit();
+        // 不断调用doWrite直到将所有数据成功写入到 网络中
         while (from.remaining() >= limit) {
             from.limit(from.position() + limit);
             doWrite(true, from);
             from.limit(fromLimit);
         }
 
+        // 如果还有剩余 那么继续写入到 writeBuffer 中 不过本次没有在继续调用 doWriter 了 看来只有填满 writeBuffer才会写入到网络
         if (from.remaining() > 0) {
             socketBufferHandler.configureWriteBufferForWrite();
             transfer(from, socketBufferHandler.getWriteBuffer());
@@ -584,14 +662,23 @@ public abstract class SocketWrapperBase<E> {
      * @param len   The length of the data to be written
      *
      * @throws IOException If an IO error occurs during the write
+     * 采用非阻塞方式进行写入
      */
     protected void writeNonBlocking(byte[] buf, int off, int len) throws IOException {
+        // 非阻塞 writeBuffer 是基于 writeBuffer 实现的  推测就是先将数据暂存到 writeBuffer 中 之后通过某种异步方式进行写入
+        // 那么 writeBuffer 对象本身的容量就要比 socketBufferHandler.writeBuffer 要大 因为可能暂存了很多的 byteBuffer
         if (nonBlockingWriteBuffer.isEmpty() && socketBufferHandler.isWriteBufferWritable()) {
+            // 首先往 socketBufferHandler 中写入数据
             socketBufferHandler.configureWriteBufferForWrite();
+            // 将byte[] 的数据转移到 bytebuffer 中
             int thisTime = transfer(buf, off, len, socketBufferHandler.getWriteBuffer());
+            // 代表未转移的长度
             len = len - thisTime;
+            // 如果 当前处在不可写入的状态
             while (!socketBufferHandler.isWriteBufferWritable()) {
+                // 更新起始偏移量
                 off = off + thisTime;
+                // 以非阻塞方式写入  推测只是将数据写入到 WriteBuffer 中 并返回  (并没有写入到网络中)
                 doWrite(false);
                 if (len > 0 && socketBufferHandler.isWriteBufferWritable()) {
                     socketBufferHandler.configureWriteBufferForWrite();
@@ -606,6 +693,7 @@ public abstract class SocketWrapperBase<E> {
             }
         }
 
+        // 如果还有其他数据 那么就写入 到 nonBlockingWriteBuffer 中
         if (len > 0) {
             // Remaining data must be buffered
             nonBlockingWriteBuffer.add(buf, off, len);
@@ -627,6 +715,7 @@ public abstract class SocketWrapperBase<E> {
      * @param from The ByteBuffer containing the data to be written
      *
      * @throws IOException If an IO error occurs during the write
+     * 从 byteBuffer 中将数据以非阻塞方式写入
      */
     protected void writeNonBlocking(ByteBuffer from)
             throws IOException {
@@ -1195,6 +1284,14 @@ public abstract class SocketWrapperBase<E> {
 
     // --------------------------------------------------------- Utility methods
 
+    /**
+     * 在阻塞状态下 转移数据
+     * @param from
+     * @param offset
+     * @param length
+     * @param to
+     * @return
+     */
     protected static int transfer(byte[] from, int offset, int length, ByteBuffer to) {
         int max = Math.min(length, to.remaining());
         if (max > 0) {
@@ -1203,12 +1300,22 @@ public abstract class SocketWrapperBase<E> {
         return max;
     }
 
+    /**
+     * 从 from 中转移数据到 to
+     * @param from
+     * @param to
+     * @return
+     */
     protected static int transfer(ByteBuffer from, ByteBuffer to) {
+        // 获取较小的 byteBuffer 的容量 作为 可复制数据大小
         int max = Math.min(from.remaining(), to.remaining());
         if (max > 0) {
             int fromLimit = from.limit();
+            // 重新设置 limit 标识
             from.limit(from.position() + max);
+            // 使用内部 api 进行转换
             to.put(from);
+            // 恢复 limit 标志位
             from.limit(fromLimit);
         }
         return max;
