@@ -28,30 +28,60 @@ import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * socket 包装对象基类
+ * @param <E>
+ */
 public abstract class SocketWrapperBase<E> {
 
     private static final Log log = LogFactory.getLog(SocketWrapperBase.class);
 
     protected static final StringManager sm = StringManager.getManager(SocketWrapperBase.class);
 
+    /**
+     * 套接字实现类型 可能是  BIO socket 也可能是 nio socket
+     */
     private final E socket;
+    /**
+     * 该套接字是绑定在哪个端口上的  因为可能会开启 tcp选项 使得一个端口可以绑定多个socket
+     */
     private final AbstractEndpoint<E> endpoint;
 
     // Volatile because I/O and setting the timeout values occurs on a different
-    // thread to the thread checking the timeout.
+    // thread to the thread checking the timeout.  该对象本身会在多线程中被并发访问 所以相关变量要用 volatile 修饰
+    // 阻塞等待 socket 读取/写入超时时间
     private volatile long readTimeout = -1;
     private volatile long writeTimeout = -1;
 
+    /**
+     * socket 存活时间
+     */
     private volatile int keepAliveLeft = 100;
+    /**
+     * 是否升级
+     */
     private volatile boolean upgraded = false;
+    /**
+     * 请求体是否加密
+     */
     private boolean secure = false;
+    /**
+     * 谈判协议
+     */
     private String negotiatedProtocol = null;
     /*
-     * Following cached for speed / reduced GC
+     * Following cached for speed / reduced GC     socket 本端地址
      */
     protected String localAddr = null;
+    /**
+     * 本地名称
+     */
     protected String localName = null;
+    /**
+     * 端口
+     */
     protected int localPort = -1;
+    // 远端地址
     protected String remoteAddr = null;
     protected String remoteHost = null;
     protected int remotePort = -1;
@@ -60,12 +90,19 @@ public abstract class SocketWrapperBase<E> {
      * responsible for the thread-safe use of this field via the locks provided.
      */
     private volatile boolean blockingStatus = true;
+    /**
+     * 阻塞状态 读锁
+     */
     private final Lock blockingStatusReadLock;
+    /**
+     * 阻塞状态写锁
+     */
     private final WriteLock blockingStatusWriteLock;
     /*
      * Used to record the first IOException that occurs during non-blocking
      * read/writes that can't be usefully propagated up the stack since there is
      * no user code or appropriate container code in the stack to handle it.
+     * 记录首个 IO 异常
      */
     private volatile IOException error = null;
 

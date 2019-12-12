@@ -27,11 +27,16 @@ import java.util.concurrent.TimeUnit;
  * executor. If you use a normal queue, the executor will spawn threads when
  * there are idle threads and you wont be able to force items onto the queue
  * itself.
+ *
+ * tomcat 内部线程池 使用的配套阻塞队列
  */
 public class TaskQueue extends LinkedBlockingQueue<Runnable> {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * 这个线程池 不是 JUC 的线程池 而是tomcat 单独拓展的
+     */
     private transient volatile ThreadPoolExecutor parent = null;
 
     // No need to be volatile. This is written and read in a single thread
@@ -54,6 +59,11 @@ public class TaskQueue extends LinkedBlockingQueue<Runnable> {
         parent = tp;
     }
 
+    /**
+     * 强制将任务加入到 阻塞队列中
+     * @param o
+     * @return
+     */
     public boolean force(Runnable o) {
         if (parent == null || parent.isShutdown()) throw new RejectedExecutionException("Executor not running, can't force a command into the queue");
         return super.offer(o); //forces the item onto the queue, to be used if the task is rejected

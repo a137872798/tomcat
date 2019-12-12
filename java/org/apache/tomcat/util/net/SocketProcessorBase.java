@@ -18,9 +18,19 @@ package org.apache.tomcat.util.net;
 
 import java.util.Objects;
 
+/**
+ * socket 处理器基类
+ * @param <S>
+ */
 public abstract class SocketProcessorBase<S> implements Runnable {
 
+    /**
+     * 内部包含一个 socket 的包装对象
+     */
     protected SocketWrapperBase<S> socketWrapper;
+    /**
+     * 本次socket 相关事件
+     */
     protected SocketEvent event;
 
     public SocketProcessorBase(SocketWrapperBase<S> socketWrapper, SocketEvent event) {

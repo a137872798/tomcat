@@ -33,6 +33,7 @@ import org.ietf.jgss.GSSContext;
  * level, but will typically only be attached to a Context, or higher level,
  * Container.
  *
+ * 角色认证相关的接口
  * @author Craig R. McClanahan
  */
 public interface Realm {

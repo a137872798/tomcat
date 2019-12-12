@@ -51,6 +51,10 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @author Craig R. McClanahan
  * @author Remy Maucherat
+ * 连接器对象 用于接入http请求 并转发给 container
+ *
+ * 首先tomcat.connector 有3种启动方式  基于 BIO NIO APR    apr跟操作系统相关 性能比NIO 更好
+ * 使用2种协议  HTTP AJP  AJP是从其他webServer接收请求  而目前常用的前端服务器 Nginx 是不支持AJP协议的所以可以忽略
  */
 public class Connector extends LifecycleMBeanBase  {
 
@@ -66,15 +70,24 @@ public class Connector extends LifecycleMBeanBase  {
 
     // ------------------------------------------------------------ Constructor
 
+    /**
+     * 代表默认实现
+     */
     public Connector() {
         this(null);
     }
 
+    /**
+     * 指定了某个协议后生成的连接对象
+     * @param protocol
+     */
     public Connector(String protocol) {
+        // 设置协议字段
         setProtocol(protocol);
         // Instantiate protocol handler
         ProtocolHandler p = null;
         try {
+            // 初始化对应的协议实现类
             Class<?> clazz = Class.forName(protocolHandlerClassName);
             p = (ProtocolHandler) clazz.getConstructor().newInstance();
         } catch (Exception e) {
@@ -84,9 +97,11 @@ public class Connector extends LifecycleMBeanBase  {
             this.protocolHandler = p;
         }
 
+        // 判断是否严格遵守servlet法规  是的话 使用 ISO_8859_1 作为字符集
         if (Globals.STRICT_SERVLET_COMPLIANCE) {
             uriCharset = StandardCharsets.ISO_8859_1;
         } else {
+            // 否则优先使用 UTF-8
             uriCharset = StandardCharsets.UTF_8;
         }
     }
@@ -97,36 +112,42 @@ public class Connector extends LifecycleMBeanBase  {
 
     /**
      * The <code>Service</code> we are associated with (if any).
+     * 该连接器会将请求发往哪个 service
      */
     protected Service service = null;
 
 
     /**
      * Do we allow TRACE ?
+     * 是否记录轨迹
      */
     protected boolean allowTrace = false;
 
 
     /**
      * Default timeout for asynchronous requests (ms).
+     * 处理异步请求的默认超时时间
      */
     protected long asyncTimeout = 30000;
 
 
     /**
      * The "enable DNS lookups" flag for this Connector.
+     * 是否允许使用DNS 进行查找
      */
     protected boolean enableLookups = false;
 
 
     /*
      * Is generation of X-Powered-By response header enabled/disabled?
+     * 是否生成 X-Powered-By 响应头   这里会泄露服务端信息
      */
     protected boolean xpoweredBy = false;
 
 
     /**
      * The port number on which we listen for requests.
+     * 默认监听端口为 -1
      */
     protected int port = -1;
 
@@ -136,6 +157,7 @@ public class Connector extends LifecycleMBeanBase  {
      * were directed.  This is useful when operating Tomcat behind a proxy
      * server, so that redirects get constructed accurately.  If not specified,
      * the server name included in the <code>Host</code> header is used.
+     * 当想要将 tomcat 装扮成一个代理服务器时 会使用这个字段
      */
     protected String proxyName = null;
 
@@ -145,12 +167,14 @@ public class Connector extends LifecycleMBeanBase  {
      * were directed.  This is useful when operating Tomcat behind a proxy
      * server, so that redirects get constructed accurately.  If not specified,
      * the port number specified by the <code>port</code> property is used.
+     * 代理端口
      */
     protected int proxyPort = 0;
 
 
     /**
      * The redirect port for non-SSL to SSL redirects.
+     * 默认使用的 SSL 端口为 443
      */
     protected int redirectPort = 443;
 
@@ -165,6 +189,7 @@ public class Connector extends LifecycleMBeanBase  {
     /**
      * The secure connection flag that will be set on all requests received
      * through this connector.
+     * 默认不加密
      */
     protected boolean secure = false;
 
@@ -178,6 +203,7 @@ public class Connector extends LifecycleMBeanBase  {
     /**
      * The maximum number of cookies permitted for a request. Use a value less
      * than zero for no limit. Defaults to 200.
+     * cookie 本身是有大小限制的
      */
     private int maxCookieCount = 200;
 
@@ -185,12 +211,14 @@ public class Connector extends LifecycleMBeanBase  {
      * The maximum number of parameters (GET plus POST) which will be
      * automatically parsed by the container. 10000 by default. A value of less
      * than 0 means no limit.
+     * 一次请求允许携带的最大参数数量 为10000
      */
     protected int maxParameterCount = 10000;
 
     /**
      * Maximum size of a POST which will be automatically parsed by the
      * container. 2MB by default.
+     * POST 请求携带的数据体大小最多为 2MB
      */
     protected int maxPostSize = 2 * 1024 * 1024;
 
@@ -198,6 +226,7 @@ public class Connector extends LifecycleMBeanBase  {
     /**
      * Maximum size of a POST which will be saved by the container
      * during authentication. 4kB by default
+     * 当权限验证时 允许存储在 container的最大请求体为4M
      */
     protected int maxSavePostSize = 4 * 1024;
 
@@ -215,6 +244,7 @@ public class Connector extends LifecycleMBeanBase  {
 
     /**
      * Flag to use IP-based virtual hosting.
+     * 使用是否虚拟主机
      */
     protected boolean useIPVHosts = false;
 
@@ -229,12 +259,14 @@ public class Connector extends LifecycleMBeanBase  {
 
     /**
      * Coyote protocol handler.
+     * 协议解析器
      */
     protected final ProtocolHandler protocolHandler;
 
 
     /**
      * Coyote adapter.
+     * 适配器对象
      */
     protected Adapter adapter = null;
 
@@ -264,6 +296,9 @@ public class Connector extends LifecycleMBeanBase  {
     protected boolean useBodyEncodingForURI = false;
 
 
+    /**
+     * 存放替换信息的 map
+     */
     protected static final HashMap<String,String> replacements = new HashMap<>();
     static {
         replacements.put("acceptCount", "backlog");
@@ -286,6 +321,7 @@ public class Connector extends LifecycleMBeanBase  {
         if (replacements.get(name) != null) {
             repl = replacements.get(name);
         }
+        // 从handler 中获取属性
         return IntrospectionUtils.getProperty(protocolHandler, repl);
     }
 
@@ -575,6 +611,7 @@ public class Connector extends LifecycleMBeanBase  {
      *
      * @deprecated Will be removed in Tomcat 9. Protocol must be configured via
      *             the constructor
+     *             设置协议字段
      */
     @Deprecated
     public void setProtocol(String protocol) {
@@ -582,12 +619,16 @@ public class Connector extends LifecycleMBeanBase  {
         boolean aprConnector = AprLifecycleListener.isAprAvailable() &&
                 AprLifecycleListener.getUseAprConnector();
 
+        // 一般情况都是使用 HTTP 协议
         if ("HTTP/1.1".equals(protocol) || protocol == null) {
+
+            // 看来 8.5 已经不支持 BIO了
             if (aprConnector) {
                 setProtocolHandlerClassName("org.apache.coyote.http11.Http11AprProtocol");
             } else {
                 setProtocolHandlerClassName("org.apache.coyote.http11.Http11NioProtocol");
             }
+        // AJP 的先不看
         } else if ("AJP/1.3".equals(protocol)) {
             if (aprConnector) {
                 setProtocolHandlerClassName("org.apache.coyote.ajp.AjpAprProtocol");

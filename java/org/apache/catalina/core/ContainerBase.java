@@ -123,7 +123,8 @@ import org.apache.tomcat.util.res.StringManager;
  * </table>
  * Subclasses that fire additional events should document them in the
  * class comments of the implementation class.
- * 容器基类  engine  host wrapper context 都继承于该类
+ *
+ * 容器基类
  * @author Craig R. McClanahan
  */
 public abstract class ContainerBase extends LifecycleMBeanBase
@@ -159,12 +160,14 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
     /**
      * The child Containers belonging to this Container, keyed by name.
+     * 每个容器往下 可以维护一组子容器
      */
     protected final HashMap<String, Container> children = new HashMap<>();
 
 
     /**
      * The processor delay for this component.
+     * 处理组件 延时
      */
     protected int backgroundProcessorDelay = -1;
 
@@ -174,6 +177,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      * CopyOnWriteArrayList since listeners may invoke methods to add/remove
      * themselves or other listeners and with a ReadWriteLock that would trigger
      * a deadlock.
+     * 该容器关联的监听器
      */
     protected final List<ContainerListener> listeners = new CopyOnWriteArrayList<>();
 
@@ -204,18 +208,21 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
     /**
      * The parent Container to which this Container is a child.
+     * 该容器关联的 父容器
      */
     protected Container parent = null;
 
 
     /**
      * The parent class loader to be configured when we install a Loader.
+     * 父容器对应的类加载器
      */
     protected ClassLoader parentClassLoader = null;
 
 
     /**
      * The Pipeline object with which this Container is associated.
+     * 每个容器 会关联一个管道对象
      */
     protected final Pipeline pipeline = new StandardPipeline(this);
 
@@ -241,6 +248,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
     /**
      * Will children be started automatically when they are added.
+     * 当添加某个child 时 是否自动启动
      */
     protected boolean startChildren = true;
 
@@ -253,12 +261,14 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
     /**
      * The background thread.
+     * 后台线程
      */
     private Thread thread = null;
 
 
     /**
      * The background thread completion semaphore.
+     * 后台线程是否已经启动
      */
     private volatile boolean threadDone = false;
 

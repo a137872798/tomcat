@@ -26,17 +26,28 @@ import org.apache.tomcat.util.security.PrivilegedSetTccl;
 /**
  * Simple task thread factory to use to create threads for an executor
  * implementation.
+ * 特殊的线程工厂  用于产生 TaskThread  配合专用的线程池实现 热部署
  */
 public class TaskThreadFactory implements ThreadFactory {
 
+    /**
+     * 生成的线程同属于一个线程组
+     */
     private final ThreadGroup group;
+    /**
+     * 全局标识 用于生成唯一线程名
+     */
     private final AtomicInteger threadNumber = new AtomicInteger(1);
+    /**
+     * 线程名前缀
+     */
     private final String namePrefix;
     private final boolean daemon;
     private final int threadPriority;
 
     public TaskThreadFactory(String namePrefix, boolean daemon, int priority) {
         SecurityManager s = System.getSecurityManager();
+        // 以当前线程所在线程组 为 基准 之后创建的线程都会在这个组中
         group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
         this.namePrefix = namePrefix;
         this.daemon = daemon;
@@ -45,6 +56,7 @@ public class TaskThreadFactory implements ThreadFactory {
 
     @Override
     public Thread newThread(Runnable r) {
+        // 创建一个新线程
         TaskThread t = new TaskThread(group, r, namePrefix + threadNumber.getAndIncrement());
         t.setDaemon(daemon);
         t.setPriority(threadPriority);
@@ -57,6 +69,7 @@ public class TaskThreadFactory implements ThreadFactory {
                     t, getClass().getClassLoader());
             AccessController.doPrivileged(pa);
         } else {
+            // 使用指定的类加载器  一般就是 commonClassLoader 也就是tomcat 核心组件 默认不是由 AppClassLoader进行加载的
             t.setContextClassLoader(getClass().getClassLoader());
         }
 

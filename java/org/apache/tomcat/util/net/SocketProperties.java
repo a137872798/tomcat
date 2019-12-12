@@ -30,6 +30,7 @@ import javax.management.ObjectName;
  * Properties that can be set in the &lt;Connector&gt; element
  * in server.xml. All properties are prefixed with &quot;socket.&quot;
  * and are currently only working for the Nio connector
+ * 套接字相关属性
  */
 public class SocketProperties {
 
@@ -39,6 +40,7 @@ public class SocketProperties {
      * Default is 500
      * -1 is unlimited
      * 0 is disabled
+     * 通过读写缓存的方式  减少GC
      */
     protected int processorCache = 500;
 
@@ -49,42 +51,49 @@ public class SocketProperties {
      * -1 is unlimited
      * 0 is disabled
      * &gt;0 the max number of objects to keep in cache.
+     * pollerEvent 缓存数量限制
      */
     protected int eventCache = 500;
 
     /**
      * Enable/disable direct buffers for the network buffers
      * Default value is disabled
+     * 是否使用堆外内存
      */
     protected boolean directBuffer = false;
 
     /**
      * Enable/disable direct buffers for the network buffers for SSL
      * Default value is disabled
+     * 监听 https 请求对应的堆外buffer
      */
     protected boolean directSslBuffer = false;
 
     /**
      * Socket receive buffer size in bytes (SO_RCVBUF).
      * JVM default used if not set.
+     * 接收数据的IO缓冲区大小
      */
     protected Integer rxBufSize = null;
 
     /**
      * Socket send buffer size in bytes (SO_SNDBUF).
      * JVM default used if not set.
+     * 发送数据的IO缓冲区大小
      */
     protected Integer txBufSize = null;
 
     /**
      * The application read buffer size in bytes.
      * Default value is rxBufSize
+     * 应用级别读缓存区大小
      */
     protected int appReadBufSize = 8192;
 
     /**
      * The application write buffer size in bytes
      * Default value is txBufSize
+     * 应用级别写缓冲区大小
      */
     protected int appWriteBufSize = 8192;
 
@@ -93,6 +102,7 @@ public class SocketProperties {
      * this value is how many channels
      * -1 means unlimited cached, 0 means no cache
      * Default value is 500
+     * channel 的创建应该是 比较繁琐的 那么通过池化 避免重复创建
      */
     protected int bufferPool = 500;
 
@@ -100,43 +110,46 @@ public class SocketProperties {
      * Buffer pool size in bytes to be cached
      * -1 means unlimited, 0 means no cache
      * Default value is 100MB (1024*1024*100 bytes)
+     * 缓冲池的大小   默认为100M
      */
     protected int bufferPoolSize = 1024*1024*100;
 
     /**
      * TCP_NO_DELAY option. JVM default used if not set.
+     * 原本 TCP 协议会将小的数据包 整合成大的 并批量发送  使用该选项后 无论数据包多小 都会执行一次数据发送
      */
     protected Boolean tcpNoDelay = Boolean.TRUE;
 
     /**
      * SO_KEEPALIVE option. JVM default used if not set.
+     * 是否要开启 失活检测
      */
     protected Boolean soKeepAlive = null;
 
     /**
-     * OOBINLINE option. JVM default used if not set.
+     * OOBINLINE option. JVM default used if not set. TCP 紧急模式 一些特殊的数据会想要被对端优先收到 它有不同于 普通数据包的规则 先不细看
      */
     protected Boolean ooBInline = null;
 
     /**
-     * SO_REUSEADDR option. JVM default used if not set.
+     * SO_REUSEADDR option. JVM default used if not set.  使得某个端口 断开连接后能立即被绑定 而不用等待 time-wait
      */
     protected Boolean soReuseAddress = null;
 
     /**
      * SO_LINGER option, paired with the <code>soLingerTime</code> value.
-     * JVM defaults used unless both attributes are set.
+     * JVM defaults used unless both attributes are set.   代表在关闭tcp 连接时(即调用close() 时 立即返回) 并丢弃未发送的数据
      */
     protected Boolean soLingerOn = null;
 
     /**
-     * SO_LINGER option, paired with the <code>soLingerOn</code> value.
+     * SO_LINGER option, paired with the <code>soLingerOn</code> value.   代表close() 允许等待的时间 如果超过该时间还没有发送完数据 那么就丢弃 同时恢复close的阻塞
      * JVM defaults used unless both attributes are set.
      */
     protected Integer soLingerTime = null;
 
     /**
-     * SO_TIMEOUT option. default is 20000.
+     * SO_TIMEOUT option. default is 20000.    代表等待客户端连接超时时间
      */
     protected Integer soTimeout = Integer.valueOf(20000);
 
@@ -178,6 +191,11 @@ public class SocketProperties {
     private ObjectName oname = null;
 
 
+    /**
+     * 传入一个套接字对象 并将相关属性设置进去
+     * @param socket
+     * @throws SocketException
+     */
     public void setProperties(Socket socket) throws SocketException{
         if (rxBufSize != null)
             socket.setReceiveBufferSize(rxBufSize.intValue());

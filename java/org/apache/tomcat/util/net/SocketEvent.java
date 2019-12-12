@@ -20,33 +20,39 @@ package org.apache.tomcat.util.net;
  * Defines events that occur per socket that require further processing by the
  * container. Usually these events are triggered by the socket implementation
  * but they may be triggered by the container.
+ * 代表当前套接字的状态
  */
 public enum SocketEvent {
 
     /**
      * Data is available to be read.
+     * 当前套接字准备好 读取事件
      */
     OPEN_READ,
 
     /**
      * The socket is ready to be written to.
+     * 当前套接字准备好 写入事件
      */
     OPEN_WRITE,
 
     /**
      * The associated Connector/Endpoint is stopping and the connection/socket
      * needs to be closed cleanly.
+     * 代表套接字关联的 端点或者连接对象被关闭
      */
     STOP,
 
     /**
      * A timeout has occurred and the connection needs to be closed cleanly.
      * Currently this is only used by the Servlet 3.0 async processing.
+     * 代表某个连接处理超时了 仅仅支持 servlet 3.0 版本
      */
     TIMEOUT,
 
     /**
      * The client has disconnected.
+     * 当前客户端断开连接
      */
     DISCONNECT,
 
@@ -59,6 +65,7 @@ public enum SocketEvent {
      * <li>by the container to signal an I/O error on a non-container thread
      *     during Servlet 3.0 asynchronous processing.</li>
      * </ul>
+     * 代表在非容器线程发生异常
      */
     ERROR,
 
@@ -68,6 +75,7 @@ public enum SocketEvent {
      * <ul>
      * <li>TLS handshake failures</li>
      * </ul>
+     * 代表client 尝试创建连接 但是失败了
      */
     CONNECT_FAIL
 }
