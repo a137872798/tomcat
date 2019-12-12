@@ -16,6 +16,9 @@
  */
 package org.apache.tomcat.util.net;
 
+/**
+ * tomcat 封装的 socket对象可以发送文件数据
+ */
 public abstract class SendfileDataBase {
 
     /**
@@ -29,6 +32,7 @@ public abstract class SendfileDataBase {
     /**
      * The full path to the file that contains the data to be written to the
      * socket.
+     * 对应的文件名
      */
     public final String fileName;
 
@@ -36,6 +40,7 @@ public abstract class SendfileDataBase {
      * The position of the next byte in the file to be written to the socket.
      * This is initialised to the start point and then updated as the file is
      * written.
+     * 代表写入文件的起始偏移量
      */
     public long pos;
 

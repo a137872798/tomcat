@@ -113,7 +113,7 @@ public abstract class AbstractEndpoint<S> {
          * Release any resources associated with the given SocketWrapper.
          *
          * @param socketWrapper The socketWrapper to release resources for
-         *                      释放该 socketWrapper 相关资源
+         *                      实际上代表某个端点关闭套接字
          */
         public void release(SocketWrapperBase<S> socketWrapper);
 
@@ -159,6 +159,9 @@ public abstract class AbstractEndpoint<S> {
             return state;
         }
 
+        /**
+         * 接收器对象会记录当前绑定线程的名字
+         */
         private String threadName;
 
         protected final void setThreadName(final String threadName) {
@@ -172,7 +175,7 @@ public abstract class AbstractEndpoint<S> {
 
 
     /**
-     * 异常延时 ???
+     * 初始化异常的 时间间隔
      */
     private static final int INITIAL_ERROR_DELAY = 50;
     /**
@@ -208,7 +211,7 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * Are we using an internal executor
-     * 是否使用内部线程池执行
+     * 如果该对象 设置了自己专有的线程池 那么该标识为 true
      */
     protected volatile boolean internalExecutor = true;
 
@@ -230,12 +233,15 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * Threads used to accept new connections and pass them to worker threads.
-     * 该端点关联的一组 接收器对象
+     * 该端点关联的一组 接收器对象  如果开启了某个 tcp 选项 那么 某个端口是可以绑定多个套接字的
      */
     protected Acceptor[] acceptors;
 
     /**
      * Cache for SocketProcessor objects
+     *
+     * SocketProcessorBase 包含了处理socket 相关事件的逻辑
+     * 这里使用了一个叫做同步栈的容器  就是一个基于 数组的 stack 不过核心方法 都使用 synchronized 修饰
      */
     protected SynchronizedStack<SocketProcessorBase<S>> processorCache;
 
@@ -435,8 +441,11 @@ public abstract class AbstractEndpoint<S> {
     }
 
 
+    // 上面 SSL 相关的先不看
+
     /**
      * Has the user requested that send file be used where possible?
+     * 是否在可能的地方支持发送文件
      */
     private boolean useSendfile = true;
 
@@ -452,6 +461,7 @@ public abstract class AbstractEndpoint<S> {
     /**
      * Time to wait for the internal executor (if used) to terminate when the
      * endpoint is stopped in milliseconds. Defaults to 5000 (5 seconds).
+     * 当某个 端点终止时 等待内部线程池重建线程的时间
      */
     private long executorTerminationTimeoutMillis = 5000;
 
@@ -467,6 +477,7 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * Acceptor thread count.
+     * acceptor 线程数量
      */
     protected int acceptorThreadCount = 1;
 
@@ -481,6 +492,7 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * Priority of the acceptor threads.
+     * 接收器使用的线程默认优先级
      */
     protected int acceptorThreadPriority = Thread.NORM_PRIORITY;
 
@@ -493,18 +505,27 @@ public abstract class AbstractEndpoint<S> {
     }
 
 
+    /**
+     * 某个端点允许接口的最大连接数
+     */
     private int maxConnections = 10000;
 
+    /**
+     * 通过 latch 对象来限制 最大连接数
+     * @param maxCon
+     */
     public void setMaxConnections(int maxCon) {
         this.maxConnections = maxCon;
         LimitLatch latch = this.connectionLimitLatch;
         if (latch != null) {
-            // Update the latch that enforces this
+            // Update the latch that enforces this   -1 代表没有对连接数做限制
             if (maxCon == -1) {
                 releaseConnectionLatch();
             } else {
+                // 设置 阀门的阀值
                 latch.setLimit(maxCon);
             }
+            // 代表 latch 对象还没有被创建
         } else if (maxCon > 0) {
             initializeConnectionLatch();
         }
@@ -527,6 +548,7 @@ public abstract class AbstractEndpoint<S> {
      * actual count of connections that are being served.
      *
      * @return The count
+     * 获取当前连接数   -1 代表没有做限制 同时也没有做记录
      */
     public long getConnectionCount() {
         LimitLatch latch = connectionLimitLatch;
@@ -538,6 +560,7 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * External Executor based thread pool.
+     * 内部使用的线程池  一般是和 service 共享线程池
      */
     private Executor executor = null;
 
@@ -565,6 +588,10 @@ public abstract class AbstractEndpoint<S> {
     }
 
 
+    /**
+     * 获取本端点关联地址 并返回端口号
+     * @return
+     */
     public final int getLocalPort() {
         try {
             InetSocketAddress localAddress = getLocalAddress();
@@ -580,6 +607,7 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * Address for the server socket.
+     * 该端点 对应的地址
      */
     private InetAddress address;
 
@@ -610,6 +638,7 @@ public abstract class AbstractEndpoint<S> {
      * Allows the server developer to specify the acceptCount (backlog) that
      * should be used for server sockets. By default, this value
      * is 100.
+     * 允许开发者指定连接数到 socket
      */
     private int acceptCount = 100;
 
@@ -636,6 +665,7 @@ public abstract class AbstractEndpoint<S> {
      * binds the port on {@link #init()} and unbinds it on {@link #destroy()}.
      * If set to <code>false</code> the port is bound on {@link #start()} and
      * unbound on {@link #stop()}.
+     * 是否要在 init 时进行 端口绑定 如果没设置 则是在 start 时进行端口绑定
      */
     private boolean bindOnInit = true;
 
@@ -647,10 +677,14 @@ public abstract class AbstractEndpoint<S> {
         this.bindOnInit = b;
     }
 
+    /**
+     * 记录端点的绑定状态 默认是未绑定
+     */
     private volatile BindState bindState = BindState.UNBOUND;
 
     /**
      * Keepalive timeout, if not set the soTimeout is used.
+     * 探测心跳时间间隔
      */
     private Integer keepAliveTimeout = null;
 
@@ -672,6 +706,7 @@ public abstract class AbstractEndpoint<S> {
      *
      * @return The current TCP no delay setting for sockets created by this
      * endpoint
+     * 是否开启了 无延迟
      */
     public boolean getTcpNoDelay() {
         return socketProperties.getTcpNoDelay();
@@ -751,14 +786,23 @@ public abstract class AbstractEndpoint<S> {
      *
      * @return <code>true</code> if the endpoint supports ALPN in its current
      * configuration, otherwise <code>false</code>.
+     * 也是类似于一种安全协议 先不看
      */
     public abstract boolean isAlpnSupported();
 
+    /**
+     * 最小的共享线程数
+     */
     private int minSpareThreads = 10;
 
+    /**
+     * 设置线程池的核心线程数
+     * @param minSpareThreads
+     */
     public void setMinSpareThreads(int minSpareThreads) {
         this.minSpareThreads = minSpareThreads;
         Executor executor = this.executor;
+        // tomcat 内置的标准线程池 是JUC.ThreadPoolExecutor的子类 也满足这个条件
         if (internalExecutor && executor instanceof java.util.concurrent.ThreadPoolExecutor) {
             // The internal executor should always be an instance of
             // j.u.c.ThreadPoolExecutor but it may be null if the endpoint is
@@ -783,6 +827,7 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * Maximum amount of worker threads.
+     * 允许的最大线程数
      */
     private int maxThreads = 200;
 
@@ -828,6 +873,7 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * Max keep alive requests
+     * 最大存活请求数???
      */
     private int maxKeepAliveRequests = 100; // as in Apache HTTPD server
 
@@ -842,6 +888,7 @@ public abstract class AbstractEndpoint<S> {
     /**
      * The maximum number of headers in a request that are allowed.
      * 100 by default. A value of less than 0 means no limit.
+     * 某个请求允许的请求头数量  如果为负数代表没有限制
      */
     private int maxHeaderCount = 100; // as in Apache HTTPD server
 
@@ -855,6 +902,7 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * Name of the thread pool, which will be used for naming child threads.
+     * 线程池子线程使用的名称前缀
      */
     private String name = "TP";
 
@@ -885,6 +933,7 @@ public abstract class AbstractEndpoint<S> {
      * The default is true - the created threads will be
      * in daemon mode. If set to false, the control thread
      * will not be daemon - and will keep the process alive.
+     * 创建的线程是否为守护线程
      */
     private boolean daemon = true;
 
@@ -899,6 +948,7 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * Expose asynchronous IO capability.
+     * 是否具备异步 IO 的能力
      */
     private boolean useAsyncIO = true;
 
@@ -911,11 +961,19 @@ public abstract class AbstractEndpoint<S> {
     }
 
 
+    /**
+     * 是否开启了延迟接收
+     * @return
+     */
     protected abstract boolean getDeferAccept();
 
 
+    /**
+     * 允许接收的协议
+     */
     protected final List<String> negotiableProtocols = new ArrayList<>();
 
+    // 针对协议容器的操作 都不是线程安全的 是通过什么方式来规避 并发问题的呢
     public void addNegotiatedProtocol(String negotiableProtocol) {
         negotiableProtocols.add(negotiableProtocol);
     }
@@ -927,6 +985,7 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * Handling of accepted sockets.
+     * 该端点上 用于处理socket 收到请求 的处理器
      */
     private Handler<S> handler = null;
 
@@ -943,6 +1002,7 @@ public abstract class AbstractEndpoint<S> {
      * Attributes provide a way for configuration to be passed to sub-components
      * without the {@link org.apache.coyote.ProtocolHandler} being aware of the
      * properties available on those sub-components.
+     * 通过包含一个 属性容器的方式 维护额外的属性
      */
     protected HashMap<String, Object> attributes = new HashMap<>();
 
@@ -979,10 +1039,18 @@ public abstract class AbstractEndpoint<S> {
     }
 
 
+    /**
+     * 将某个属性设置到 端点中
+     * @param name
+     * @param value
+     * @return
+     */
     public boolean setProperty(String name, String value) {
+        // 首先将属性设置到 attrs 中
         setAttribute(name, value);
         final String socketName = "socket.";
         try {
+            // 如果该属性是属于 socket 的那么就通过 反射 将属性设置到 socketProp中
             if (name.startsWith(socketName)) {
                 return IntrospectionUtils.setProperty(socketProperties, name.substring(socketName.length()), value);
             } else {
@@ -994,6 +1062,11 @@ public abstract class AbstractEndpoint<S> {
         }
     }
 
+    /**
+     * 获取某个属性 首先尝试从缓冲中获取(attrs) 当没有获取到时 同时该属性是socket 相关的 那么就从socketProp 中获取
+     * @param name
+     * @return
+     */
     public String getProperty(String name) {
         String value = (String) getAttribute(name);
         final String socketName = "socket.";
@@ -1010,6 +1083,7 @@ public abstract class AbstractEndpoint<S> {
      * Return the amount of threads that are managed by the pool.
      *
      * @return the amount of threads that are managed by the pool
+     * 获取线程池内部线程数
      */
     public int getCurrentThreadCount() {
         Executor executor = this.executor;
@@ -1030,6 +1104,7 @@ public abstract class AbstractEndpoint<S> {
      * Return the amount of threads that are in use
      *
      * @return the amount of threads that are in use
+     * 获取当前正在运行中的线程
      */
     public int getCurrentThreadsBusy() {
         Executor executor = this.executor;
@@ -1055,6 +1130,9 @@ public abstract class AbstractEndpoint<S> {
     }
 
 
+    /**
+     * 创建线程池 这里使用的是 tomcat 内部定制的线程池 也就是如果 service 配置了线程池 就会共用那个线程池 否则就针对endpoint 创建一个 tomcat标准线程池
+     */
     public void createExecutor() {
         internalExecutor = true;
         TaskQueue taskqueue = new TaskQueue();
@@ -1063,6 +1141,9 @@ public abstract class AbstractEndpoint<S> {
         taskqueue.setParent((ThreadPoolExecutor) executor);
     }
 
+    /**
+     * 终止线程池
+     */
     public void shutdownExecutor() {
         Executor executor = this.executor;
         if (executor != null && internalExecutor) {
@@ -1071,6 +1152,7 @@ public abstract class AbstractEndpoint<S> {
                 //this is our internal one, so we need to shut it down
                 ThreadPoolExecutor tpe = (ThreadPoolExecutor) executor;
                 tpe.shutdownNow();
+                // 获取等待线程池终止的时长 默认是5秒
                 long timeout = getExecutorTerminationTimeoutMillis();
                 if (timeout > 0) {
                     try {
@@ -1083,6 +1165,7 @@ public abstract class AbstractEndpoint<S> {
                     }
                 }
                 TaskQueue queue = (TaskQueue) tpe.getQueue();
+                // 将任务队列的 线程池置空  这样在重启完成前 就不会接收任何任务
                 queue.setParent(null);
             }
         }
@@ -1094,11 +1177,13 @@ public abstract class AbstractEndpoint<S> {
     protected void unlockAccept() {
         // Only try to unlock the acceptor if it is necessary
         int unlocksRequired = 0;
+        // 找到所有需要解锁的 acceptor
         for (Acceptor acceptor : acceptors) {
             if (acceptor.getState() == AcceptorState.RUNNING) {
                 unlocksRequired++;
             }
         }
+        // 如果当前需要解锁数量为0 直接返回
         if (unlocksRequired == 0) {
             return;
         }
@@ -1116,10 +1201,13 @@ public abstract class AbstractEndpoint<S> {
         }
 
         try {
+            // 将当前地址变成 unlock 地址
             unlockAddress = getUnlockAddress(localAddress);
 
             for (int i = 0; i < unlocksRequired; i++) {
+                // 这里生成一个套接字对象 连接到本地
                 try (java.net.Socket s = new java.net.Socket()) {
+                    // 获取解锁时间 和 超时时间
                     int stmo = 2 * 1000;
                     int utmo = 2 * 1000;
                     if (getSocketProperties().getSoTimeout() > stmo)
@@ -1132,6 +1220,7 @@ public abstract class AbstractEndpoint<S> {
                         getLog().debug("About to unlock socket for:" + unlockAddress);
                     }
                     s.connect(unlockAddress, utmo);
+                    // 如果开启了 延迟接收 那么需要发送数据 来触发accept 方法
                     if (getDeferAccept()) {
                         /*
                          * In the case of a deferred accept / accept filters we need to
@@ -1140,6 +1229,7 @@ public abstract class AbstractEndpoint<S> {
                          */
                         OutputStreamWriter sw;
 
+                        // 写入一个代表唤醒 connection 的数据报
                         sw = new OutputStreamWriter(s.getOutputStream(), "ISO-8859-1");
                         sw.write("OPTIONS * HTTP/1.0\r\n" +
                                 "User-Agent: Tomcat wakeup connection\r\n\r\n");
@@ -1153,6 +1243,7 @@ public abstract class AbstractEndpoint<S> {
             // Wait for upto 1000ms acceptor threads to unlock
             long waitLeft = 1000;
             for (Acceptor acceptor : acceptors) {
+                // 这里是要等待 state 变成 非 RUNNING ???
                 while (waitLeft > 0 &&
                         acceptor.getState() == AcceptorState.RUNNING) {
                     Thread.sleep(5);
@@ -1168,7 +1259,14 @@ public abstract class AbstractEndpoint<S> {
     }
 
 
+    /**
+     * 返回一个本机地址 复用了入参地址的 端口号   该方法干啥用的???
+     * @param localAddress
+     * @return
+     * @throws SocketException
+     */
     private static InetSocketAddress getUnlockAddress(InetSocketAddress localAddress) throws SocketException {
+        // 如果该地址是 本机地址
         if (localAddress.getAddress().isAnyLocalAddress()) {
             // Need a local address of the same type (IPv4 or IPV6) as the
             // configured bind address since the connector may be configured
@@ -1176,10 +1274,12 @@ public abstract class AbstractEndpoint<S> {
             InetAddress loopbackUnlockAddress = null;
             InetAddress linkLocalUnlockAddress = null;
 
+            // 获取当前操作系统中所有 开放的网络端口
             Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
             while (networkInterfaces.hasMoreElements()) {
                 NetworkInterface networkInterface = networkInterfaces.nextElement();
                 Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
+                // 遍历所有本机ip/端口
                 while (inetAddresses.hasMoreElements()) {
                     InetAddress inetAddress = inetAddresses.nextElement();
                     if (localAddress.getAddress().getClass().isAssignableFrom(inetAddress.getClass())) {
@@ -1222,25 +1322,31 @@ public abstract class AbstractEndpoint<S> {
      * processing as if the Poller (for those endpoints that have one)
      * selected the socket.
      *
-     * @param socketWrapper The socket wrapper to process
-     * @param event         The socket event to be processed
+     * @param socketWrapper The socket wrapper to process   需要被处理的某个socket对象
+     * @param event         The socket event to be processed    socket需要处理的事件
      * @param dispatch      Should the processing be performed on a new
-     *                      container thread
+     *                      container thread     处理逻辑是否需要被派发到 container线程
      * @return if processing was triggered successfully
      */
     public boolean processSocket(SocketWrapperBase<S> socketWrapper,
                                  SocketEvent event, boolean dispatch) {
         try {
+            // 如果socket 为null 则不需要做处理 直接返回false
             if (socketWrapper == null) {
                 return false;
             }
+            // 该容器 暂存了所有需要处理的processor 对象 一般只有做异步时才需要一个 额外的队列帮助消费者生产者解耦  同时要很注重任务队列本身的性能问题
+            // TODO 这个 processorCache 到底怎么用
             SocketProcessorBase<S> sc = processorCache.pop();
             if (sc == null) {
+                // 如果当前队列中没有元素 则将当前socket 包装成processor 对象  具体由子类实现
                 sc = createSocketProcessor(socketWrapper, event);
             } else {
+                // 弹出元素然后重置  这个思路有点像  ringBuffer
                 sc.reset(socketWrapper, event);
             }
             Executor executor = getExecutor();
+            // 如果允许分发到线程池 那么在线程池中处理 否则在当前线程处理
             if (dispatch && executor != null) {
                 executor.execute(sc);
             } else {
@@ -1260,6 +1366,12 @@ public abstract class AbstractEndpoint<S> {
     }
 
 
+    /**
+     * 通过传入的 socket 和 socketEvent 封装成processor 对象
+     * @param socketWrapper
+     * @param event
+     * @return
+     */
     protected abstract SocketProcessorBase<S> createSocketProcessor(
             SocketWrapperBase<S> socketWrapper, SocketEvent event);
 
@@ -1271,6 +1383,7 @@ public abstract class AbstractEndpoint<S> {
      * within this class other than ensuring that bind/unbind are called in the
      * right place. It is expected that the calling code will maintain state and
      * prevent invalid state transitions.
+     * socket 绑定端口由 具体实现类决定
      */
 
     public abstract void bind() throws Exception;
@@ -1281,11 +1394,17 @@ public abstract class AbstractEndpoint<S> {
 
     public abstract void stopInternal() throws Exception;
 
+    /**
+     * 当 service.init() 触发时 会传播到内部的 endpoint.init() 方法
+     * @throws Exception
+     */
     public void init() throws Exception {
+        // 如果设置了在 init 阶段进行绑定
         if (bindOnInit) {
             bind();
             bindState = BindState.BOUND_ON_INIT;
         }
+        // mbean 相关的先不管
         if (this.domain != null) {
             // Register endpoint (as ThreadPool - historical name)
             oname = new ObjectName(domain + ":type=ThreadPool,name=\"" + getName() + "\"");
@@ -1354,19 +1473,31 @@ public abstract class AbstractEndpoint<S> {
     }
 
 
+    /**
+     * 触发 endpoint 的 start 方法
+     * @throws Exception
+     */
     public final void start() throws Exception {
         if (bindState == BindState.UNBOUND) {
             bind();
+            // 设置标识为 启动时绑定
             bindState = BindState.BOUND_ON_START;
         }
+        // 核心逻辑由子类实现
         startInternal();
     }
 
+    /**
+     * 启动接收器线程
+     */
     protected final void startAcceptorThreads() {
+        // 获取 acceptor 对应的线程数量
         int count = getAcceptorThreadCount();
+        // 生成对应数量的 acceptor
         acceptors = new Acceptor[count];
 
         for (int i = 0; i < count; i++) {
+            // 该方法由子类实现  acceptor 本身实现了 runnable 接口
             acceptors[i] = createAcceptor();
             String threadName = getName() + "-Acceptor-" + i;
             acceptors[i].setThreadName(threadName);
@@ -1388,11 +1519,13 @@ public abstract class AbstractEndpoint<S> {
 
     /**
      * Pause the endpoint, which will stop it accepting new connections.
+     * 暂停当前端点
      */
     public void pause() {
         if (running && !paused) {
             paused = true;
             unlockAccept();
+            // 获取内部handler 对象 并暂停
             getHandler().pause();
         }
     }
@@ -1400,6 +1533,7 @@ public abstract class AbstractEndpoint<S> {
     /**
      * Resume the endpoint, which will make it start accepting new connections
      * again.
+     * 从暂停状态解除
      */
     public void resume() {
         if (running) {
@@ -1409,17 +1543,23 @@ public abstract class AbstractEndpoint<S> {
 
     public final void stop() throws Exception {
         stopInternal();
+        // 如果是在 start时 绑定的 那么就在 stop 时 解除绑定
         if (bindState == BindState.BOUND_ON_START || bindState == BindState.SOCKET_CLOSED_ON_STOP) {
             unbind();
             bindState = BindState.UNBOUND;
         }
     }
 
+    /**
+     * 销毁方法 如果该endpoint 是在init 时绑定的 那么 在 destroy 时进行解绑
+     * @throws Exception
+     */
     public final void destroy() throws Exception {
         if (bindState == BindState.BOUND_ON_INIT) {
             unbind();
             bindState = BindState.UNBOUND;
         }
+        // 应该是将 mbean 注销
         Registry registry = Registry.getRegistry(null, null);
         registry.unregisterComponent(oname);
         registry.unregisterComponent(socketProperties.getObjectName());
@@ -1431,7 +1571,12 @@ public abstract class AbstractEndpoint<S> {
 
     protected abstract Log getLog();
 
+    /**
+     * 初始化 阀门对象
+     * @return
+     */
     protected LimitLatch initializeConnectionLatch() {
+        // 代表没有对连接数做限制 那么 不需要创建阀门对象
         if (maxConnections == -1) return null;
         if (connectionLimitLatch == null) {
             connectionLimitLatch = new LimitLatch(getMaxConnections());
@@ -1439,18 +1584,29 @@ public abstract class AbstractEndpoint<S> {
         return connectionLimitLatch;
     }
 
+    /**
+     * 释放 阀门拦截的所有线程 因为内部使用共享锁 所以只需要调用一次 release
+     */
     protected void releaseConnectionLatch() {
         LimitLatch latch = connectionLimitLatch;
         if (latch != null) latch.releaseAll();
         connectionLimitLatch = null;
     }
 
+    /**
+     * 尝试增加一个连接 如果被阀门拦截 就阻塞当前线程
+     * @throws InterruptedException
+     */
     protected void countUpOrAwaitConnection() throws InterruptedException {
         if (maxConnections == -1) return;
         LimitLatch latch = connectionLimitLatch;
         if (latch != null) latch.countUpOrAwait();
     }
 
+    /**
+     * 增加一个门票数
+     * @return
+     */
     protected long countDownConnection() {
         if (maxConnections == -1) return -1;
         LimitLatch latch = connectionLimitLatch;
@@ -1472,6 +1628,7 @@ public abstract class AbstractEndpoint<S> {
      *
      * @param currentErrorDelay The current delay being applied on failure
      * @return The delay to apply on the next failure
+     * 按一定间隔来处理异常
      */
     protected int handleExceptionWithDelay(int currentErrorDelay) {
         // Don't delay on first exception
@@ -1485,6 +1642,7 @@ public abstract class AbstractEndpoint<S> {
 
         // On subsequent exceptions, start the delay at 50ms, doubling the delay
         // on every subsequent exception until the delay reaches 1.6 seconds.
+        // 如果当前处理异常的间隔为0 那么 返回初始的处理异常间隔
         if (currentErrorDelay == 0) {
             return INITIAL_ERROR_DELAY;
         } else if (currentErrorDelay < MAX_ERROR_DELAY) {
@@ -1501,9 +1659,12 @@ public abstract class AbstractEndpoint<S> {
      * {@link #init()}).
      *
      * @see #getBindOnInit()
+     * 优雅关闭套接字
      */
     public final void closeServerSocketGraceful() {
+        // 必须是在 start 中进行绑定才能通过该方法进行关闭
         if (bindState == BindState.BOUND_ON_START) {
+            // 代表因为调用了 close 导致stop
             bindState = BindState.SOCKET_CLOSED_ON_STOP;
             try {
                 doCloseServerSocket();

@@ -24,6 +24,7 @@ package org.apache.tomcat.util.collections;
  * with minimum garbage.
  *
  * @param <T> The type of object managed by this queue
+ *           同步队列对象 跟 synchronizedStack 的不同点应该就是 作为一个 FIFO 队列
  */
 public class SynchronizedQueue<T> {
 
