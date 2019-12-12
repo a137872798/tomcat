@@ -16,17 +16,22 @@
  */
 package org.apache.tomcat.util.net;
 
+/**
+ * socket 发送文件 是否采用连接保活
+ */
 public enum SendfileKeepAliveState {
 
     /**
      * Keep-alive is not in use. The socket can be closed when the response has
      * been written.
+     * 当响应结果被写入后 允许关闭连接
      */
     NONE,
 
     /**
      * Keep-alive is in use and there is pipelined data in the input buffer to
      * be read as soon as the current response has been written.
+     * 采用管道模式
      */
     PIPELINED,
 
@@ -34,6 +39,7 @@ public enum SendfileKeepAliveState {
      * Keep-alive is in use. The socket should be added to the poller (or
      * equivalent) to await more data as soon as the current response has been
      * written.
+     * 等待积累一定量的数据后批量触发
      */
     OPEN
 }

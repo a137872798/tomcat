@@ -24,6 +24,7 @@ package org.apache.tomcat.util.collections;
  * as possible with minimum garbage.
  *
  * @param <T> The type of object managed by this stack
+ *           同步栈对象
  */
 public class SynchronizedStack<T> {
 
@@ -38,6 +39,9 @@ public class SynchronizedStack<T> {
      */
     private int index = -1;
 
+    /**
+     * 该数组对象没有使用 volatile 修饰
+     */
     private Object[] stack;
 
 
@@ -45,6 +49,10 @@ public class SynchronizedStack<T> {
         this(DEFAULT_SIZE, DEFAULT_LIMIT);
     }
 
+    /**
+     * @param size
+     * @param limit  允许的最大大小 （是否允许扩容 -1 代表没有限制）
+     */
     public SynchronizedStack(int size, int limit) {
         if (limit > -1 && size > limit) {
             this.size = limit;
@@ -52,16 +60,24 @@ public class SynchronizedStack<T> {
             this.size = size;
         }
         this.limit = limit;
+        // 根据 size 初始化数组
         stack = new Object[size];
     }
 
 
+    /**
+     * 将某个元素 设置到 栈结构中  该方法使用 synchronized 修饰
+     * @param obj
+     * @return
+     */
     public synchronized boolean push(T obj) {
         index++;
+        // 代表需要进行扩容
         if (index == size) {
             if (limit == -1 || size < limit) {
                 expand();
             } else {
+                // 如果 不允许扩容 那么本次 push 失败
                 index--;
                 return false;
             }
@@ -70,6 +86,10 @@ public class SynchronizedStack<T> {
         return true;
     }
 
+    /**
+     * 从栈结构中弹出某个元素
+     * @return
+     */
     @SuppressWarnings("unchecked")
     public synchronized T pop() {
         if (index == -1) {

@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 /**
  * Callback interface to be able to expand buffers when buffer overflow
  * exceptions happen or to replace buffers
+ * 该 bufferHandler 允许 在适当的时机 针对buffer 进行扩容
  */
 public interface ApplicationBufferHandler {
 

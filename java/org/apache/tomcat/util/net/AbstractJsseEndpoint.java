@@ -32,8 +32,15 @@ import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.net.openssl.OpenSSLImplementation;
 import org.apache.tomcat.util.net.openssl.ciphers.Cipher;
 
+/**
+ * nio/nio2 的端点骨架类   这一层只是在上一层基础上支持了 ssl 安全层加解密
+ * @param <S>
+ */
 public abstract class AbstractJsseEndpoint<S> extends AbstractEndpoint<S> {
 
+    /**
+     * ssl 实现类名称  可以先不看
+     */
     private String sslImplementationName = null;
     private int sniParseLimit = 64 * 1024;
 

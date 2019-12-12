@@ -627,10 +627,12 @@ public abstract class SocketWrapperBase<E> {
      * @param from The ByteBuffer containing the data to be written
      *
      * @throws IOException If an IO error occurs during the write
+     * 以非阻塞方式写入数据
      */
     protected void writeNonBlocking(ByteBuffer from)
             throws IOException {
 
+        // 如果当前 阻塞buffer可写 那么就插入到 socketBufferHandler中 否则插入非阻塞buffer
         if (nonBlockingWriteBuffer.isEmpty() && socketBufferHandler.isWriteBufferWritable()) {
             writeNonBlockingInternal(from);
         }
@@ -651,6 +653,7 @@ public abstract class SocketWrapperBase<E> {
      * @throws IOException If an IO error occurs during the write
      */
     protected void writeNonBlockingInternal(ByteBuffer from) throws IOException {
+        // 如果当前 socketBufferHandler 为空 直接写入到网络中
         if (socketBufferHandler.isWriteBufferEmpty()) {
             writeNonBlockingDirect(from);
         } else {
@@ -685,6 +688,7 @@ public abstract class SocketWrapperBase<E> {
             }
         }
 
+        // 如果剩余的数量没有达到 limit 就存放在 socketBufferHandler 中
         if (from.remaining() > 0) {
             socketBufferHandler.configureWriteBufferForWrite();
             transfer(from, socketBufferHandler.getWriteBuffer());
@@ -696,13 +700,14 @@ public abstract class SocketWrapperBase<E> {
      * Writes as much data as possible from any that remains in the buffers.
      *
      * @param block <code>true</code> if a blocking write should be used,
-     *                  otherwise a non-blocking write will be used
+     *                  otherwise a non-blocking write will be used  是否采用阻塞写入的方式
      *
      * @return <code>true</code> if data remains to be flushed after this method
      *         completes, otherwise <code>false</code>. In blocking mode
      *         therefore, the return value should always be <code>false</code>
      *
      * @throws IOException If an IO error occurs during the write
+     * 将当前缓冲区的数据 尽可能写入到网络中
      */
     public boolean flush(boolean block) throws IOException {
         boolean result = false;
@@ -717,12 +722,18 @@ public abstract class SocketWrapperBase<E> {
     }
 
 
+    /**
+     * 采用阻塞方式 将缓冲区数据写入到 网络中
+     * @throws IOException
+     */
     protected void flushBlocking() throws IOException {
         doWrite(true);
 
         if (!nonBlockingWriteBuffer.isEmpty()) {
+            // 如果此时发现 非阻塞buffer 中还有数据 那么转移到 阻塞buffer 中
             nonBlockingWriteBuffer.write(this, true);
 
+            // 如果阻塞buffer中还有数据 那么继续写入到网络
             if (!socketBufferHandler.isWriteBufferEmpty()) {
                 doWrite(true);
             }
@@ -731,16 +742,25 @@ public abstract class SocketWrapperBase<E> {
     }
 
 
+    /**
+     * 以非阻塞方式进行刷盘  模板跟 flushBlocking 几乎是一致的 区别就是
+     * @return
+     * @throws IOException
+     */
     protected boolean flushNonBlocking() throws IOException {
         boolean dataLeft = !socketBufferHandler.isWriteBufferEmpty();
 
         // Write to the socket, if there is anything to write
+        // 如果当前 阻塞缓冲区中有数据
         if (dataLeft) {
+            // 以非阻塞方式 写入数据
             doWrite(false);
             dataLeft = !socketBufferHandler.isWriteBufferEmpty();
         }
 
+        // 如果此时 缓冲区中已经没有数据了 且 非阻塞缓冲区中还有数据
         if (!dataLeft && !nonBlockingWriteBuffer.isEmpty()) {
+            // 将数据转移到 阻塞缓冲区中进行写入
             dataLeft = nonBlockingWriteBuffer.write(this, false);
 
             if (!dataLeft && !socketBufferHandler.isWriteBufferEmpty()) {
@@ -762,8 +782,10 @@ public abstract class SocketWrapperBase<E> {
      *
      * @throws IOException If an I/O error such as a timeout occurs during the
      *                     write
+     *                     将阻塞buffer的数据写入到网络中
      */
     protected void doWrite(boolean block) throws IOException {
+        // 将writeBuffer 切换成读模式
         socketBufferHandler.configureWriteBufferForRead();
         doWrite(block, socketBufferHandler.getWriteBuffer());
     }
@@ -779,19 +801,33 @@ public abstract class SocketWrapperBase<E> {
      *
      * @throws IOException If an I/O error such as a timeout occurs during the
      *                     write
+     *                     将指定缓冲区中的数据 以阻塞/非阻塞方式写入到网络中
      */
     protected abstract void doWrite(boolean block, ByteBuffer from) throws IOException;
 
 
+    /**
+     * 代表 当前socket状态变更时 触发  内部委托给 endpoint
+     * @param socketStatus
+     * @param dispatch
+     */
     public void processSocket(SocketEvent socketStatus, boolean dispatch) {
         endpoint.processSocket(this, socketStatus, dispatch);
     }
 
 
+    // 注册感兴趣事件
     public abstract void registerReadInterest();
 
     public abstract void registerWriteInterest();
 
+    /**
+     * 根据文件名 偏移量等 创建一个 文件对象
+     * @param filename
+     * @param pos
+     * @param length
+     * @return
+     */
     public abstract SendfileDataBase createSendfileData(String filename, long pos, long length);
 
     /**
@@ -803,6 +839,7 @@ public abstract class SocketWrapperBase<E> {
      * @param sendfileData Data representing the file to send
      *
      * @return The state of the sendfile process after the first write.
+     * 处理发送文件 并返回一个 发送状态
      */
     public abstract SendfileState processSendfile(SendfileDataBase sendfileData);
 
@@ -817,6 +854,7 @@ public abstract class SocketWrapperBase<E> {
      * @throws IOException If authentication is required then there will be I/O
      *                     with the client and this exception will be thrown if
      *                     that goes wrong
+     *                     进行客户端验证
      */
     public abstract void doClientAuth(SSLSupport sslSupport) throws IOException;
 
@@ -826,69 +864,93 @@ public abstract class SocketWrapperBase<E> {
     // ------------------------------------------------------- NIO 2 style APIs
 
 
+    /**
+     * NIO2 阻塞模式
+     */
     public enum BlockingMode {
         /**
          * The operation will not block. If there are pending operations,
          * the operation will throw a pending exception.
+         * 标准模式 也就是非阻塞模式  不过在操作过程中其他线程的访问会抛出异常
          */
         CLASSIC,
         /**
          * The operation will not block. If there are pending operations,
          * the operation will return CompletionState.NOT_DONE.
+         * 非阻塞  操作过程中会返回 NOT_DONE
          */
         NON_BLOCK,
         /**
          * The operation will block until pending operations are completed, but
          * will not block after performing it.
+         * 阻塞直到完成
          */
         SEMI_BLOCK,
         /**
          * The operation will block until completed.
+         * 阻塞直到操作完成
          */
         BLOCK
     }
 
+    /**
+     * 本次操作结果状态
+     */
     public enum CompletionState {
         /**
          * Operation is still pending.
+         * 本次操作正在进行中
          */
         PENDING,
         /**
          * Operation was pending and non blocking.
+         * 本次操作正在进行中 且是非阻塞
          */
         NOT_DONE,
         /**
          * The operation completed inline.
+         * 操作内联???
          */
         INLINE,
         /**
          * The operation completed inline but failed.
+         * 操作以内联形式执行 且失败了
          */
         ERROR,
         /**
          * The operation completed, but not inline.
+         * 操作完成 没有使用内联方式
          */
         DONE
     }
 
+    /**
+     * 完成后的回调
+     */
     public enum CompletionHandlerCall {
         /**
          * Operation should continue, the completion handler shouldn't be
          * called.
+         * 代表操作需要继续
          */
         CONTINUE,
         /**
          * The operation completed but the completion handler shouldn't be
          * called.
+         * 操作正常完成
          */
         NONE,
         /**
          * The operation is complete, the completion handler should be
          * called.
+         * 操作完成 且应该收到通知
          */
         DONE
     }
 
+    /**
+     * 检测某个操作是否完成
+     */
     public interface CompletionCheck {
         /**
          * Determine what call, if any, should be made to the completion
@@ -902,6 +964,8 @@ public abstract class SocketWrapperBase<E> {
          * @param length that has been passed to the original IO call
          *
          * @return The call, if any, to make to the completion handler
+         *
+         * offset 代表 buffers 中起始的那个 buffer length 代表读取几个buffer
          */
         public CompletionHandlerCall callHandler(CompletionState state, ByteBuffer[] buffers,
                 int offset, int length);
@@ -911,16 +975,19 @@ public abstract class SocketWrapperBase<E> {
      * This utility CompletionCheck will cause the write to fully write
      * all remaining data. If the operation completes inline, the
      * completion handler will not be called.
+     *
      */
     public static final CompletionCheck COMPLETE_WRITE = new CompletionCheck() {
         @Override
         public CompletionHandlerCall callHandler(CompletionState state, ByteBuffer[] buffers,
                 int offset, int length) {
             for (int i = 0; i < length; i++) {
+                // 一旦发现 某个buffer 中还有剩余数据 就返回 CONTINUE 代表需要继续处理
                 if (buffers[offset + i].hasRemaining()) {
                     return CompletionHandlerCall.CONTINUE;
                 }
             }
+            // 当内部的buffer 全部处理完成后  CompletionState.DONE 代表没有使用内联模式 那么就需要进行 通知 对应到CompletionHandlerCall.DONE 否则不进行通知CompletionHandlerCall.NONE
             return (state == CompletionState.DONE) ? CompletionHandlerCall.DONE
                     : CompletionHandlerCall.NONE;
         }
@@ -935,10 +1002,12 @@ public abstract class SocketWrapperBase<E> {
         public CompletionHandlerCall callHandler(CompletionState state, ByteBuffer[] buffers,
                 int offset, int length) {
             for (int i = 0; i < length; i++) {
+                // 如果buffers 中还有剩余数据 那么就返回继续处理
                 if (buffers[offset + i].hasRemaining()) {
                     return CompletionHandlerCall.CONTINUE;
                 }
             }
+            // 总是触发回调
             return CompletionHandlerCall.DONE;
         }
     };
@@ -952,6 +1021,7 @@ public abstract class SocketWrapperBase<E> {
         @Override
         public CompletionHandlerCall callHandler(CompletionState state, ByteBuffer[] buffers,
                 int offset, int length) {
+            // 根据当前 是否内联返回不同的状态
             return (state == CompletionState.DONE) ? CompletionHandlerCall.DONE
                     : CompletionHandlerCall.NONE;
         }
@@ -1049,6 +1119,7 @@ public abstract class SocketWrapperBase<E> {
         if (dsts == null) {
             throw new IllegalArgumentException();
         }
+        // 将数据按照标准模式 读取到某个地方
         return read(dsts, 0, dsts.length, BlockingMode.CLASSIC, timeout, unit, attachment, null, handler);
     }
 
@@ -1124,6 +1195,7 @@ public abstract class SocketWrapperBase<E> {
      * @param srcs buffers
      * @param <A> The attachment type
      * @return the completion state (done, done inline, or still pending)
+     * 以标准模式将 buffers中的数据写出
      */
     public final <A> CompletionState write(long timeout, TimeUnit unit, A attachment,
             CompletionHandler<Long, ? super A> handler, ByteBuffer... srcs) {

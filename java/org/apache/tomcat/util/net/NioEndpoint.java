@@ -66,6 +66,7 @@ import org.apache.tomcat.util.net.jsse.JSSESupport;
  *
  * @author Mladen Turk
  * @author Remy Maucherat
+ * 基于 java5 nio 的 端点对象  还有一个改良版 nio2Endpoint  使用的socket 类型是 NioChannel
  */
 public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
 
@@ -76,29 +77,38 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
     private static final Log log = LogFactory.getLog(NioEndpoint.class);
 
 
+    /**
+     * 注册感兴趣的事件
+     */
     public static final int OP_REGISTER = 0x100; //register interest op
 
     // ----------------------------------------------------------------- Fields
 
+    /**
+     * 使用该对象 维护 selector 内部还有一个 poller 对象 会通过轮询选择器
+     */
     private NioSelectorPool selectorPool = new NioSelectorPool();
 
     /**
      * Server socket "pointer".
+     * 服务端socket 实际上就是 对应的 "端点"
      */
     private volatile ServerSocketChannel serverSock = null;
 
     /**
-     *
+     * 用于 阻塞请求停止的线程
      */
     private volatile CountDownLatch stopLatch = null;
 
     /**
      * Cache for poller events
+     * 缓存 pollerEvent 对象 避免被GC 回收
      */
     private SynchronizedStack<PollerEvent> eventCache;
 
     /**
      * Bytebuffer cache, each channel holds a set of buffers (two, except for SSL holds four)
+     * 保存 NioChannel 对象   该对象内部封装了 JDK channel
      */
     private SynchronizedStack<NioChannel> nioChannels;
 
@@ -108,11 +118,13 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
 
     /**
      * Generic properties, introspected
+     * 将属性设置到 endpoint 中
      */
     @Override
     public boolean setProperty(String name, String value) {
         final String selectorPoolName = "selectorPool.";
         try {
+            // 如果属性是 有关于 selectorPool 的 通过反射设置到 pool 中
             if (name.startsWith(selectorPoolName)) {
                 return IntrospectionUtils.setProperty(selectorPool, name.substring(selectorPoolName.length()), value);
             } else {
@@ -127,6 +139,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
 
     /**
      * Use System.inheritableChannel to obtain channel from stdin/stdout.
+     * 是否使用 jvm 返回的 channel
      */
     private boolean useInheritedChannel = false;
     public void setUseInheritedChannel(boolean useInheritedChannel) { this.useInheritedChannel = useInheritedChannel; }
@@ -134,6 +147,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
 
     /**
      * Priority of the poller threads.
+     * poller 对象对应的线程优先级
      */
     private int pollerThreadPriority = Thread.NORM_PRIORITY;
     public void setPollerThreadPriority(int pollerThreadPriority) { this.pollerThreadPriority = pollerThreadPriority; }
@@ -142,11 +156,15 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
 
     /**
      * Poller thread count.
+     * poller 的线程数量
      */
     private int pollerThreadCount = Math.min(2,Runtime.getRuntime().availableProcessors());
     public void setPollerThreadCount(int pollerThreadCount) { this.pollerThreadCount = pollerThreadCount; }
     public int getPollerThreadCount() { return pollerThreadCount; }
 
+    /**
+     * selector 轮询等待事件超时时间
+     */
     private long selectorTimeout = 1000;
     public void setSelectorTimeout(long timeout){ this.selectorTimeout = timeout;}
     public long getSelectorTimeout(){ return this.selectorTimeout; }

@@ -28,7 +28,7 @@ import org.apache.juli.logging.LogFactory;
  * after which all subsequent requests to acquire the latch will be placed in a
  * FIFO queue until one of the shares is returned.
  *
- * 类似信号量
+ * 类似信号量  在tomcat 中用来控制 某个 endpoint 的最大连接数
  */
 public class LimitLatch {
 
@@ -41,7 +41,8 @@ public class LimitLatch {
         }
 
         /**
-         * 注意这里获取锁是共享模式
+         * 注意这里获取锁是共享模式  这样当触发 release 时 所有线程都会被唤醒
+         * 而 每次调用acquire 就会增加一次 count 用于记录当前有效的连接数
          * @param ignored
          * @return
          */
@@ -73,11 +74,11 @@ public class LimitLatch {
      */
     private final AtomicLong count;
     /**
-     * 门票数量
+     * 该阀门最多允许执行的线程数 超过的部分会被拦截在 aqs 队列中
      */
     private volatile long limit;
     /**
-     * 代表持有的线程还没有被释放
+     * 是否释放被阀门拦截的所有线程
      */
     private volatile boolean released = false;
 
@@ -157,6 +158,7 @@ public class LimitLatch {
      * Releases all waiting threads and causes the {@link #limit} to be ignored
      * until {@link #reset()} is called.
      * @return <code>true</code> if release was done
+     * 代表释放之前被拦截住的所有线程
      */
     public boolean releaseAll() {
         released = true;
