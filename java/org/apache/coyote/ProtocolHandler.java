@@ -62,7 +62,7 @@ public interface ProtocolHandler {
 
     /**
      * Initialise the protocol.
-     *
+     * 初始化协议对象
      * @throws Exception If the protocol handler fails to initialise
      */
     public void init() throws Exception;
@@ -70,7 +70,7 @@ public interface ProtocolHandler {
 
     /**
      * Start the protocol.
-     *
+     * 启动协议对象
      * @throws Exception If the protocol handler fails to start
      */
     public void start() throws Exception;

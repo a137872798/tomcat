@@ -20,6 +20,7 @@ import java.io.Serializable;
 
 /**
  * Base class for the *Chunk implementation to reduce duplication.
+ * 用于表示字节的数组对象 在这里被封装成 chunk
  */
 public abstract class AbstractChunk implements Cloneable, Serializable {
 
@@ -30,16 +31,23 @@ public abstract class AbstractChunk implements Cloneable, Serializable {
      * Integer.MAX_VALUE. On markt's desktop the limit is MAX_VALUE - 2.
      * Comments in the JRE source code for ArrayList and other classes indicate
      * that it may be as low as MAX_VALUE - 8 on some systems.
+     * 允许使用的最大数组长度
      */
     public static final int ARRAY_MAX_SIZE = Integer.MAX_VALUE - 8;
 
     private int hashCode = 0;
     protected boolean hasHashCode = false;
 
+    /**
+     * 是否设置了值
+     */
     protected boolean isSet;
 
     private int limit = -1;
 
+    /**
+     * 目标起始偏移量和 终止偏移量
+     */
     protected int start;
     protected int end;
 
@@ -72,7 +80,7 @@ public abstract class AbstractChunk implements Cloneable, Serializable {
 
 
     /**
-     * @return the start position of the data in the buffer
+     * @return the start position of the data in the buffer  获取起始/终止指针
      */
     public int getStart() {
         return start;
@@ -120,17 +128,27 @@ public abstract class AbstractChunk implements Cloneable, Serializable {
     }
 
 
+    /**
+     * 寻找指定字符 在 当前 chunk 的起始位置
+     * @param src
+     * @param srcOff  从 src的第几个字符开始匹配
+     * @param srcLen  允许匹配到第几个字符
+     * @param myOff
+     * @return
+     */
     public int indexOf(String src, int srcOff, int srcLen, int myOff) {
+        // 找到首个 尝试匹配的字符
         char first = src.charAt(srcOff);
 
-        // Look for first char
+        // Look for first char   定位到末尾
         int srcEnd = srcOff + srcLen;
 
         mainLoop: for (int i = myOff + start; i <= (end - srcLen); i++) {
+            // 根据下标来获取元素 当不匹配时继续往下
             if (getBufferElement(i) != first) {
                 continue;
             }
-            // found first char, now look for a match
+            // found first char, now look for a match  进入到这里 代表匹配成功 还需要往下匹配更多字符
             int myPos = i + 1;
             for (int srcPos = srcOff + 1; srcPos < srcEnd;) {
                 if (getBufferElement(myPos++) != src.charAt(srcPos++)) {
@@ -139,12 +157,14 @@ public abstract class AbstractChunk implements Cloneable, Serializable {
             }
             return i - start; // found it
         }
+        // 代表没有匹配成功
         return -1;
     }
 
 
     /**
      * Resets the chunk to an uninitialized state.
+     * 将chunk 还原
      */
     public void recycle() {
         hasHashCode = false;

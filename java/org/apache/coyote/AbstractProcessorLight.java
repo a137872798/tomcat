@@ -31,12 +31,25 @@ import org.apache.tomcat.util.net.SocketWrapperBase;
  * This is a light-weight abstract processor implementation that is intended as
  * a basis for all Processor implementations from the light-weight upgrade
  * processors to the HTTP/AJP processors.
+ * 处理器骨架类    核心处理方法 由子类实现
  */
 public abstract class AbstractProcessorLight implements Processor {
 
+    /**
+     * DispatchType 包含 非阻塞 读/写
+     */
     private Set<DispatchType> dispatches = new CopyOnWriteArraySet<>();
 
 
+    /**
+     * 根据socket 和事件类型来处理   这里相当于是最基础的 分发请求的地方 怎么处理 要看子类实现
+     * @param socketWrapper The connection to process   socket包装对象
+     * @param status The status of the connection that triggered this additional
+     *               processing     代表本次处理的事件类型
+     *
+     * @return
+     * @throws IOException
+     */
     @Override
     public SocketState process(SocketWrapperBase<?> socketWrapper, SocketEvent status)
             throws IOException {
@@ -55,14 +68,18 @@ public abstract class AbstractProcessorLight implements Processor {
                 }
             } else if (status == SocketEvent.DISCONNECT) {
                 // Do nothing here, just wait for it to get recycled
+                // 如果是 异步 或者是升级
             } else if (isAsync() || isUpgrade() || state == SocketState.ASYNC_END) {
                 state = dispatch(status);
                 state = checkForPipelinedData(state, socketWrapper);
+                // 如果传入的事件 是 写事件
             } else if (status == SocketEvent.OPEN_WRITE) {
                 // Extra write event likely after async, ignore
                 state = SocketState.LONG;
+                // 如果是读事件 触发 service方法
             } else if (status == SocketEvent.OPEN_READ) {
                 state = service(socketWrapper);
+                // 如果是连接失败
             } else if (status == SocketEvent.CONNECT_FAIL) {
                 logAccess(socketWrapper);
             } else {
@@ -85,9 +102,10 @@ public abstract class AbstractProcessorLight implements Processor {
                 }
             }
 
+            // 首次会处理传入的参数 此时 dispatches 还没有初始化
             if (dispatches == null || !dispatches.hasNext()) {
                 // Only returns non-null iterator if there are
-                // dispatches to process.
+                // dispatches to process.  这里初始化 dispatches  之后迭代器不为null 会处理下面所有的 dispatchType
                 dispatches = getIteratorAndClearDispatches();
             }
         } while (state == SocketState.ASYNC_END ||
@@ -112,6 +130,10 @@ public abstract class AbstractProcessorLight implements Processor {
     }
 
 
+    /**
+     * 将某个待处理请求 添加到 set 中
+     * @param dispatchType
+     */
     public void addDispatch(DispatchType dispatchType) {
         synchronized (dispatches) {
             dispatches.add(dispatchType);
@@ -119,6 +141,10 @@ public abstract class AbstractProcessorLight implements Processor {
     }
 
 
+    /**
+     * 获取 迭代器对象
+     * @return
+     */
     public Iterator<DispatchType> getIteratorAndClearDispatches() {
         // Note: Logic in AbstractProtocol depends on this method only returning
         // a non-null value if the iterator is non-empty. i.e. it should never
@@ -128,6 +154,7 @@ public abstract class AbstractProcessorLight implements Processor {
             // Synchronized as the generation of the iterator and the clearing
             // of dispatches needs to be an atomic operation.
             result = dispatches.iterator();
+            // 返回迭代器的同时将 dispatches 置空 这样其他线程就 获取不到迭代器
             if (result.hasNext()) {
                 dispatches.clear();
             } else {

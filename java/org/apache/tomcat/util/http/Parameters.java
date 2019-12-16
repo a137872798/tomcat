@@ -37,13 +37,16 @@ import org.apache.tomcat.util.log.UserDataHelper;
 import org.apache.tomcat.util.res.StringManager;
 
 /**
- *
+ * 参数对象
  * @author Costin Manolache
  */
 public final class Parameters {
 
     private static final Log log = LogFactory.getLog(Parameters.class);
 
+    /**
+     * 日志对象 先忽略
+     */
     private static final UserDataHelper userDataLog = new UserDataHelper(log);
 
     private static final UserDataHelper maxParamCountLog = new UserDataHelper(log);
@@ -51,12 +54,24 @@ public final class Parameters {
     private static final StringManager sm =
         StringManager.getManager("org.apache.tomcat.util.http");
 
+    /**
+     * 一个 key  对应多个 value
+     */
     private final Map<String,ArrayList<String>> paramHashValues =
             new LinkedHashMap<>();
+    /**
+     * 是否查询过参数
+     */
     private boolean didQueryParameters=false;
 
+    /**
+     * 就是对字符串的增强 内部还包含 byteChunk 和 charChunk
+     */
     private MessageBytes queryMB;
 
+    /**
+     * 用于解析url 的对象
+     */
     private UDecoder urlDec;
     private final MessageBytes decodedQuery = MessageBytes.newInstance();
 

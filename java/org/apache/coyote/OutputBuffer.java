@@ -28,6 +28,7 @@ import org.apache.tomcat.util.buf.ByteChunk;
  * higher level code should happen via Response.doWrite().
  *
  * @author Remy Maucherat
+ * 用于将 response的数据写入到 OS 中
  */
 public interface OutputBuffer {
 

@@ -27,6 +27,7 @@ import java.io.IOException;
  * @author James Todd [gonzo@sun.com]
  * @author Costin Manolache
  * @author Remy Maucherat
+ * 内部使用 char[]
  */
 public final class CharChunk extends AbstractChunk implements CharSequence {
 
@@ -97,6 +98,11 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
 
     // -------------------- Setup --------------------
 
+    /**
+     * 该方法 跟 byteChunk 一致  一开始为指针赋值
+     * @param initial
+     * @param limit
+     */
     public void allocate(int initial, int limit) {
         if (buff == null || buff.length < initial) {
             buff = new char[initial];

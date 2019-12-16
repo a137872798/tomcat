@@ -33,33 +33,37 @@ import java.util.Locale;
  * @author dac@eng.sun.com
  * @author James Todd [gonzo@eng.sun.com]
  * @author Costin Manolache
+ * 以数组的方式 来包装 消息对象
  */
 public final class MessageBytes implements Cloneable, Serializable {
     private static final long serialVersionUID = 1L;
 
-    // primary type ( whatever is set as original value )
+    // primary type ( whatever is set as original value )  默认 类型为 null 代表没有指定
     private int type = T_NULL;
 
     public static final int T_NULL = 0;
     /** getType() is T_STR if the the object used to create the MessageBytes
         was a String */
+    // 代表消息 以 string 形式存在
     public static final int T_STR  = 1;
     /** getType() is T_BYTES if the the object used to create the MessageBytes
         was a byte[] */
+    // 代表消息以 byte[] 形式存在
     public static final int T_BYTES = 2;
     /** getType() is T_CHARS if the the object used to create the MessageBytes
         was a char[] */
+    // 代表消息以 char[] 形式存在
     public static final int T_CHARS = 3;
 
     private int hashCode=0;
-    // did we compute the hashcode ?
+    // did we compute the hashcode ?  是否计算过hash值
     private boolean hasHashCode=false;
 
-    // Internal objects to represent array + offset, and specific methods
+    // Internal objects to represent array + offset, and specific methods   内部封装了 byte[] char[]  并提供了一系列api
     private final ByteChunk byteC=new ByteChunk();
     private final CharChunk charC=new CharChunk();
 
-    // String
+    // String  该数据以字符串的形式存在
     private String strValue;
     // true if a String value was computed. Probably not needed,
     // strValue!=null is the same
@@ -74,7 +78,7 @@ public final class MessageBytes implements Cloneable, Serializable {
     }
 
     /**
-     * Construct a new MessageBytes instance.
+     * Construct a new MessageBytes instance.  每次调用该方法 都会通过 factory创建一个空的 messageBytes
      * @return the instance
      */
     public static MessageBytes newInstance() {

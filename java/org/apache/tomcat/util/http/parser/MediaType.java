@@ -22,15 +22,40 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * 多媒体类型
+ */
 public class MediaType {
 
+    /**
+     * 对应的类型
+     */
     private final String type;
+    /**
+     * 子类型
+     */
     private final String subtype;
+    /**
+     * 携带的参数信息
+     */
     private final LinkedHashMap<String,String> parameters;
+    /**
+     * 使用的字符集
+     */
     private final String charset;
+
+    /**
+     * 返回不携带 charset 的版本
+     */
     private volatile String noCharset;
     private volatile String withCharset;
 
+    /**
+     * 使用指定参数进行初始化
+     * @param type
+     * @param subtype
+     * @param parameters
+     */
     protected MediaType(String type, String subtype, LinkedHashMap<String,String> parameters) {
         this.type = type;
         this.subtype = subtype;
@@ -38,6 +63,7 @@ public class MediaType {
 
         String cs = parameters.get("charset");
         if (cs != null && cs.length() > 0 && cs.charAt(0) == '"') {
+            // 去除引号
             cs = HttpParser.unquote(cs);
         }
         this.charset = cs;
@@ -129,6 +155,7 @@ public class MediaType {
      * @param input a reader over the header text
      * @return a MediaType parsed from the input, or null if not valid
      * @throws IOException if there was a problem reading the input
+     * 将传入的字符串转换为 多媒体类型
      */
     public static MediaType parseMediaType(StringReader input) throws IOException {
 
@@ -138,6 +165,7 @@ public class MediaType {
             return null;
         }
 
+        // 如果 input 中没有携带/ 那么返回null
         if (HttpParser.skipConstant(input, "/") == SkipResult.NOT_FOUND) {
             return null;
         }
@@ -150,10 +178,12 @@ public class MediaType {
 
         LinkedHashMap<String,String> parameters = new LinkedHashMap<>();
 
+        // 没有找到 ; 也返回null
         SkipResult lookForSemiColon = HttpParser.skipConstant(input, ";");
         if (lookForSemiColon == SkipResult.NOT_FOUND) {
             return null;
         }
+        // 当遇到 ; 时
         while (lookForSemiColon == SkipResult.FOUND) {
             String attribute = HttpParser.readToken(input);
 

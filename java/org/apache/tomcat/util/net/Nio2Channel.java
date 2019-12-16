@@ -36,8 +36,14 @@ public class Nio2Channel implements AsynchronousByteChannel {
 
     protected static final ByteBuffer emptyBuf = ByteBuffer.allocate(0);
 
+    /**
+     * 基于 aio 的 管道独享
+     */
     protected AsynchronousSocketChannel sc = null;
     protected SocketWrapperBase<Nio2Channel> socket = null;
+    /**
+     * 内部同样包含 读写buf 的 handler 对象
+     */
     protected final SocketBufferHandler bufHandler;
 
     public Nio2Channel(SocketBufferHandler bufHandler) {
@@ -51,6 +57,7 @@ public class Nio2Channel implements AsynchronousByteChannel {
      * @param socket  The new socket to associate with this NIO2 channel
      *
      * @throws IOException If a problem was encountered resetting the channel
+     * 使用指定的参数 设置内部成员 并重置 handler
      */
     public void reset(AsynchronousSocketChannel channel, SocketWrapperBase<Nio2Channel> socket)
             throws IOException {
@@ -60,7 +67,7 @@ public class Nio2Channel implements AsynchronousByteChannel {
     }
 
     /**
-     * Free the channel memory
+     * Free the channel memory   释放堆外内存
      */
     public void free() {
         bufHandler.free();
@@ -144,6 +151,13 @@ public class Nio2Channel implements AsynchronousByteChannel {
         return sc.read(dst);
     }
 
+    /**
+     * 使用 aio 读取数据
+     * @param dst
+     * @param attachment
+     * @param handler   配合 aio 的一个回调对象
+     * @param <A>
+     */
     @Override
     public <A> void read(ByteBuffer dst, A attachment,
             CompletionHandler<Integer, ? super A> handler) {
@@ -162,6 +176,11 @@ public class Nio2Channel implements AsynchronousByteChannel {
         sc.read(dsts, offset, length, timeout, unit, attachment, handler);
     }
 
+    /**
+     * 使用 aio 写入数据 返回结果是一个 future 类型
+     * @param src
+     * @return
+     */
     @Override
     public Future<Integer> write(ByteBuffer src) {
         return sc.write(src);

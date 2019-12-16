@@ -35,6 +35,7 @@ import org.apache.tomcat.util.res.StringManager;
  *  The conversion will modify the original buffer.
  *
  *  @author Costin Manolache
+ *  用于解析url的对象
  */
 public final class UDecoder {
 
@@ -42,15 +43,25 @@ public final class UDecoder {
 
     private static final Log log = LogFactory.getLog(UDecoder.class);
 
+    /**
+     * 是否允许将 "/" 进行编码
+     */
     public static final boolean ALLOW_ENCODED_SLASH =
         Boolean.parseBoolean(System.getProperty("org.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH", "false"));
 
+    /**
+     * 当解码时遇到异常
+     */
     private static class DecodeException extends CharConversionException {
         private static final long serialVersionUID = 1L;
         public DecodeException(String s) {
             super(s);
         }
 
+        /**
+         * 不打印栈轨迹 这样 jvm 会做优化 不保存大量的栈轨迹信息
+         * @return
+         */
         @Override
         public synchronized Throwable fillInStackTrace() {
             // This class does not provide a stack trace
@@ -78,28 +89,36 @@ public final class UDecoder {
      * @param mb The URL encoded bytes
      * @param query <code>true</code> if this is a query string
      * @throws IOException Invalid %xx URL encoding
+     * query 代表本 url 是否是一个查询语句
      */
     public void convert( ByteChunk mb, boolean query )
         throws IOException
     {
+        // 获取 mb 当前的偏移量
         int start=mb.getOffset();
+        // 获取mb内部包含的数组
         byte buff[]=mb.getBytes();
         int end=mb.getEnd();
 
+        // 寻找 buf 中的 %
         int idx= ByteChunk.findByte( buff, start, end, (byte) '%' );
         int idx2=-1;
         if( query ) {
+            // 如果是查询语句 查询 "+"
             idx2= ByteChunk.findByte( buff, start, (idx >= 0 ? idx : end), (byte) '+' );
         }
+        // 当没有发现 % 和 + 时 直接返回
         if( idx<0 && idx2<0 ) {
             return;
         }
 
         // idx will be the smallest positive index ( first % or + )
+        // 如果 + 在 % 的后面 或者没有找到 %
         if( (idx2 >= 0 && idx2 < idx) || idx < 0 ) {
             idx=idx2;
         }
 
+        // 如果 query = true 就携带 slash
         final boolean noSlash = !(ALLOW_ENCODED_SLASH || query);
 
         for( int j=idx; j<end; j++, idx++ ) {

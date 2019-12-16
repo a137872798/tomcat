@@ -53,6 +53,7 @@ import org.apache.tomcat.util.net.jsse.JSSESupport;
 
 /**
  * NIO2 endpoint.
+ * 改良版的 nio endpoint  实际上就是 借助 aio
  */
 public class Nio2Endpoint extends AbstractJsseEndpoint<Nio2Channel> {
 
@@ -77,7 +78,7 @@ public class Nio2Endpoint extends AbstractJsseEndpoint<Nio2Channel> {
     private static ThreadLocal<Boolean> inlineCompletion = new ThreadLocal<>();
 
     /**
-     * Thread group associated with the server socket.
+     * Thread group associated with the server socket.   与  socket 关联的 线程组
      */
     private AsynchronousChannelGroup threadGroup = null;
 

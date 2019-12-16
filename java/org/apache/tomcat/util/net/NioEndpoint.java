@@ -1721,6 +1721,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
          */
         @Override
         protected void doWrite(boolean block, ByteBuffer from) throws IOException {
+            // 获取等待写入超时的时间  该值用来阻塞选择器
             long writeTimeout = getWriteTimeout();
             Selector selector = null;
             try {
@@ -1729,15 +1730,20 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
                 // Ignore
             }
             try {
+                // 如果是共享selector 模式 会使用一个 blockPoller 轮询选择器  等待事件后进行处理 这期间会用一个latch对象 阻塞当前线程
+                // 如果是非共享selector 模式 则会单独针对这个selector 进行阻塞  不过 IO 密集型事件是不能通过 增加selector数量来显著提高效率的
                 pool.write(from, getSocket(), selector, writeTimeout, block);
+                // 如果是阻塞模式下 那么此时应该已经将 from 的数据写入到 IO 缓冲区了
                 if (block) {
                     // Make sure we are flushed
                     do {
+                        // NioChannel flush 总是返回true
                         if (getSocket().flush(true, selector, writeTimeout)) {
                             break;
                         }
                     } while (true);
                 }
+                // 更新写入时间
                 updateLastWrite();
             } finally {
                 if (selector != null) {
@@ -1756,10 +1762,14 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
             if (log.isDebugEnabled()) {
                 log.debug(sm.getString("endpoint.debug.registerRead", this));
             }
+            // 将读事件注册到 poller 上
             getPoller().add(getSocket(), SelectionKey.OP_READ);
         }
 
 
+        /**
+         * 将写事件注册上去  那还要那个池干嘛???
+         */
         @Override
         public void registerWriteInterest() {
             if (log.isDebugEnabled()) {
@@ -1769,12 +1779,25 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
         }
 
 
+        /**
+         * 当selector轮询到事件时 如果发现存在 sendFileDataBase对象 那么先处理
+         * @param filename
+         * @param pos
+         * @param length
+         * @return
+         */
         @Override
         public SendfileDataBase createSendfileData(String filename, long pos, long length) {
             return new SendfileData(filename, pos, length);
         }
 
 
+        /**
+         * 这里将 文件中的数据转移到 buf 中
+         * @param sendfileData Data representing the file to send
+         *
+         * @return
+         */
         @Override
         public SendfileState processSendfile(SendfileDataBase sendfileData) {
             setSendfileData((SendfileData) sendfileData);
@@ -1785,6 +1808,9 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
         }
 
 
+        /**
+         * 设置远端地址
+         */
         @Override
         protected void populateRemoteAddr() {
             InetAddress inetAddr = getSocket().getIOChannel().socket().getInetAddress();
@@ -1868,6 +1894,10 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
         }
 
 
+        /**
+         * 设置 应用上下文buf
+         * @param handler
+         */
         @Override
         public void setAppReadBufHandler(ApplicationBufferHandler handler) {
             getSocket().setAppReadBufHandler(handler);
@@ -1930,6 +1960,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
                 } catch (CancelledKeyException ckx) {
                     handshake = -1;
                 }
+                // 处理事件   handler 的默认实现就是 ConnectionHandler
                 if (handshake == 0) {
                     SocketState state = SocketState.OPEN;
                     // Process the request from this socket

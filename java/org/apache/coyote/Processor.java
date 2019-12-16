@@ -35,7 +35,7 @@ public interface Processor {
      * data arrives) that allows processing to continue for a connection that is
      * not currently being processed.
      *
-     * @param socketWrapper The connection to process   连接的包装对象
+     * @param socketWrapper The connection to process   socket包装对象
      * @param status The status of the connection that triggered this additional
      *               processing     代表本次处理的事件类型
      *
@@ -44,7 +44,6 @@ public interface Processor {
      *
      * @throws IOException If an I/O error occurs during the processing of the
      *         request
-     *         处理一个等待接入的连接
      */
     SocketState process(SocketWrapperBase<?> socketWrapper, SocketEvent status) throws IOException;
 
@@ -56,14 +55,21 @@ public interface Processor {
      *
      * @throws IllegalStateException if this is called on a Processor that does
      *         not support upgrading
+     *         获取一个升级token ?
      */
     UpgradeToken getUpgradeToken();
 
     /**
      * @return {@code true} if the Processor is currently processing an upgrade
      *         request, otherwise {@code false}
+     *         是否支持升级
      */
     boolean isUpgrade();
+
+    /**
+     * 是否支持异步
+     * @return
+     */
     boolean isAsync();
 
     /**
@@ -84,12 +90,14 @@ public interface Processor {
 
     /**
      * @return The request associated with this processor.
+     * 获取本次被处理的请求对象
      */
     Request getRequest();
 
     /**
      * Recycle the processor, ready for the next request which may be on the
      * same connection or a different connection.
+     * 回收该对象 等待下次请求   应该是 类似 ringBuffer
      */
     void recycle();
 
@@ -107,6 +115,7 @@ public interface Processor {
      *
      * @throws IllegalStateException if this is called on a Processor that does
      *         not support upgrading
+     *         获取剩余的 输入流
      */
     ByteBuffer getLeftoverInput();
 
@@ -115,6 +124,7 @@ public interface Processor {
      * new connections. This is primarily intended to enable processors that
      * use multiplexed connections to prevent further 'streams' being added to
      * an existing multiplexed connection.
+     * 暂停当前处理
      */
     void pause();
 

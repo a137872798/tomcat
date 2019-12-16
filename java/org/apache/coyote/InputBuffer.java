@@ -24,6 +24,7 @@ import org.apache.tomcat.util.net.ApplicationBufferHandler;
 /**
  * This class is only for internal use in the protocol implementation. All
  * reading from Tomcat (or adapter) should be done using Request.doRead().
+ * 仅在内部 协议类实现使用的接口
  */
 public interface InputBuffer {
 
@@ -42,6 +43,7 @@ public interface InputBuffer {
      *
      * @deprecated Unused. Will be removed in Tomcat 9. Use
      *             {@link #doRead(ApplicationBufferHandler)}
+     *             从给与的chunk 对象中读取数据
      */
     @Deprecated
     public int doRead(ByteChunk chunk) throws IOException;
@@ -59,6 +61,7 @@ public interface InputBuffer {
      *         end of stream
      *
      * @throws IOException If an I/O error occurs reading from the input stream
+     * 通过 applicationBufferHandler 读取数据
      */
     public int doRead(ApplicationBufferHandler handler) throws IOException;
 }

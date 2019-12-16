@@ -34,6 +34,7 @@ import java.util.Map;
  * {@link javax.servlet.http.HttpServletRequest}.
  *
  * @see javax.servlet.http.HttpServletRequest
+ * servlet 规范中的基础类型
  */
 public interface ServletRequest {
 
@@ -60,6 +61,7 @@ public interface ServletRequest {
      *            a <code>String</code> specifying the name of the attribute
      * @return an <code>Object</code> containing the value of the attribute, or
      *         <code>null</code> if the attribute does not exist
+     *         req 对象上会绑定 attr 这里通过name 来查询属性
      */
     public Object getAttribute(String name);
 
@@ -71,6 +73,7 @@ public interface ServletRequest {
      *
      * @return an <code>Enumeration</code> of strings containing the names of the
      *         request's attributes
+     *         获取 req 对象上绑定的所有属性名
      */
     public Enumeration<String> getAttributeNames();
 
@@ -82,6 +85,7 @@ public interface ServletRequest {
      * @return a <code>String</code> containing the name of the character
      *         encoding, or <code>null</code> if the request does not specify a
      *         character encoding
+     *         获取req 指定的字符集
      */
     public String getCharacterEncoding();
 
@@ -95,6 +99,7 @@ public interface ServletRequest {
      *            encoding.
      * @throws java.io.UnsupportedEncodingException
      *             if this is not a valid encoding
+     *             为该req对象指定字符集
      */
     public void setCharacterEncoding(String env)
             throws java.io.UnsupportedEncodingException;
@@ -106,6 +111,7 @@ public interface ServletRequest {
      *
      * @return an integer containing the length of the request body or -1 if the
      *         length is not known or is greater than {@link Integer#MAX_VALUE}
+     *         获取数据体长度
      */
     public int getContentLength();
 
@@ -117,6 +123,7 @@ public interface ServletRequest {
      * @return a long integer containing the length of the request body or -1 if
      *         the length is not known
      * @since Servlet 3.1
+     * 将长度 以 long形式返回 属于 servlet 3.1 的新方法
      */
     public long getContentLengthLong();
 
@@ -127,6 +134,7 @@ public interface ServletRequest {
      *
      * @return a <code>String</code> containing the name of the MIME type of the
      *         request, or null if the type is not known
+     *         获取contentType 的内容
      */
     public String getContentType();
 
@@ -142,6 +150,7 @@ public interface ServletRequest {
      *                for this request
      * @exception IOException
      *                if an input or output exception occurred
+     *                获取 req 的输入流 这里有一个 servletInputStream 接口
      */
     public ServletInputStream getInputStream() throws IOException;
 

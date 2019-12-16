@@ -60,6 +60,7 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @author Craig R. McClanahan
  * @author Remy Maucherat
+ * coyote 处理器
  */
 public class CoyoteAdapter implements Adapter {
 
@@ -67,6 +68,9 @@ public class CoyoteAdapter implements Adapter {
 
     // -------------------------------------------------------------- Constants
 
+    /**
+     * 当前遵循的规范  servlet 3.1
+     */
     private static final String POWERED_BY = "Servlet/3.1 JSP/2.3 " +
             "(" + ServerInfo.getServerInfo() + " Java/" +
             System.getProperty("java.vm.vendor") + "/" +
@@ -75,6 +79,9 @@ public class CoyoteAdapter implements Adapter {
     private static final EnumSet<SessionTrackingMode> SSL_ONLY =
         EnumSet.of(SessionTrackingMode.SSL);
 
+    /**
+     * 适配器标记 ???
+     */
     public static final int ADAPTER_NOTES = 1;
 
 
@@ -82,6 +89,9 @@ public class CoyoteAdapter implements Adapter {
         Boolean.parseBoolean(System.getProperty("org.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH", "false"));
 
 
+    /**
+     * 每个线程的名字都保存在 ThreadMap 中
+     */
     private static final ThreadLocal<String> THREAD_NAME =
             new ThreadLocal<String>() {
 
@@ -99,6 +109,7 @@ public class CoyoteAdapter implements Adapter {
      * Construct a new CoyoteProcessor associated with the specified connector.
      *
      * @param connector CoyoteConnector that owns this processor
+     *                  使用一个指定的connector 来初始化适配器对象
      */
     public CoyoteAdapter(Connector connector) {
 
@@ -113,6 +124,7 @@ public class CoyoteAdapter implements Adapter {
 
     /**
      * The CoyoteConnector with which this processor is associated.
+     * 关联的connector 对象
      */
     private final Connector connector;
 
@@ -125,10 +137,19 @@ public class CoyoteAdapter implements Adapter {
 
     // -------------------------------------------------------- Adapter Methods
 
+    /**
+     * 异步分发请求
+     * @param req   这里使用了 coyote 封装的 req 和 res 对象   应该是在哪个地方将 req 交由 info 对象来处理
+     * @param res
+     * @param status   当前要处理的事件
+     * @return
+     * @throws Exception
+     */
     @Override
     public boolean asyncDispatch(org.apache.coyote.Request req, org.apache.coyote.Response res,
             SocketEvent status) throws Exception {
 
+        // 通过 getNode 获取到的是另一套 req res 这个note 是什么时候设置的呢???
         Request request = (Request) req.getNote(ADAPTER_NOTES);
         Response response = (Response) res.getNote(ADAPTER_NOTES);
 

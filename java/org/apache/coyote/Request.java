@@ -61,12 +61,13 @@ import org.apache.tomcat.util.res.StringManager;
  * @author Hans Bergsten [hans@gefionsoftware.com]
  * @author Costin Manolache
  * @author Remy Maucherat
+ * 抽象成 servlet 的请求对象
  */
 public final class Request {
 
     private static final StringManager sm = StringManager.getManager(Request.class);
 
-    // Expected maximum typical number of cookies per request.
+    // Expected maximum typical number of cookies per request.    每个请求 初始值允许携带 4k 的cookie
     private static final int INITIAL_COOKIE_SIZE = 4;
 
     // ----------------------------------------------------------- Constructors
@@ -79,12 +80,15 @@ public final class Request {
 
     // ----------------------------------------------------- Instance Variables
 
+    // req 对象为什么要记录port字段???
     private int serverPort = -1;
+    // 消息体对象
     private final MessageBytes serverNameMB = MessageBytes.newInstance();
 
     private int remotePort;
     private int localPort;
 
+    // messageBytes 内部包含了 str byteChunk 和 charChunk 可以根据需要 对字符串做转化
     private final MessageBytes schemeMB = MessageBytes.newInstance();
 
     private final MessageBytes methodMB = MessageBytes.newInstance();
@@ -99,55 +103,74 @@ public final class Request {
     private final MessageBytes remoteHostMB = MessageBytes.newInstance();
     private final MessageBytes localAddrMB = MessageBytes.newInstance();
 
+    /**
+     * 多媒体数据头  内部包含 多个name/value 键值对
+     */
     private final MimeHeaders headers = new MimeHeaders();
 
 
     /**
      * Path parameters
+     * 内部存放了 路径与参数的映射关系
      */
     private final Map<String,String> pathParameters = new HashMap<>();
 
     /**
-     * Notes.
+     * Notes.   这是什么标记吗???
      */
     private final Object notes[] = new Object[Constants.MAX_NOTES];
 
 
     /**
-     * Associated input buffer.
+     * Associated input buffer.   该接口意味着能从 buf 和 数组中读取数据
      */
     private InputBuffer inputBuffer = null;
 
 
     /**
-     * URL decoder.
+     * URL decoder.   url 解析器对象
      */
     private final UDecoder urlDecoder = new UDecoder();
 
 
     /**
-     * HTTP specific fields. (remove them ?)
+     * HTTP specific fields. (remove them ?)   http协议的 数据体大小  默认情况下没有规定大小
      */
     private long contentLength = -1;
+    /**
+     * contentType 内部数据使用 MessageBytes 来包装
+     */
     private MessageBytes contentTypeMB = null;
     private Charset charset = null;
     // Retain the original, user specified character encoding so it can be
-    // returned even if it is invalid
+    // returned even if it is invalid  指定的字符集
     private String characterEncoding = null;
 
     /**
-     * Is there an expectation ?
+     * Is there an expectation ?   是否出现了异常
      */
     private boolean expectation = false;
 
+    /**
+     * 本次请求中携带的 cookie 对象
+     */
     private final ServerCookies serverCookies = new ServerCookies(INITIAL_COOKIE_SIZE);
+    /**
+     * req 中携带的参数对象
+     */
     private final Parameters parameters = new Parameters();
 
     private final MessageBytes remoteUser = MessageBytes.newInstance();
     private boolean remoteUserNeedsAuthorization = false;
     private final MessageBytes authType = MessageBytes.newInstance();
+    /**
+     * req 对象本身还携带了一组属性
+     */
     private final HashMap<String,Object> attributes = new HashMap<>();
 
+    /**
+     * 该请求关联的 响应对象
+     */
     private Response response;
     private volatile ActionHook hook;
 
@@ -156,16 +179,29 @@ public final class Request {
     private long startTime = -1;
     private int available = 0;
 
+    /**
+     * req 的详细描述信息
+     */
     private final RequestInfo reqProcessorMX=new RequestInfo(this);
 
+    /**
+     * 是否发送文件是什么意思???
+     */
     private boolean sendfile = true;
 
+    /**
+     * 该监听器本身是 servlet3.1 出现的东西   该接口在tomcat中没有实现类
+     */
     volatile ReadListener listener;
 
     public ReadListener getReadListener() {
         return listener;
     }
 
+    /**
+     * 设置监听器对象
+     * @param listener
+     */
     public void setReadListener(ReadListener listener) {
         if (listener == null) {
             throw new NullPointerException(
@@ -178,6 +214,7 @@ public final class Request {
         // Note: This class is not used for HTTP upgrade so only need to test
         //       for async
         AtomicBoolean result = new AtomicBoolean(false);
+        // 当设置监听器时 会触发一个动作   这里传入   async_is_async  和 false 是什么意思???  看来必须要在里面将 result修改成true否则会抛出异常
         action(ActionCode.ASYNC_IS_ASYNC, result);
         if (!result.get()) {
             throw new IllegalStateException(
@@ -187,6 +224,9 @@ public final class Request {
         this.listener = listener;
     }
 
+    /**
+     * 是否发送了  已读取全部数据的事件
+     */
     private final AtomicBoolean allDataReadEventSent = new AtomicBoolean(false);
 
     public boolean sendAllDataReadEvent() {
@@ -292,9 +332,11 @@ public final class Request {
      * @return The value set via {@link #setCharacterEncoding(String)} or if no
      *         call has been made to that method try to obtain if from the
      *         content type.
+     *         获取指定的字符集
      */
     public String getCharacterEncoding() {
         if (characterEncoding == null) {
+            // 当req 自身的 字符集没有被指定时 尝试从 contentType 中确定
             characterEncoding = getCharsetFromContentType(getContentType());
         }
 
@@ -311,11 +353,14 @@ public final class Request {
      *
      * @throws UnsupportedEncodingException If the user agent has specified an
      *         invalid character encoding
+     *         获取字符集
      */
     public Charset getCharset() throws UnsupportedEncodingException {
         if (charset == null) {
+            // 在没有指定字符集的情况下 尝试获取 characterEncoding
             getCharacterEncoding();
             if (characterEncoding != null) {
+                // 将 字符串转换成 字符集对象   实际上 Charset 有一个对外的api forName 可以根据name来查找对应的字符集
                 charset = B2CConverter.getCharset(characterEncoding);
             }
         }
@@ -337,6 +382,10 @@ public final class Request {
     }
 
 
+    /**
+     * 设置字符集
+     * @param charset
+     */
     public void setCharset(Charset charset) {
         this.charset = charset;
         this.characterEncoding = charset.name();
@@ -368,6 +417,10 @@ public final class Request {
         return contentLength;
     }
 
+    /**
+     * 获取 contentType的内容
+     * @return
+     */
     public String getContentType() {
         contentType();
         if ((contentTypeMB == null) || contentTypeMB.isNull()) {
@@ -384,6 +437,7 @@ public final class Request {
 
     public MessageBytes contentType() {
         if (contentTypeMB == null) {
+            // 从头部 获取 content-type 对应的值
             contentTypeMB = headers.getValue("content-type");
         }
         return contentTypeMB;
@@ -425,8 +479,14 @@ public final class Request {
         this.hook = hook;
     }
 
+    /**
+     * 按照code类型来触发钩子
+     * @param actionCode
+     * @param param
+     */
     public void action(ActionCode actionCode, Object param) {
         if (hook != null) {
+            // 默认情况下 param 为自身
             if (param == null) {
                 hook.action(actionCode, this);
             } else {
@@ -438,6 +498,10 @@ public final class Request {
 
     // -------------------- Cookies --------------------
 
+    /**
+     * 获取 请求体内部的 serverCookie 对象  该对象内部包含了 name/value 以及重要的 domain属性 用于标记 该cookie 的作用范围
+     * @return
+     */
     public ServerCookies getCookies() {
         return serverCookies;
     }
@@ -450,6 +514,11 @@ public final class Request {
     }
 
 
+    /**
+     * 将 路径参数设置到 pathParameters 中
+     * @param name
+     * @param value
+     */
     public void addPathParameter(String name, String value) {
         pathParameters.put(name, value);
     }
@@ -474,6 +543,10 @@ public final class Request {
         return attributes.get(name);
     }
 
+    /**
+     * 远端用户是什么 意思  不过推测是遵循servlet规范创建的吧
+     * @return
+     */
     public MessageBytes getRemoteUser() {
         return remoteUser;
     }
@@ -512,6 +585,10 @@ public final class Request {
         return result.get();
     }
 
+    /**
+     * 判断是否支持 相对路径重定向???
+     * @return
+     */
     public boolean getSupportsRelativeRedirects() {
         if (protocol().equals("") || protocol().equals("HTTP/1.0")) {
             return false;
@@ -550,6 +627,7 @@ public final class Request {
      *
      * @deprecated Unused. Will be removed in Tomcat 9. Use
      *             {@link #doRead(ApplicationBufferHandler)}
+     *             使用 inputBuffer 读取chunk 中的数据
      */
     @Deprecated
     public int doRead(ByteChunk chunk) throws IOException {
@@ -701,22 +779,26 @@ public final class Request {
      * <code>null</code> is returned.
      *
      * @param contentType a content type header
+     *                    通过指定 contentType 来获取对应的 字符集  一般都是  Application/json;charset=UTF-8
      */
     private static String getCharsetFromContentType(String contentType) {
 
         if (contentType == null) {
             return null;
         }
+        // 如果 contentType 中携带了 charset 那么 就可以确定contentType 中携带了 字符集
         int start = contentType.indexOf("charset=");
         if (start < 0) {
             return null;
         }
         String encoding = contentType.substring(start + 8);
+        // 如果 = 后面的内容 有; 分割 那么就获取前面的字符
         int end = encoding.indexOf(';');
         if (end >= 0) {
             encoding = encoding.substring(0, end);
         }
         encoding = encoding.trim();
+        // 如果携带转义符 那么去除掉
         if ((encoding.length() > 2) && (encoding.startsWith("\""))
             && (encoding.endsWith("\""))) {
             encoding = encoding.substring(1, encoding.length() - 1);

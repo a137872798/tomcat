@@ -119,7 +119,7 @@ import org.ietf.jgss.GSSException;
 
 /**
  * Wrapper object for the Coyote request.
- *
+ * 该对象内部包装了 coyote 的 req 同时实现了servlet标准接口的  HttpServletRequest
  * @author Remy Maucherat
  * @author Craig R. McClanahan
  */

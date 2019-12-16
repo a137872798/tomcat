@@ -22,6 +22,7 @@ import java.io.IOException;
  * Receives notification of read events when using non-blocking IO.
  *
  * @since Servlet 3.1
+ * read 监听器是 servlet3.1 规范中出现的东西
  */
 public interface ReadListener extends java.util.EventListener{
 
@@ -33,6 +34,7 @@ public interface ReadListener extends java.util.EventListener{
      * subsequently become available to read.
      *
      * @throws IOException id an I/O error occurs while processing the event
+     * 当数据可以被读取时触发
      */
     public abstract void onDataAvailable() throws IOException;
 
@@ -40,6 +42,7 @@ public interface ReadListener extends java.util.EventListener{
      * Invoked when the request body has been fully read.
      *
      * @throws IOException id an I/O error occurs while processing the event
+     * 当所有数据体都被读取完成后触发
      */
     public abstract void onAllDataRead() throws IOException;
 
@@ -47,6 +50,7 @@ public interface ReadListener extends java.util.EventListener{
      * Invoked if an error occurs while reading the request body.
      *
      * @param throwable The exception that occurred
+     *                  当读取过程中出现异常时
      */
     public abstract void onError(java.lang.Throwable throwable);
 }

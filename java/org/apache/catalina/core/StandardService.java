@@ -46,6 +46,7 @@ import org.apache.tomcat.util.res.StringManager;
  * not required.
  *
  * @author Craig R. McClanahan
+ * 标准service 实现
  */
 
 public class StandardService extends LifecycleMBeanBase implements Service {

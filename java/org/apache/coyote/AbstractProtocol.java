@@ -87,7 +87,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
      * Endpoint that provides low-level network I/O - must be matched to the
      * ProtocolHandler implementation (ProtocolHandler using NIO, requires NIO
      * Endpoint etc.).
-     * 该协议对象绑定的端点
+     * 该协议对象绑定的端点  该对象内部封装了 接收远端连接 轮询 selector 和 读/写 iobuffer 的逻辑
      */
     private final AbstractEndpoint<S> endpoint;
 
@@ -1198,6 +1198,9 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
         }
 
 
+        /**
+         * 停止异步任务
+         */
         protected void stop() {
             asyncTimeoutRunning = false;
 

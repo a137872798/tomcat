@@ -64,6 +64,7 @@ import java.nio.charset.StandardCharsets;
  * @author James Todd [gonzo@sun.com]
  * @author Costin Manolache
  * @author Remy Maucherat
+ * 基于 byte[] 的 chunk 对象
  */
 public final class ByteChunk extends AbstractChunk {
 
@@ -78,7 +79,7 @@ public final class ByteChunk extends AbstractChunk {
 
         /**
          * Read new bytes.
-         *
+         * 读取chunk中的数据
          * @return The number of bytes read
          *
          * @throws IOException If an I/O error occurs during reading
@@ -97,6 +98,7 @@ public final class ByteChunk extends AbstractChunk {
         /**
          * Send the bytes ( usually the internal conversion buffer ). Expect 8k
          * output if the buffer is full.
+         * 通过 byte[] 往 chunk中写入数据
          *
          * @param buf bytes that will be written
          * @param off offset in the bytes array
@@ -109,7 +111,7 @@ public final class ByteChunk extends AbstractChunk {
         /**
          * Send the bytes ( usually the internal conversion buffer ). Expect 8k
          * output if the buffer is full.
-         *
+         * 通过 bytebuf 往chunk 中写入数据
          * @param from bytes that will be written
          * @throws IOException If an I/O occurs while writing the bytes
          */
@@ -122,15 +124,20 @@ public final class ByteChunk extends AbstractChunk {
      * Default encoding used to convert to strings. It should be UTF8, as most
      * standards seem to converge, but the servlet API requires 8859_1, and this
      * object is used mostly for servlets.
+     * 根据 servlet 规范 默认使用的字符集为 ISO-8859-1
      */
     public static final Charset DEFAULT_CHARSET = StandardCharsets.ISO_8859_1;
 
+    /**
+     * 指定的字符集
+     */
     private transient Charset charset;
 
-    // byte[]
+    // byte[]  使用的数组对象
     private byte[] buff;
 
     // transient as serialization is primarily for values via, e.g. JMX
+    // 写入 和 读取方法 会委托给这2个属性
     private transient ByteInputChannel in = null;
     private transient ByteOutputChannel out = null;
 
@@ -142,6 +149,10 @@ public final class ByteChunk extends AbstractChunk {
     }
 
 
+    /**
+     * 使用指定大小初始化 chunk 对象
+     * @param initial
+     */
     public ByteChunk(int initial) {
         allocate(initial, -1);
     }
@@ -165,6 +176,9 @@ public final class ByteChunk extends AbstractChunk {
     }
 
 
+    /**
+     * recycle 作为要被回收前的清理方法
+     */
     @Override
     public void recycle() {
         super.recycle();
@@ -174,10 +188,17 @@ public final class ByteChunk extends AbstractChunk {
 
     // -------------------- Setup --------------------
 
+    /**
+     * 规定一个 初始容量 和一个 限制值来初始化 chunk
+     * @param initial
+     * @param limit
+     */
     public void allocate(int initial, int limit) {
+        // 初始化 byte[]
         if (buff == null || buff.length < initial) {
             buff = new byte[initial];
         }
+        // 设置 可扩容的最大值
         setLimit(limit);
         start = 0;
         end = 0;
@@ -188,7 +209,7 @@ public final class ByteChunk extends AbstractChunk {
 
     /**
      * Sets the buffer to the specified subarray of bytes.
-     *
+     * 使用指定数组进行初始化
      * @param b the ascii bytes
      * @param off the start offset of the bytes
      * @param len the length of the bytes
@@ -216,7 +237,7 @@ public final class ByteChunk extends AbstractChunk {
 
 
     /**
-     * @return the buffer.
+     * @return the buffer.   返回内部的 容器对象
      */
     public byte[] getBytes() {
         return getBuffer();
@@ -255,18 +276,31 @@ public final class ByteChunk extends AbstractChunk {
 
     // -------------------- Adding data to the buffer --------------------
 
+    /**
+     * 往容器中追加数据
+     * @param b
+     * @throws IOException
+     */
     public void append(byte b) throws IOException {
+        // 确保有足够大小 如果不够 进行扩容
         makeSpace(1);
+        // 获取limit 属性
         int limit = getLimitInternal();
 
         // couldn't make space
         if (end >= limit) {
+            // 代表不能再继续扩容  此时会触发强制刷盘  将 buf 中的数据通过 out 属性写入到操作系统io缓冲区中
             flushBuffer();
         }
         buff[end++] = b;
     }
 
 
+    /**
+     * 将一个 byte[] 写入到 chunk 中
+     * @param src
+     * @throws IOException
+     */
     public void append(ByteChunk src) throws IOException {
         append(src.getBytes(), src.getStart(), src.getLength());
     }
@@ -274,27 +308,28 @@ public final class ByteChunk extends AbstractChunk {
 
     /**
      * Add data to the buffer.
-     *
+     * 将数组中的 数据 转移到chunk 中
      * @param src Bytes array
      * @param off Offset
      * @param len Length
      * @throws IOException Writing overflow data to the output channel failed
      */
     public void append(byte src[], int off, int len) throws IOException {
-        // will grow, up to limit
+        // will grow, up to limit  首先确保有足够空间
         makeSpace(len);
         int limit = getLimitInternal();
 
         // Optimize on a common case.
         // If the buffer is empty and the source is going to fill up all the
         // space in buffer, may as well write it directly to the output,
-        // and avoid an extra copy
+        // and avoid an extra copy   如果当前没有空间了 那么 直接将 byte 的数据通过 out 写出
         if (len == limit && end == start && out != null) {
             out.realWriteBytes(src, off, len);
             return;
         }
 
-        // if we are below the limit
+        // if we are below the limit    之前已经扩容过了 所以 如果limit 足够大的情况是肯定能直接写入的 就对应
+        // 这里的 len <= limit - end
         if (len <= limit - end) {
             System.arraycopy(src, off, buff, end, len);
             end += len;
@@ -308,12 +343,15 @@ public final class ByteChunk extends AbstractChunk {
         // We chunk the data into slices fitting in the buffer limit, although
         // if the data is written directly if it doesn't fit.
 
+        // 获取扩容后 当前可用空间  这里只能做到填满buff
         int avail = limit - end;
         System.arraycopy(src, off, buff, end, avail);
         end += avail;
 
+        // 先强制触发一次刷盘  这里会重置 end指针
         flushBuffer();
 
+        // 之后将剩余的数据写入
         int remain = len - avail;
 
         while (remain > (limit - end)) {
@@ -328,7 +366,7 @@ public final class ByteChunk extends AbstractChunk {
 
     /**
      * Add data to the buffer.
-     *
+     * 从buffer 中取出数据 并追加到 chunk 中
      * @param from the ByteBuffer with the data
      * @throws IOException Writing overflow data to the output channel failed
      */
@@ -345,13 +383,15 @@ public final class ByteChunk extends AbstractChunk {
         // and avoid an extra copy
         if (len == limit && end == start && out != null) {
             out.realWriteBytes(from);
+            // 将数据写出的同时 不忘了修改from内部的指针
             from.position(from.limit());
             return;
         }
-        // if we have limit and we're below
+        // if we have limit and we're below  当有足够的空间时
         if (len <= limit - end) {
             // makeSpace will grow the buffer to the limit,
             // so we have space
+            // 将from 的数据移动到buff中
             from.get(buff, end, len);
             end += len;
             return;
@@ -369,6 +409,7 @@ public final class ByteChunk extends AbstractChunk {
         from.get(buff, end, avail);
         end += avail;
 
+        // 当空间不足时 强制刷盘后 写入剩余数据
         flushBuffer();
 
         int fromLimit = from.limit();
@@ -397,6 +438,11 @@ public final class ByteChunk extends AbstractChunk {
     }
 
 
+    /**
+     * 这里将 start 前进1 这样 0~start 之间的数据就无效了 同时返回被截取的byte
+     * @return
+     * @throws IOException
+     */
     public byte substractB() throws IOException {
         if (checkEof()) {
             return -1;
@@ -405,14 +451,25 @@ public final class ByteChunk extends AbstractChunk {
     }
 
 
+    /**
+     * 从 buf中截取部分数据 并转移到 dest 中
+     * @param dest
+     * @param off
+     * @param len
+     * @return
+     * @throws IOException
+     */
     public int substract(byte dest[], int off, int len) throws IOException {
+        // 如果到了末尾
         if (checkEof()) {
             return -1;
         }
         int n = len;
+        // 尝试截取的长度不能超过 end - start
         if (len > getLength()) {
             n = getLength();
         }
+        // 将数据从buf 拷贝到dest 中 注意是拷贝 而不是切片
         System.arraycopy(buff, start, dest, off, n);
         start += n;
         return n;
@@ -429,6 +486,7 @@ public final class ByteChunk extends AbstractChunk {
      * @return an integer specifying the actual number of bytes read, or -1 if
      *         the end of the stream is reached
      * @throws IOException if an input or output exception has occurred
+     * 将数据截取到 buf 中
      */
     public int substract(ByteBuffer to) throws IOException {
         if (checkEof()) {
@@ -462,6 +520,7 @@ public final class ByteChunk extends AbstractChunk {
      * reached. You can also call it explicitly to force the data to be written.
      *
      * @throws IOException Writing overflow data to the output channel failed
+     * 通过 out 将数据写入到 OS 中
      */
     public void flushBuffer() throws IOException {
         // assert out!=null
@@ -476,7 +535,7 @@ public final class ByteChunk extends AbstractChunk {
     /**
      * Make space for len bytes. If len is small, allocate a reserve space too.
      * Never grow bigger than the limit or {@link AbstractChunk#ARRAY_MAX_SIZE}.
-     *
+     * 确保是否有足够大小 否则进行扩容
      * @param count The size
      */
     public void makeSpace(int count) {
@@ -485,9 +544,10 @@ public final class ByteChunk extends AbstractChunk {
         int limit = getLimitInternal();
 
         long newSize;
+        // 获取 期待的大小   end 应该是指向当前写入的 位置
         long desiredSize = end + count;
 
-        // Can't grow above the limit
+        // Can't grow above the limit   扩容不能超过 最大值
         if (desiredSize > limit) {
             desiredSize = limit;
         }
@@ -500,23 +560,25 @@ public final class ByteChunk extends AbstractChunk {
         }
 
         // limit < buf.length (the buffer is already big)
-        // or we already have space XXX
+        // or we already have space XXX  代表有足够大小
         if (desiredSize <= buff.length) {
             return;
         }
-        // grow in larger chunks
+        // grow in larger chunks  默认以2倍大小进行扩容
         if (desiredSize < 2L * buff.length) {
             newSize = buff.length * 2L;
         } else {
+            // 代表超过2倍长度 那么设置成 满足大小 并再追加一个 buff 的长度
             newSize = buff.length * 2L + count;
         }
 
+        // 这里最后还是只设置成 limit 的大小
         if (newSize > limit) {
             newSize = limit;
         }
         tmp = new byte[(int) newSize];
 
-        // Compacts buffer
+        // Compacts buffer    从start 开始复制  也就是丢弃 0~start 的数据
         System.arraycopy(buff, start, tmp, 0, end - start);
         buff = tmp;
         tmp = null;
@@ -545,6 +607,7 @@ public final class ByteChunk extends AbstractChunk {
         // new String(byte[], int, int, Charset) takes a defensive copy of the
         // entire byte array. This is expensive if only a small subset of the
         // bytes will be used. The code below is from Apache Harmony.
+        // 这里使用的是 切片的概念  2个 buf 指向一块内存 不过维护了 独自的指针
         CharBuffer cb = charset.decode(ByteBuffer.wrap(buff, start, end - start));
         return new String(cb.array(), cb.arrayOffset(), cb.length());
     }

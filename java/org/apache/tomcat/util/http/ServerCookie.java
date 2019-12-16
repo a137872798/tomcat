@@ -29,6 +29,7 @@ import org.apache.tomcat.util.buf.MessageBytes;
  *
  *  Tomcat.core uses this recyclable object to represent cookies,
  *  and the facade will convert it to the external representation.
+ *  服务端的cookie对象   cookie 本身作为一个键值对 包含的属性也很简单 处理name/value 外还要标记本cookie 是属于哪个域的
  */
 public class ServerCookie implements Serializable {
 

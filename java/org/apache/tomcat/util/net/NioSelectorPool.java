@@ -133,7 +133,7 @@ public class NioSelectorPool {
     public void put(Selector s) throws IOException {
         // 如果是 共享某个selector 那么不需要做处理
         if (SHARED) return;
-        // 减少活跃数量 是什么意思 ???
+        // 减少活跃数量 当借出某个 selector 时 就要增加计数 反之减少计数
         if (enabled) active.decrementAndGet();
         // 当共享数量 小于 最大选择器数量 将选择器 设置到阻塞队列中
         if (enabled && (maxSpareSelectors == -1 || spare.get() < Math.min(maxSpareSelectors, maxSelectors))) {
@@ -290,6 +290,7 @@ public class NioSelectorPool {
         if (SHARED && block) {
             return blockingSelector.read(buf, socket, readTimeout);
         }
+        // 下面的逻辑是处理非共享模式的socket 实际上就是通过 将事件注册到 selector 上 并轮询等待 当准备就绪时将数据写入到 buf中
         SelectionKey key = null;
         int read = 0;
         boolean timedout = false;

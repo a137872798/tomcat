@@ -21,7 +21,7 @@ import org.apache.tomcat.util.net.SocketEvent;
 /**
  * Adapter. This represents the entry point in a coyote-based servlet container.
  *
- *
+ * 适配器对象 将 endpoint 的数据 交由 container 处理
  * @author Remy Maucherat
  * @see ProtocolHandler
  */

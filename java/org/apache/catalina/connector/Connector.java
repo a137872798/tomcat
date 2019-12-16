@@ -1001,12 +1001,17 @@ public class Connector extends LifecycleMBeanBase  {
     }
 
 
+    /**
+     * 当连接器 初始化时触发  这里想一下 connector的职能是什么? 接收 遵循某种协议的数据流 并转换成 req res 对象 之后转发给container进行处理
+     * 在tomcat 中 engine 就属于一种container   标准引擎跟service 是同级的
+     * @throws LifecycleException
+     */
     @Override
     protected void initInternal() throws LifecycleException {
 
         super.initInternal();
 
-        // Initialize adapter
+        // Initialize adapter  开始初始化适配器   该对象包装了container 将 connector接收到的数据转发到内部的容器处理
         adapter = new CoyoteAdapter(this);
         protocolHandler.setAdapter(adapter);
 

@@ -513,7 +513,7 @@ public class TestCookies {
         cookieProcessor.parseCookieHeader(mimeHeaders, serverCookies);
         Assert.assertEquals(expected.length, serverCookies.getCookieCount());
         for (int i = 0; i < expected.length; i++) {
-            Cookie cookie = expected[i];
+           kie = expected[i];
             ServerCookie actual = serverCookies.getCookie(i);
             Assert.assertEquals(cookie.getVersion(), actual.getVersion());
             Assert.assertEquals(cookie.getName(), actual.getName().toString());

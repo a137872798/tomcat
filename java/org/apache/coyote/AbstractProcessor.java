@@ -46,10 +46,16 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
     private static final StringManager sm = StringManager.getManager(AbstractProcessor.class);
 
-    // Used to avoid useless B2C conversion on the host name.
+    // Used to avoid useless B2C conversion on the host name.   使用 char[] 的方式保存  host
     protected char[] hostNameC = new char[0];
 
+    /**
+     * processor 内部携带一个 adapter 对象 用于处理请求
+     */
     protected Adapter adapter;
+    /**
+     * 异步状态机
+     */
     protected final AsyncStateMachine asyncStateMachine;
     private volatile long asyncTimeout = -1;
     /*
@@ -62,6 +68,9 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
      * current async generation. This prevents the response mix-up.
      */
     private volatile long asyncTimeoutGeneration = 0;
+    /**
+     * 内部 携带端点对象  请求就是从这里生成的
+     */
     protected final AbstractEndpoint<?> endpoint;
     protected final Request request;
     protected final Response response;

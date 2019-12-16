@@ -20,17 +20,28 @@ import org.apache.tomcat.util.res.StringManager;
 
 /**
  * This class is not thread-safe.
+ * 服务端 cookies 对象  该对象内部包含一个  cookie[]  该对象只是对外做一些统一逻辑
  */
 public class ServerCookies {
 
     private static final StringManager sm = StringManager.getManager(ServerCookies.class);
 
+    /**
+     * 内部维护的 cookie 数组
+     */
     private ServerCookie[] serverCookies;
 
+    /**
+     * 当前cookie 长度
+     */
     private int cookieCount = 0;
     private int limit = 200;
 
 
+    /**
+     * 通过指定大小进行初始化
+     * @param initialSize
+     */
     public ServerCookies(int initialSize) {
         serverCookies = new ServerCookie[initialSize];
     }
@@ -41,8 +52,10 @@ public class ServerCookies {
      * time an existing ServerCookie object is returned. The caller can set the
      * name/value and attributes for the cookie.
      * @return the new cookie
+     * 将某个 cookie 添加到 serverCookies 中
      */
     public ServerCookie addCookie() {
+        // 这里确保了 cookieCount 不能超过limit
         if (limit > -1 && cookieCount >= limit) {
             throw new IllegalArgumentException(
                     sm.getString("cookies.maxCountFail", Integer.valueOf(limit)));
@@ -55,6 +68,7 @@ public class ServerCookies {
             serverCookies = scookiesTmp;
         }
 
+        // 扩容后 为指定位置创建新的 serverCookie 对象
         ServerCookie c = serverCookies[cookieCount];
         if (c == null) {
             c = new ServerCookie();
@@ -77,6 +91,7 @@ public class ServerCookies {
 
     public void setLimit(int limit) {
         this.limit = limit;
+        // 确保 cookieCount 小于 limit 才进行 拷贝 否则会造成数据丢失
         if (limit > -1 && serverCookies.length > limit && cookieCount <= limit) {
             // shrink cookie list array
             ServerCookie scookiesTmp[] = new ServerCookie[limit];
