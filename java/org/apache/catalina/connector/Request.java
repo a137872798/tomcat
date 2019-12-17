@@ -119,9 +119,11 @@ import org.ietf.jgss.GSSException;
 
 /**
  * Wrapper object for the Coyote request.
- * 该对象内部包装了 coyote 的 req 同时实现了servlet标准接口的  HttpServletRequest
+ * 该对象内部包装了 coyote 的 req 同时实现了servlet的标准接口 (HttpServletRequest)
  * @author Remy Maucherat
  * @author Craig R. McClanahan
+ *
+ * 在2016 年 更新了该对象的 实现接口 用于兼容 servlet 4.0
  */
 public class Request implements org.apache.catalina.servlet4preview.http.HttpServletRequest {
 
@@ -129,9 +131,14 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     // ----------------------------------------------------------- Constructors
 
+    /**
+     * 初始化 request 对象
+     */
     public Request() {
+        // 这里存储了常用的模板
         formats = new SimpleDateFormat[formatsTemplate.length];
         for(int i = 0; i < formats.length; i++) {
+            // 可能 simpleDateFormat是非线程安全的吧
             formats[i] = (SimpleDateFormat) formatsTemplate[i].clone();
         }
     }
@@ -142,12 +149,13 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * Coyote request.
+     * 内部 适配了 coyote.Request
      */
     protected org.apache.coyote.Request coyoteRequest;
 
     /**
      * Set the Coyote request.
-     *
+     * 将 coyote 的 req 对象设置到 req 中
      * @param coyoteRequest The Coyote request
      */
     public void setCoyoteRequest(org.apache.coyote.Request coyoteRequest) {
@@ -182,6 +190,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * The set of cookies associated with this Request.
+     * 对外暴露的 req 对象 不同与  coyote.Request
      */
     protected Cookie[] cookies = null;
 
@@ -197,6 +206,9 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     @Deprecated
     protected final SimpleDateFormat formats[];
 
+    /**
+     * 存储了常用的 时间模板
+     */
     @Deprecated
     private static final SimpleDateFormat formatsTemplate[] = {
         new SimpleDateFormat(FastHttpDateFormat.RFC1123_DATE, Locale.US),
@@ -252,6 +264,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * The associated input buffer.
+     * inputBuffer 对象内部 也会包含一个 coyote.Request 对象
      */
     protected final InputBuffer inputBuffer = new InputBuffer();
 

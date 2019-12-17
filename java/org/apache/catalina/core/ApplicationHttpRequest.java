@@ -74,6 +74,7 @@ class ApplicationHttpRequest
 
     /**
      * The set of attribute names that are special for request dispatchers.
+     * 这里包含了一些特殊的属性
      */
     protected static final String specials[] =
     { RequestDispatcher.INCLUDE_REQUEST_URI,
@@ -102,6 +103,7 @@ class ApplicationHttpRequest
      * @param context The target context for the wrapped request
      * @param crossContext {@code true} if the wrapped request will be a
      *                     cross-context request, otherwise {@code false}
+     *                                 通过一个指定的 req 和 上下文对象来初始化 applicationHttpRequest
      */
     public ApplicationHttpRequest(HttpServletRequest request, Context context,
                                   boolean crossContext) {

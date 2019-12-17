@@ -31,6 +31,7 @@ import org.apache.tomcat.util.res.StringManager;
 
 /**
  * NIO based character decoder.
+ * 将数据按照指定的字符集进行解码
  */
 public class B2CConverter {
 

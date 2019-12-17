@@ -178,6 +178,7 @@ public interface ServletRequest {
      * @return a <code>String</code> representing the single value of the
      *         parameter
      * @see #getParameterValues
+     * req 中携带的 url 如果包含查询参数的话 通过name 可以获取到对应的value
      */
     public String getParameter(String name);
 
@@ -191,6 +192,7 @@ public interface ServletRequest {
      *         <code>String</code> containing the name of a request parameter;
      *         or an empty <code>Enumeration</code> if the request has no
      *         parameters
+     *         获取所有参数
      */
     public Enumeration<String> getParameterNames();
 
@@ -207,6 +209,7 @@ public interface ServletRequest {
      * @return an array of <code>String</code> objects containing the parameter's
      *         values
      * @see #getParameter
+     * 获取某个name 对应的所有value  他们可能是用 "，" 拼接的
      */
     public String[] getParameterValues(String name);
 
@@ -220,6 +223,7 @@ public interface ServletRequest {
      *         parameter values as map values. The keys in the parameter map are
      *         of type String. The values in the parameter map are of type
      *         String array.
+     *         获取参数map
      */
     public Map<String, String[]> getParameterMap();
 
@@ -231,6 +235,7 @@ public interface ServletRequest {
      *
      * @return a <code>String</code> containing the protocol name and version
      *         number
+     *         获取本次请求使用的协议对象  比如 HTTP/1.1
      */
     public String getProtocol();
 
@@ -241,6 +246,7 @@ public interface ServletRequest {
      *
      * @return a <code>String</code> containing the name of the scheme used to
      *         make this request
+     *         比如 http， https
      */
     public String getScheme();
 
@@ -250,6 +256,7 @@ public interface ServletRequest {
      * if any, or the resolved server name, or the server IP address.
      *
      * @return a <code>String</code> containing the name of the server
+     * 服务器 (接收req) 的 名字
      */
     public String getServerName();
 
@@ -259,6 +266,7 @@ public interface ServletRequest {
      * server port where the client connection was accepted on.
      *
      * @return an integer specifying the port number
+     * 服务器端口
      */
     public int getServerPort();
 
@@ -278,6 +286,7 @@ public interface ServletRequest {
      * @exception IOException
      *                if an input or output exception occurred
      * @see #getInputStream
+     * 获取读取req 的输入流对象
      */
     public BufferedReader getReader() throws IOException;
 
@@ -288,6 +297,7 @@ public interface ServletRequest {
      *
      * @return a <code>String</code> containing the IP address of the client
      *         that sent the request
+     *         获取远端地址
      */
     public String getRemoteAddr();
 
@@ -300,6 +310,7 @@ public interface ServletRequest {
      *
      * @return a <code>String</code> containing the fully qualified name of the
      *         client
+     *         远端主机
      */
     public String getRemoteHost();
 
@@ -352,6 +363,7 @@ public interface ServletRequest {
      * default locale for the server.
      *
      * @return the preferred <code>Locale</code> for the client
+     * 国际化相关的东西 比如指定了使用哪种语言
      */
     public Locale getLocale();
 
@@ -374,6 +386,7 @@ public interface ServletRequest {
      *
      * @return a boolean indicating if the request was made using a secure
      *         channel
+     *         使用采用了额外的加密通道  比如https
      */
     public boolean isSecure();
 
@@ -402,6 +415,7 @@ public interface ServletRequest {
      *         servlet container cannot return a <code>RequestDispatcher</code>
      * @see RequestDispatcher
      * @see ServletContext#getRequestDispatcher
+     * 通过传入指定的路径返回一个 能将请求定位到合理位置的对象
      */
     public RequestDispatcher getRequestDispatcher(String path);
 
@@ -421,6 +435,7 @@ public interface ServletRequest {
      *
      * @return an integer specifying the port number
      * @since Servlet 2.4
+     * 获取远端端口
      */
     public int getRemotePort();
 
@@ -456,6 +471,7 @@ public interface ServletRequest {
     /**
      * @return TODO
      * @since Servlet 3.0 TODO SERVLET3 - Add comments
+     * 获取上下文对象
      */
     public ServletContext getServletContext();
 
@@ -463,6 +479,7 @@ public interface ServletRequest {
      * @return TODO
      * @throws IllegalStateException If async is not supported for this request
      * @since Servlet 3.0 TODO SERVLET3 - Add comments
+     * 获取异步上下文对象
      */
     public AsyncContext startAsync() throws IllegalStateException;
 
@@ -481,12 +498,14 @@ public interface ServletRequest {
     /**
      * @return TODO
      * @since Servlet 3.0 TODO SERVLET3 - Add comments
+     * 是否开启了异步执行
      */
     public boolean isAsyncStarted();
 
     /**
      * @return TODO
      * @since Servlet 3.0 TODO SERVLET3 - Add comments
+     * 是否支持异步
      */
     public boolean isAsyncSupported();
 
@@ -505,6 +524,7 @@ public interface ServletRequest {
     /**
      * @return TODO
      * @since Servlet 3.0 TODO SERVLET3 - Add comments
+     * 获取分发类型
      */
     public DispatcherType getDispatcherType();
 }

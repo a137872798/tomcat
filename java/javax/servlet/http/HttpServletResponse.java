@@ -30,6 +30,7 @@ import javax.servlet.ServletResponse;
  * passes it as an argument to the servlet's service methods (<code>doGet</code>, <code>doPost</code>, etc).
  *
  * @see javax.servlet.ServletResponse
+ * servlet 规范中 指定的有关 http协议使用的res
  */
 public interface HttpServletResponse extends ServletResponse {
 
@@ -39,6 +40,7 @@ public interface HttpServletResponse extends ServletResponse {
      *
      * @param cookie
      *            the Cookie to return to the client
+     *            响应体里是可以添加 cookie的 不过好像很少见到这种用法
      */
     public void addCookie(Cookie cookie);
 
@@ -50,6 +52,7 @@ public interface HttpServletResponse extends ServletResponse {
      *            the header name
      * @return <code>true</code> if the named response header has already been
      *         set; <code>false</code> otherwise
+     *         响应头中是否携带 name对应的value
      */
     public boolean containsHeader(String name);
 
@@ -68,6 +71,7 @@ public interface HttpServletResponse extends ServletResponse {
      *            the url to be encoded.
      * @return the encoded URL if encoding is needed; the unchanged URL
      *         otherwise.
+     *         将传入的 url 进行编码后返回
      */
     public String encodeURL(String url);
 
@@ -136,6 +140,7 @@ public interface HttpServletResponse extends ServletResponse {
      *                If an input or output exception occurs
      * @exception IllegalStateException
      *                If the response was committed
+     *                使用指定的响应code 和message 来标记错误信息 在内部还会清空缓冲区中的数据
      */
     public void sendError(int sc, String msg) throws IOException;
 
@@ -150,6 +155,7 @@ public interface HttpServletResponse extends ServletResponse {
      *                If an input or output exception occurs
      * @exception IllegalStateException
      *                If the response was committed before this method call
+     *                设置错误码
      */
     public void sendError(int sc) throws IOException;
 
@@ -189,6 +195,7 @@ public interface HttpServletResponse extends ServletResponse {
      *            the assigned date value
      * @see #containsHeader
      * @see #addDateHeader
+     * 设置一个 date 相关的信息到响应头中
      */
     public void setDateHeader(String name, long date);
 
@@ -248,6 +255,7 @@ public interface HttpServletResponse extends ServletResponse {
      *            the assigned integer value
      * @see #containsHeader
      * @see #addIntHeader
+     * 设置 int 类型的响应头
      */
     public void setIntHeader(String name, int value);
 
@@ -331,6 +339,7 @@ public interface HttpServletResponse extends ServletResponse {
      *         returned as a single header value.
      *
      * @since Servlet 3.0
+     * 在响应头中获取针对某个 属性的所有 value
      */
     public Collection<String> getHeaders(String name);
 
@@ -340,11 +349,13 @@ public interface HttpServletResponse extends ServletResponse {
      * @return The header names set for this HTTP response.
      *
      * @since Servlet 3.0
+     * 获取所有响应头 name
      */
     public Collection<String> getHeaderNames();
 
     /*
      * Server status codes; see RFC 2068.
+     * 以下的常量值 记录了一些常用的res
      */
 
     /**
@@ -354,7 +365,7 @@ public interface HttpServletResponse extends ServletResponse {
 
     /**
      * Status code (101) indicating the server is switching protocols according
-     * to Upgrade header.
+     * to Upgrade header. 代表协议要升级???
      */
     public static final int SC_SWITCHING_PROTOCOLS = 101;
 

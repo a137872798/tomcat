@@ -19,6 +19,7 @@ package javax.servlet;
 /**
  * TODO SERVLET3 - Add comments
  * @since Servlet 3.0
+ * 异步上下文对象
  */
 public interface AsyncContext {
     public static final String ASYNC_REQUEST_URI =

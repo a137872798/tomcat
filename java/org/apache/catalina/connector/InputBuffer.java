@@ -52,6 +52,7 @@ import org.apache.tomcat.util.res.StringManager;
  * @author Remy Maucherat
  */
 public class InputBuffer extends Reader
+    // ByteInputChannel 接口用于从 chunk 中读取数据     bufferHandler 接口可以设置 bytebuffer
     implements ByteChunk.ByteInputChannel, ApplicationBufferHandler {
 
     /**
@@ -61,10 +62,13 @@ public class InputBuffer extends Reader
 
     private static final Log log = LogFactory.getLog(InputBuffer.class);
 
+    /**
+     * 默认的 buf 大小为 1024 k
+     */
     public static final int DEFAULT_BUFFER_SIZE = 8 * 1024;
 
     // The buffer can be used for byte[] and char[] reading
-    // ( this is needed to support ServletInputStream and BufferedReader )
+    // ( this is needed to support ServletInputStream and BufferedReader )   该buffer 要同时支持 以 byte[] char[] 的形式进行读取
     public final int INITIAL_STATE = 0;
     public final int CHAR_STATE = 1;
     public final int BYTE_STATE = 2;
@@ -72,6 +76,7 @@ public class InputBuffer extends Reader
 
     /**
      * Encoder cache.
+     * 每个字符集有对应的转换器  用于配合 nio的 bytebuf 将数据按指定的字符集进行转换
      */
     private static final ConcurrentMap<Charset, SynchronizedStack<B2CConverter>> encoders = new ConcurrentHashMap<>();
 
@@ -79,24 +84,28 @@ public class InputBuffer extends Reader
 
     /**
      * The byte buffer.
+     * 内部包含的 buffer 实体
      */
     private ByteBuffer bb;
 
 
     /**
      * The char buffer.
+     * nio 本身就有 charBuffer 这个类???
      */
     private CharBuffer cb;
 
 
     /**
      * State of the output buffer.
+     * 当前 输出 buffer 的状态
      */
     private int state = 0;
 
 
     /**
      * Flag which indicates if the input buffer is closed.
+     * 输入 buffer 是否已经被关闭
      */
     private boolean closed = false;
 
@@ -109,30 +118,35 @@ public class InputBuffer extends Reader
 
     /**
      * Current byte to char converter.
+     * 当前使用的转换器
      */
     protected B2CConverter conv;
 
 
     /**
      * Associated Coyote request.
+     * 内部关联了 coyote request
      */
     private Request coyoteRequest;
 
 
     /**
      * Buffer position.
+     * 当前buf 标记的指针
      */
     private int markPos = -1;
 
 
     /**
      * Char buffer limit.
+     * 输入流buffer 的大小
      */
     private int readLimit;
 
 
     /**
      * Buffer size.
+     * 缓冲区大小
      */
     private final int size;
 
@@ -154,6 +168,7 @@ public class InputBuffer extends Reader
      * Alternate constructor which allows specifying the initial buffer size.
      *
      * @param size Buffer size to use
+     *             使用指定的size 初始化 inputBuffer 对象
      */
     public InputBuffer(int size) {
 
@@ -203,6 +218,7 @@ public class InputBuffer extends Reader
 
         if (conv != null) {
             conv.recycle();
+            // 将当前 inputBuffer 的字符集对象归还到全局容器中
             encoders.get(conv.getCharset()).push(conv);
             conv = null;
         }
@@ -215,6 +231,7 @@ public class InputBuffer extends Reader
      * Close the input buffer.
      *
      * @throws IOException An underlying IOException occurred
+     * 标记当前 buffer 已经被关闭
      */
     @Override
     public void close() throws IOException {
@@ -222,9 +239,16 @@ public class InputBuffer extends Reader
     }
 
 
+    /**
+     * 判断当前buffer 是否有足够空间
+     * @return
+     */
     public int available() {
+        // 返回当前buffer 剩余空间
         int available = availableInThisBuffer();
+        // 如果没有剩余空间了
         if (available == 0) {
+            // 使用action 触发对应的动作 之后再次尝试获取 available 属性
             coyoteRequest.action(ActionCode.AVAILABLE,
                     Boolean.valueOf(coyoteRequest.getReadListener() != null));
             available = (coyoteRequest.getAvailable() > 0) ? 1 : 0;
@@ -233,8 +257,13 @@ public class InputBuffer extends Reader
     }
 
 
+    /**
+     * 返回当前 buffer 的可用空间
+     * @return
+     */
     private int availableInThisBuffer() {
         int available = 0;
+        // 如果是 使用 byteBuffer 那么返回剩余空间
         if (state == BYTE_STATE) {
             available = bb.remaining();
         } else if (state == CHAR_STATE) {
@@ -244,7 +273,12 @@ public class InputBuffer extends Reader
     }
 
 
+    /**
+     * 设置读 监听器
+     * @param listener
+     */
     public void setReadListener(ReadListener listener) {
+        // 设置到 coyoteRequest 中
         coyoteRequest.setReadListener(listener);
 
         // The container is responsible for the first call to
@@ -255,8 +289,11 @@ public class InputBuffer extends Reader
         // Must call isFinished() first as a call to isReady() if the request
         // has been finished will register the socket for read interest and that
         // is not required.
+        // isFinished 内部会调用 action()  对数据做处理
         if (!coyoteRequest.isFinished() && isReady()) {
+            // 处理分发请求
             coyoteRequest.action(ActionCode.DISPATCH_READ, null);
+            // 当前线程不是 container 线程的时候 触发 action
             if (!ContainerThreadMarker.isContainerThread()) {
                 // Not on a container thread so need to execute the dispatch
                 coyoteRequest.action(ActionCode.DISPATCH_EXECUTE, null);
@@ -265,6 +302,10 @@ public class InputBuffer extends Reader
     }
 
 
+    /**
+     * 判断是否处理完成
+     * @return
+     */
     public boolean isFinished() {
         int available = 0;
         if (state == BYTE_STATE) {
@@ -272,6 +313,7 @@ public class InputBuffer extends Reader
         } else if (state == CHAR_STATE) {
             available = cb.remaining();
         }
+        // 只要还有剩余空间就代表没有处理完成
         if (available > 0) {
             return false;
         } else {
@@ -280,17 +322,24 @@ public class InputBuffer extends Reader
     }
 
 
+    /**
+     * 是否准备完毕
+     * @return
+     */
     public boolean isReady() {
+        // 如果 readListener 还没有设置 就代表尚未准备好
         if (coyoteRequest.getReadListener() == null) {
             if (log.isDebugEnabled()) {
                 log.debug(sm.getString("inputBuffer.requiresNonBlocking"));
             }
             return false;
         }
+        // 如果已经处理完成了
         if (isFinished()) {
             // If this is a non-container thread, need to trigger a read
             // which will eventually lead to a call to onAllDataRead() via a
             // container thread.
+            // 如果当前线程不是 container 线程 , 触发action
             if (!ContainerThreadMarker.isContainerThread()) {
                 coyoteRequest.action(ActionCode.DISPATCH_READ, null);
                 coyoteRequest.action(ActionCode.DISPATCH_EXECUTE, null);
@@ -305,6 +354,7 @@ public class InputBuffer extends Reader
         // performed atomically else it is possible for the connection thread to
         // read more data in to the buffer after the stream thread checks for
         // available network data but before it registers for read.
+        // 代表缓冲区有足够的空间（处于准备完毕的状态）
         if (availableInThisBuffer() > 0) {
             return true;
         }
@@ -326,21 +376,26 @@ public class InputBuffer extends Reader
      * Reads new bytes in the byte chunk.
      *
      * @throws IOException An underlying IOException occurred
+     * 从 chunk中读取数据
      */
     @Override
     public int realReadBytes() throws IOException {
+        // 如果 inputBuffer 已经被关闭了无法读取数据
         if (closed) {
             return -1;
         }
+        // 如果req 对象还没有被创建
         if (coyoteRequest == null) {
             return -1;
         }
 
+        // 将 state 修改成 byteChunk
         if (state == INITIAL_STATE) {
             state = BYTE_STATE;
         }
 
         try {
+            // 内部委托给 coyoteRequest 读取数据
             return coyoteRequest.doRead(this);
         } catch (IOException ioe) {
             // An IOException on a read is almost always due to
@@ -350,11 +405,17 @@ public class InputBuffer extends Reader
     }
 
 
+    /**
+     * 返回读取的数据
+     * @return
+     * @throws IOException
+     */
     public int readByte() throws IOException {
         if (closed) {
             throw new IOException(sm.getString("inputBuffer.streamClosed"));
         }
 
+        // 如果已经读取到文件末尾 则返回-1
         if (checkByteBufferEof()) {
             return -1;
         }
@@ -362,6 +423,14 @@ public class InputBuffer extends Reader
     }
 
 
+    /**
+     * 读取数据并保存到 传入的数组中
+     * @param b
+     * @param off
+     * @param len
+     * @return
+     * @throws IOException
+     */
     public int read(byte[] b, int off, int len) throws IOException {
         if (closed) {
             throw new IOException(sm.getString("inputBuffer.streamClosed"));
@@ -386,6 +455,7 @@ public class InputBuffer extends Reader
      * @return an integer specifying the actual number of bytes read, or -1 if
      *         the end of the stream is reached
      * @throws IOException if an input or output exception has occurred
+     * 将 inputBuffer 中的数据转移到 传入的 to中
      */
     public int read(ByteBuffer to) throws IOException {
         if (closed) {
@@ -658,6 +728,11 @@ public class InputBuffer extends Reader
     }
 
 
+    /**
+     * 检查是否读取到 buffer 末尾
+     * @return
+     * @throws IOException
+     */
     private boolean checkByteBufferEof() throws IOException {
         if (bb.remaining() == 0) {
             int n = realReadBytes();
@@ -679,6 +754,7 @@ public class InputBuffer extends Reader
     }
 
     private void clear(Buffer buffer) {
+        // rewind 代表将内部参数进行重置
         buffer.rewind().limit(0);
     }
 

@@ -31,6 +31,7 @@ import javax.servlet.ServletRequestWrapper;
  *
  * @see javax.servlet.http.HttpServletRequest
  * @since v 2.3
+ * 使用一个 httpServletRequest 作为内部的委托对象
  */
 public class HttpServletRequestWrapper extends ServletRequestWrapper implements
         HttpServletRequest {

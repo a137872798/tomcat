@@ -33,6 +33,7 @@ import java.io.IOException;
  * @see ServletContext#getNamedDispatcher(java.lang.String)
  * @see ServletRequest#getRequestDispatcher(java.lang.String)
  *
+ * 请求定位器  根据path将req 派发到能够处理它的地方  可能是 servlet  jsp 等
  */
 public interface RequestDispatcher {
 
@@ -253,6 +254,7 @@ public interface RequestDispatcher {
      *
      * @exception IllegalStateException
      *                if the response was already committed
+     *                将req res 定位到某一位置
      */
     public void forward(ServletRequest request, ServletResponse response)
             throws ServletException, IOException;

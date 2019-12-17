@@ -579,6 +579,10 @@ public final class Request {
         this.sendfile = sendfile;
     }
 
+    /**
+     * 数据体是否填满
+     * @return
+     */
     public boolean isFinished() {
         AtomicBoolean result = new AtomicBoolean(false);
         action(ActionCode.REQUEST_BODY_FULLY_READ, result);

@@ -26,6 +26,7 @@ import java.util.Collection;
  * an uploaded file or form data.
  *
  * @since Servlet 3.0
+ * 文件片段
  */
 public interface Part {
 

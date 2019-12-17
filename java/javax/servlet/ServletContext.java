@@ -48,6 +48,7 @@ import javax.servlet.descriptor.JspConfigDescriptor;
  *
  * @see Servlet#getServletConfig
  * @see ServletConfig#getServletContext
+ * servlet上下文对象
  */
 public interface ServletContext {
 

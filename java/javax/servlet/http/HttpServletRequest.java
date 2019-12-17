@@ -31,6 +31,7 @@ import javax.servlet.ServletRequest;
  * The servlet container creates an <code>HttpServletRequest</code> object and
  * passes it as an argument to the servlet's service methods
  * (<code>doGet</code>, <code>doPost</code>, etc).
+ * servlet 规范中针对 http的请求对象
  */
 public interface HttpServletRequest extends ServletRequest {
 
@@ -49,6 +50,7 @@ public interface HttpServletRequest extends ServletRequest {
     public static final String CLIENT_CERT_AUTH = "CLIENT_CERT";
     /**
      * String identifier for Digest authentication. Value "DIGEST"
+     * 摘要
      */
     public static final String DIGEST_AUTH = "DIGEST";
 
@@ -65,6 +67,7 @@ public interface HttpServletRequest extends ServletRequest {
      *         DIGEST_AUTH (suitable for == comparison) or the
      *         container-specific string indicating the authentication scheme,
      *         or <code>null</code> if the request was not authenticated.
+     *         获取 req 支持的 认证类型
      */
     public String getAuthType();
 
@@ -75,6 +78,7 @@ public interface HttpServletRequest extends ServletRequest {
      *
      * @return an array of all the <code>Cookies</code> included with this
      *         request, or <code>null</code> if the request has no cookies
+     *         获取本次 req 携带的所有cookie
      */
     public Cookie[] getCookies();
 
@@ -98,6 +102,7 @@ public interface HttpServletRequest extends ServletRequest {
      *         request
      * @exception IllegalArgumentException
      *                If the header value can't be converted to a date
+     *                从请求头中 根据name 获取时间戳 当参数无法转换的时候会 抛出参数异常
      */
     public long getDateHeader(String name);
 
@@ -114,6 +119,7 @@ public interface HttpServletRequest extends ServletRequest {
      * @return a <code>String</code> containing the value of the requested
      *         header, or <code>null</code> if the request does not have a
      *         header of that name
+     *         获取请求头中的数据
      */
     public String getHeader(String name);
 
@@ -135,6 +141,7 @@ public interface HttpServletRequest extends ServletRequest {
      *         header. If the request does not have any headers of that name
      *         return an empty enumeration. If the container does not allow
      *         access to header information, return null
+     *         获取name 对应的一组数据
      */
     public Enumeration<String> getHeaders(String name);
 
@@ -149,6 +156,7 @@ public interface HttpServletRequest extends ServletRequest {
      *         the request has no headers, an empty enumeration; if the servlet
      *         container does not allow servlets to use this method,
      *         <code>null</code>
+     *         获取 请求头中携带的所有数据
      */
     public Enumeration<String> getHeaderNames();
 
@@ -167,6 +175,7 @@ public interface HttpServletRequest extends ServletRequest {
      * @exception NumberFormatException
      *                If the header value can't be converted to an
      *                <code>int</code>
+     *                通过 name 查找到请求头 并转换成int 类型
      */
     public int getIntHeader(String name);
 
@@ -177,6 +186,7 @@ public interface HttpServletRequest extends ServletRequest {
      *
      * @return a <code>String</code> specifying the name of the method with
      *         which this request was made
+     *         获取请求方式
      */
     public String getMethod();
 
@@ -195,6 +205,7 @@ public interface HttpServletRequest extends ServletRequest {
      *         extra path information that comes after the servlet path but
      *         before the query string in the request URL; or <code>null</code>
      *         if the URL does not have any extra path information
+     *         获取路径信息
      */
     public String getPathInfo();
 
@@ -211,6 +222,7 @@ public interface HttpServletRequest extends ServletRequest {
      * @return a <code>String</code> specifying the real path, or
      *         <code>null</code> if the URL does not have any extra path
      *         information
+     *         获取路径转移
      */
     public String getPathTranslated();
 
@@ -223,6 +235,7 @@ public interface HttpServletRequest extends ServletRequest {
      *
      * @return a <code>String</code> specifying the portion of the request URI
      *         that indicates the context of the request
+     *         获取上下文路径
      */
     public String getContextPath();
 
@@ -234,6 +247,7 @@ public interface HttpServletRequest extends ServletRequest {
      * @return a <code>String</code> containing the query string or
      *         <code>null</code> if the URL contains no query string. The value
      *         is not decoded by the container.
+     *         获取查询字符串
      */
     public String getQueryString();
 
@@ -282,6 +296,7 @@ public interface HttpServletRequest extends ServletRequest {
      * @return a <code>String</code> specifying the session ID, or
      *         <code>null</code> if the request did not specify a session ID
      * @see #isRequestedSessionIdValid
+     * 获取本次请求相关的 sessionId 用于在服务器端获取 相关的上下文信息
      */
     public String getRequestedSessionId();
 
@@ -314,6 +329,7 @@ public interface HttpServletRequest extends ServletRequest {
      * @return a <code>String</code> containing the part of the URL from the
      *         protocol name up to the query string
      * @see #getRequestURL
+     * 获取请求url
      */
     public String getRequestURI();
 
@@ -330,6 +346,7 @@ public interface HttpServletRequest extends ServletRequest {
      *
      * @return a <code>StringBuffer</code> object containing the reconstructed
      *         URL
+     *         获取请求url
      */
     public StringBuffer getRequestURL();
 
@@ -346,6 +363,7 @@ public interface HttpServletRequest extends ServletRequest {
      *         being called, as specified in the request URL, decoded, or an
      *         empty string if the servlet used to process the request is
      *         matched using the "/*" pattern.
+     *         获取servlet的路径
      */
     public String getServletPath();
 
@@ -367,10 +385,12 @@ public interface HttpServletRequest extends ServletRequest {
      *            <code>true</code> to create a new session for this request if
      *            necessary; <code>false</code> to return <code>null</code> if
      *            there's no current session
+     *            代表是否要创建 session 如果为false 且 session对象不存在 则返回null
      * @return the <code>HttpSession</code> associated with this request or
      *         <code>null</code> if <code>create</code> is <code>false</code>
      *         and the request has no valid session
      * @see #getSession()
+     * 获取当前请求 关联的会话对象 通过sessionId来定位
      */
     public HttpSession getSession(boolean create);
 
@@ -380,6 +400,7 @@ public interface HttpServletRequest extends ServletRequest {
      *
      * @return the <code>HttpSession</code> associated with this request
      * @see #getSession(boolean)
+     * 获取会话对象
      */
     public HttpSession getSession();
 
@@ -391,6 +412,7 @@ public interface HttpServletRequest extends ServletRequest {
      * @return the new session ID allocated to the session
      * @see HttpSessionIdListener
      * @since Servlet 3.1
+     * servlet 3.1 版本支持修改sessionId
      */
     public String changeSessionId();
 
@@ -401,6 +423,7 @@ public interface HttpServletRequest extends ServletRequest {
      *         in the current session context; <code>false</code> otherwise
      * @see #getRequestedSessionId
      * @see #getSession
+     * 当前session 是否可用
      */
     public boolean isRequestedSessionIdValid();
 
@@ -410,6 +433,7 @@ public interface HttpServletRequest extends ServletRequest {
      * @return <code>true</code> if the session ID came in as a cookie;
      *         otherwise, <code>false</code>
      * @see #getSession
+     * sessionId 是否是从 cookie 中获得的
      */
     public boolean isRequestedSessionIdFromCookie();
 
@@ -420,6 +444,7 @@ public interface HttpServletRequest extends ServletRequest {
      * @return <code>true</code> if the session ID came in as part of a URL;
      *         otherwise, <code>false</code>
      * @see #getSession
+     * 是否从 url 中解析 sessionId
      */
     public boolean isRequestedSessionIdFromURL();
 
@@ -448,6 +473,7 @@ public interface HttpServletRequest extends ServletRequest {
      * @throws ServletException if the authentication failed and the caller is
      *         expected to handle the failure
      * @since Servlet 3.0
+     * res 是否通过了权限校验
      */
     public boolean authenticate(HttpServletResponse response)
             throws IOException, ServletException;
@@ -466,6 +492,7 @@ public interface HttpServletRequest extends ServletRequest {
      *             user name and password authentication or if the
      *             authentication fails
      * @since Servlet 3.0
+     * 使用指定用户名密码 登录
      */
     public void login(String username, String password) throws ServletException;
 
@@ -490,6 +517,7 @@ public interface HttpServletRequest extends ServletRequest {
      * @throws ServletException
      *             if the request is not multipart/form-data
      * @since Servlet 3.0
+     * 下载的文件片段
      */
     public Collection<Part> getParts() throws IOException,
             ServletException;

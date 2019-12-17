@@ -46,6 +46,7 @@ import java.util.Locale;
  * define profiles of MIME, and those standards are still evolving.
  *
  * @see ServletOutputStream
+ * servlet 规范中的响应结果对象
  */
 public interface ServletResponse {
 
@@ -65,6 +66,7 @@ public interface ServletResponse {
      *
      * @return a <code>String</code> specifying the name of the character
      *         encoding, for example, <code>UTF-8</code>
+     *         获取响应对象指定的字符集
      */
     public String getCharacterEncoding();
 
@@ -81,6 +83,7 @@ public interface ServletResponse {
      * @return a <code>String</code> specifying the content type, for example,
      *         <code>text/html; charset=UTF-8</code>, or null
      * @since 2.4
+     * 获取 content 文本格式类型 比如 application/json
      */
     public String getContentType();
 
@@ -99,6 +102,7 @@ public interface ServletResponse {
      * @exception IOException
      *                if an input or output exception occurred
      * @see #getWriter
+     * 获取对应的输出流 结果会输出到 OS 的 缓冲区中
      */
     public ServletOutputStream getOutputStream() throws IOException;
 
@@ -128,6 +132,7 @@ public interface ServletResponse {
      *                if an input or output exception occurred
      * @see #getOutputStream
      * @see #setCharacterEncoding
+     * 获取 writer 对象 可以将数据写入到OS 级别的缓冲区中
      */
     public PrintWriter getWriter() throws IOException;
 
@@ -159,6 +164,7 @@ public interface ServletResponse {
      *            (http://www.iana.org/assignments/character-sets)
      * @see #setContentType #setLocale
      * @since 2.4
+     * 设置字符集字符串
      */
     public void setCharacterEncoding(String charset);
 
@@ -169,6 +175,7 @@ public interface ServletResponse {
      * @param len
      *            an integer specifying the length of the content being returned
      *            to the client; sets the Content-Length header
+     *            设置内容体长度
      */
     public void setContentLength(int len);
 
@@ -209,6 +216,7 @@ public interface ServletResponse {
      * @see #setCharacterEncoding
      * @see #getOutputStream
      * @see #getWriter
+     * 指定 contentType 的数据类型
      */
     public void setContentType(String type);
 
@@ -234,6 +242,7 @@ public interface ServletResponse {
      * @see #flushBuffer
      * @see #isCommitted
      * @see #reset
+     * 设置缓冲区大小
      */
     public void setBufferSize(int size);
 
@@ -260,6 +269,7 @@ public interface ServletResponse {
      * @see #getBufferSize
      * @see #isCommitted
      * @see #reset
+     * 将缓冲区的数据写入到 os 中
      */
     public void flushBuffer() throws IOException;
 
@@ -273,6 +283,7 @@ public interface ServletResponse {
      * @see #isCommitted
      * @see #reset
      * @since 2.3
+     * 清空缓冲区内的数据
      */
     public void resetBuffer();
 
@@ -285,6 +296,7 @@ public interface ServletResponse {
      * @see #getBufferSize
      * @see #flushBuffer
      * @see #reset
+     * 判断数据是否已经被提交了
      */
     public boolean isCommitted();
 
@@ -299,6 +311,7 @@ public interface ServletResponse {
      * @see #getBufferSize
      * @see #flushBuffer
      * @see #isCommitted
+     * 将 buffer中的现有数据都清除
      */
     public void reset();
 
@@ -335,6 +348,7 @@ public interface ServletResponse {
      * @see #getLocale
      * @see #setContentType
      * @see #setCharacterEncoding
+     * 指定国际化方式
      */
     public void setLocale(Locale loc);
 

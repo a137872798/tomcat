@@ -18,6 +18,7 @@ package org.apache.catalina.servlet4preview.http;
 
 /**
  * Provides early access to some parts of the Servlet 4.0 API.
+ * 这个接口相当于是做servlet4 的适配
  */
 public interface HttpServletRequest extends javax.servlet.http.HttpServletRequest {
 

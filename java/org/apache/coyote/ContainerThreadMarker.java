@@ -21,9 +21,14 @@ package org.apache.coyote;
  * data from an incoming connection. Application created threads are not
  * container threads and neither are threads taken from the container thread
  * pool to execute AsyncContext.start(Runnable).
+ * 用于标记 某个线程 已经被分配给 container 了
  */
 public class ContainerThreadMarker {
 
+    /**
+     * 当前线程是否是容器线程
+     * @return
+     */
     public static boolean isContainerThread() {
         return org.apache.tomcat.util.net.ContainerThreadMarker.isContainerThread();
     }

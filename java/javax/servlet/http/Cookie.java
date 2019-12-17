@@ -50,6 +50,8 @@ import java.util.ResourceBundle;
  * <p>
  * This class supports both the RFC 2109 and the RFC 6265 specifications.
  * By default, cookies are created using RFC 6265.
+ *
+ * servlet.HttpServletRequest 携带的 cookie 对象 ， 对应到浏览器的cookie
  */
 public class Cookie implements Cloneable, Serializable {
 

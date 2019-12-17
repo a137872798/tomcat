@@ -30,8 +30,13 @@ import java.util.Map;
  *
  * @since Servlet 2.3
  * @see javax.servlet.ServletRequest
+ * 这里是 servletRequest 的包装类 内部包含了 servlet规范中的 servletRequest  看来实现都是委托给内部的 req 对象
  */
 public class ServletRequestWrapper implements ServletRequest {
+
+    /**
+     * 内部包含真正的请求对象
+     */
     private ServletRequest request;
 
     /**
