@@ -38,11 +38,15 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @author Craig R. McClanahan
  * @author Bip Thelin
+ * 自定义的对象输入流 拓展了 jdk 原生的序列化方式
  */
 public final class CustomObjectInputStream extends ObjectInputStream {
 
     private static final StringManager sm = StringManager.getManager(CustomObjectInputStream.class);
 
+    /**
+     * 该map 是用来维护什么的???  注意这个对象是全局变量
+     */
     private static final WeakHashMap<ClassLoader, Set<String>> reportedClassCache =
             new WeakHashMap<>();
 

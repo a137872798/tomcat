@@ -46,6 +46,7 @@ import java.beans.PropertyChangeListener;
  * </ul>
  *
  * @author Craig R. McClanahan
+ * 加载器接口
  */
 public interface Loader {
 

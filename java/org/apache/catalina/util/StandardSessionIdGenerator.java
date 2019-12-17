@@ -16,25 +16,37 @@
  */
 package org.apache.catalina.util;
 
+/**
+ * sessionGenerator 标准实现
+ */
 public class StandardSessionIdGenerator extends SessionIdGeneratorBase {
 
+    /**
+     * 在指定路径的基础上 构建sessionId  该方法不细看
+     *
+     * @param route node identifier to include in generated id
+     * @return
+     */
     @Override
     public String generateSessionId(String route) {
 
+        // 创建 sessionId 长度的数组
         byte random[] = new byte[16];
+        // 获取sessionId 的实际长度
         int sessionIdLength = getSessionIdLength();
 
         // Render the result as a String of hexadecimal digits
         // Start with enough space for sessionIdLength and medium route size
+        // 这里生成指定大小的 strbuilder
         StringBuilder buffer = new StringBuilder(2 * sessionIdLength + 20);
 
         int resultLenBytes = 0;
 
+        // 当读取的结果 小于指定长度时
         while (resultLenBytes < sessionIdLength) {
+            // 这里使用secureRandom 填充数组对象
             getRandomBytes(random);
-            for (int j = 0;
-            j < random.length && resultLenBytes < sessionIdLength;
-            j++) {
+            for (int j = 0; j < random.length && resultLenBytes < sessionIdLength; j++) {
                 byte b1 = (byte) ((random[j] & 0xf0) >> 4);
                 byte b2 = (byte) (random[j] & 0x0f);
                 if (b1 < 10)

@@ -16,11 +16,15 @@
  */
 package org.apache.catalina;
 
+/**
+ * 用于生成 sessionId
+ */
 public interface SessionIdGenerator {
 
     /**
      * @return the node identifier associated with this node which will be
      * included in the generated session ID.
+     * jvmRoute 会作为sessionId 的一部分
      */
     public String getJvmRoute();
 
@@ -34,6 +38,7 @@ public interface SessionIdGenerator {
 
     /**
      * @return the number of bytes for a session ID
+     * 获取sessionId的长度
      */
     public int getSessionIdLength();
 
@@ -48,6 +53,7 @@ public interface SessionIdGenerator {
      * Generate and return a new session identifier.
      *
      * @return the newly generated session id
+     * 开始生成sessionId
      */
     public String generateSessionId();
 
@@ -56,6 +62,7 @@ public interface SessionIdGenerator {
      *
      * @param route   node identifier to include in generated id
      * @return the newly generated session id
+     * route 会作为生成的sessionId 的一部分
      */
     public String generateSessionId(String route);
 }

@@ -55,6 +55,7 @@ import org.apache.tomcat.util.ExceptionUtils;
  * <code>stop()</code> methods of this class at the correct times.
  *
  * @author Craig R. McClanahan
+ * manager标准实现类
  */
 public class StandardManager extends ManagerBase {
 
@@ -107,12 +108,17 @@ public class StandardManager extends ManagerBase {
      * If this pathname is relative, it will be resolved against the
      * temporary working directory provided by our context, available via
      * the <code>javax.servlet.context.tempdir</code> context attribute.
+     * 当 tomcat 停止时  session 会保存到该路径下
      */
     protected String pathname = "SESSIONS.ser";
 
 
     // ------------------------------------------------------------- Properties
 
+    /**
+     * 该方法用于获取 session 的实现类名
+     * @return
+     */
     @Override
     public String getName() {
         return name;
@@ -142,6 +148,11 @@ public class StandardManager extends ManagerBase {
 
     // --------------------------------------------------------- Public Methods
 
+    /**
+     * 从 文件中读取之前持久化的session 数据
+     * @throws ClassNotFoundException
+     * @throws IOException
+     */
     @Override
     public void load() throws ClassNotFoundException, IOException {
         if (SecurityUtil.isPackageProtectionEnabled()){
@@ -172,16 +183,18 @@ public class StandardManager extends ManagerBase {
      * @exception ClassNotFoundException if a serialized class cannot be
      *  found during the reload
      * @exception IOException if an input/output error occurs
+     * 从文件中加载 持久化的session 对象 一般是在重启的时候调用
      */
     protected void doLoad() throws ClassNotFoundException, IOException {
         if (log.isDebugEnabled()) {
             log.debug("Start: Loading persisted sessions");
         }
 
-        // Initialize our internal data structures
+        // Initialize our internal data structures  先清理 session内部数据
         sessions.clear();
 
         // Open an input stream to the specified pathname, if any
+        // 基于 存储session的 path 构建file 对象
         File file = file();
         if (file == null) {
             return;
@@ -190,10 +203,12 @@ public class StandardManager extends ManagerBase {
             log.debug(sm.getString("standardManager.loading", pathname));
         }
         Loader loader = null;
+        // TODO 加载session 也跟类加载器相关 ???
         ClassLoader classLoader = null;
         Log logger = null;
         try (FileInputStream fis = new FileInputStream(file.getAbsolutePath());
                 BufferedInputStream bis = new BufferedInputStream(fis)) {
+            // 从context 中获取加载器
             Context c = getContext();
             loader = c.getLoader();
             logger = c.getLogger();
@@ -206,6 +221,7 @@ public class StandardManager extends ManagerBase {
 
             // Load the previously unloaded active sessions
             synchronized (sessions) {
+                // 将输入流包装成对象输入流
                 try (ObjectInputStream ois = new CustomObjectInputStream(bis, classLoader, logger,
                         getSessionAttributeValueClassNamePattern(),
                         getWarnOnSessionAttributeFilterFailure())) {
@@ -413,17 +429,23 @@ public class StandardManager extends ManagerBase {
      * Return a File object representing the pathname to our
      * persistence file, if any.
      * @return the file
+     * 初始化 file 对象
      */
     protected File file() {
         if (pathname == null || pathname.length() == 0) {
             return null;
         }
         File file = new File(pathname);
+        // 如果路径名不是 绝对路径
         if (!file.isAbsolute()) {
+            // 获取上下文对象
             Context context = getContext();
+            // servletContext 是 servlet 规范中的类 通过 context 进行包装
             ServletContext servletContext = context.getServletContext();
+            // 获取临时文件夹路径
             File tempdir = (File) servletContext.getAttribute(ServletContext.TEMPDIR);
             if (tempdir != null) {
+                // 如果存在 使用该路径 重新生成文件句柄
                 file = new File(tempdir, pathname);
             }
         }

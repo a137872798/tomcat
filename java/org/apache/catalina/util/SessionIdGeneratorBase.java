@@ -29,6 +29,9 @@ import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * sessionId 生成器 的基类     实现了生命周期接口 那么会有各种对应的事件
+ */
 public abstract class SessionIdGeneratorBase extends LifecycleBase
         implements SessionIdGenerator {
 
@@ -45,21 +48,27 @@ public abstract class SessionIdGeneratorBase extends LifecycleBase
      * required, a new random number generator object is created. This is
      * designed this way since random number generators use a sync to make them
      * thread-safe and the sync makes using a single object slow(er).
+     * SecureRandom 用于生成随机数
      */
     private final Queue<SecureRandom> randoms = new ConcurrentLinkedQueue<>();
 
     private String secureRandomClass = null;
 
+    /**
+     * 使用的加密算法
+     */
     private String secureRandomAlgorithm = "SHA1PRNG";
 
     private String secureRandomProvider = null;
 
 
-    /** Node identifier when in a cluster. Defaults to the empty string. */
+    /** Node identifier when in a cluster. Defaults to the empty string.
+     *  该字段用于标识在集群范围内的唯一节点  默认情况下是不需要设置的
+     */
     private String jvmRoute = "";
 
 
-    /** Number of bytes in a session ID. Defaults to 16. */
+    /** Number of bytes in a session ID. Defaults to 16. sessionId 的默认长度为16*/
     private int sessionIdLength = 16;
 
 
@@ -122,6 +131,7 @@ public abstract class SessionIdGeneratorBase extends LifecycleBase
      *
      * @return The name of the provider. {@code null} or the empty string means
      *         that platform default will be used
+     *         SecureRandomProvider 是用来生成 secureRandom 的
      */
     public String getSecureRandomProvider() {
         return secureRandomProvider;
@@ -189,6 +199,7 @@ public abstract class SessionIdGeneratorBase extends LifecycleBase
 
     /**
      * Generate and return a new session identifier.
+     * 生成 sessionId 的核心方法由子类实现
      */
     @Override
     public String generateSessionId() {
@@ -200,9 +211,12 @@ public abstract class SessionIdGeneratorBase extends LifecycleBase
 
         SecureRandom random = randoms.poll();
         if (random == null) {
+            // 创建一个 secureRandom
             random = createSecureRandom();
         }
+        // 使用该对象 生成随机字符并填充数组
         random.nextBytes(bytes);
+        // 将对象归还
         randoms.add(random);
     }
 
@@ -210,12 +224,14 @@ public abstract class SessionIdGeneratorBase extends LifecycleBase
     /**
      * Create a new random number generator instance we should use for
      * generating session identifiers.
+     * 构建一个  secureRandom 对象
      */
     private SecureRandom createSecureRandom() {
 
         SecureRandom result = null;
 
         long t1 = System.currentTimeMillis();
+        // 如果指定了实现了  那么通过反射创建对象
         if (secureRandomClass != null) {
             try {
                 // Construct and seed a new random number generator
@@ -227,10 +243,12 @@ public abstract class SessionIdGeneratorBase extends LifecycleBase
             }
         }
 
+        // 如果没有指定class
         boolean error = false;
         if (result == null) {
             // No secureRandomClass or creation failed. Use SecureRandom.
             try {
+                // 如果指定了 provider  通过静态方法创建随机数生成对象
                 if (secureRandomProvider != null &&
                         secureRandomProvider.length() > 0) {
                     result = SecureRandom.getInstance(secureRandomAlgorithm,
@@ -251,7 +269,7 @@ public abstract class SessionIdGeneratorBase extends LifecycleBase
         }
 
         if (result == null && error) {
-            // Invalid provider / algorithm
+            // Invalid provider / algorithm  还是没有时使用默认实现
             try {
                 result = SecureRandom.getInstance("SHA1PRNG");
             } catch (NoSuchAlgorithmException e) {
@@ -283,6 +301,10 @@ public abstract class SessionIdGeneratorBase extends LifecycleBase
     }
 
 
+    /**
+     * 当 generator 被创建时  触发start 会生成sessionId
+     * @throws LifecycleException
+     */
     @Override
     protected void startInternal() throws LifecycleException {
         // Ensure SecureRandom has been initialised
@@ -292,6 +314,11 @@ public abstract class SessionIdGeneratorBase extends LifecycleBase
     }
 
 
+    /**
+     * 终止时清除 randoms队列 看来单个 generator 对象是被多线程并发访问的  所以 queue 使用阻塞队列实现 当高并发情况 每个无法从队列中获取到元素
+     * 就会创建一个新对象 而在处理完毕后 又会将对象归还到队列
+     * @throws LifecycleException
+     */
     @Override
     protected void stopInternal() throws LifecycleException {
         setState(LifecycleState.STOPPING);

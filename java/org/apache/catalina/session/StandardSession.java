@@ -727,7 +727,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
             return true;
         }
 
-        // 代表设置了 session最大超时时间
+        // 代表设置了 session最大超时时间  每当session 被重新访问时 会更新 accessTime 这样 类似于 续约 这样session 不会过期
         if (maxInactiveInterval > 0) {
             int timeIdle = (int) (getIdleTimeInternal() / 1000L);
             // 如果超时时间 超过了 最大存活时间 那么就需要将该session 设置为过期 那么session的删除机制使用的是惰性删除
@@ -1918,14 +1918,14 @@ public class StandardSession implements HttpSession, Session, Serializable {
             return;
         }
 
-        // Call the valueUnbound() method if necessary
+        // Call the valueUnbound() method if necessary  代表需要触发监听器
         HttpSessionBindingEvent event = null;
         if (value instanceof HttpSessionBindingListener) {
             event = new HttpSessionBindingEvent(getSession(), name, value);
             ((HttpSessionBindingListener) value).valueUnbound(event);
         }
 
-        // Notify interested application event listeners
+        // Notify interested application event listeners   获取容器内的监听器 并触发
         Context context = manager.getContext();
         Object listeners[] = context.getApplicationEventListeners();
         if (listeners == null)

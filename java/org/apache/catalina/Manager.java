@@ -84,6 +84,7 @@ public interface Manager {
      * Returns the total number of sessions created by this manager.
      *
      * @return Total number of sessions created by this manager.
+     * 获取 session计数值 应该就是 manager对象管理的session数量
      */
     public long getSessionCounter();
 
@@ -102,6 +103,7 @@ public interface Manager {
      *
      * @return Maximum number of sessions that have been active at the same
      * time
+     * 获取当前活跃的session 数量
      */
     public int getMaxActive();
 
@@ -112,6 +114,7 @@ public interface Manager {
      *
      * @param maxActive Maximum number of sessions that have been active at
      * the same time.
+     *                  设置同一时间最多允许存在的session 数量
      */
     public void setMaxActive(int maxActive);
 
@@ -120,6 +123,7 @@ public interface Manager {
      * Gets the number of currently active sessions.
      *
      * @return Number of currently active sessions
+     * 获取 当前活跃的session 数量
      */
     public int getActiveSessions();
 
@@ -128,6 +132,7 @@ public interface Manager {
      * Gets the number of sessions that have expired.
      *
      * @return Number of sessions that have expired
+     * 获取过期的session 数量
      */
     public long getExpiredSessions();
 
@@ -136,6 +141,7 @@ public interface Manager {
      * Sets the number of sessions that have expired.
      *
      * @param expiredSessions Number of sessions that have expired
+     *                        手动设置 已过期的 session数量  .. 该方法有意义吗
      */
     public void setExpiredSessions(long expiredSessions);
 
@@ -145,6 +151,7 @@ public interface Manager {
      * number of active sessions was reached.
      *
      * @return Number of rejected sessions
+     * 获取被拒绝的session 数量
      */
     public int getRejectedSessions();
 
@@ -155,6 +162,7 @@ public interface Manager {
      *
      * @return Longest time (in seconds) that an expired session had been
      * alive.
+     * 获取session的最大存活时间
      */
     public int getSessionMaxAliveTime();
 
@@ -165,6 +173,7 @@ public interface Manager {
      *
      * @param sessionMaxAliveTime Longest time (in seconds) that an expired
      * session had been alive.
+     *                            设置session的最大存活时间
      */
     public void setSessionMaxAliveTime(int sessionMaxAliveTime);
 
@@ -175,6 +184,7 @@ public interface Manager {
      *
      * @return Average time (in seconds) that expired sessions had been
      * alive.
+     * 获取session 的平均存活时间
      */
     public int getSessionAverageAliveTime();
 
@@ -184,6 +194,7 @@ public interface Manager {
      * may be based on sample data.
      *
      * @return  The current rate (in sessions per minute) of session creation
+     * 获取新建session的比率
      */
     public int getSessionCreateRate();
 
@@ -193,6 +204,7 @@ public interface Manager {
      * may be based on sample data
      *
      * @return  The current rate (in sessions per minute) of session expiration
+     * 获取过期session的比率
      */
     public int getSessionExpireRate();
 
@@ -203,6 +215,7 @@ public interface Manager {
      * Add this Session to the set of active Sessions for this Manager.
      *
      * @param session Session to be added
+     *                为manager 添加某个session
      */
     public void add(Session session);
 
@@ -211,6 +224,7 @@ public interface Manager {
      * Add a property change listener to this component.
      *
      * @param listener The listener to add
+     *                 PropertyChangeListener 属于 java.beans 下的类 先忽略
      */
     public void addPropertyChangeListener(PropertyChangeListener listener);
 
@@ -220,6 +234,7 @@ public interface Manager {
      * session ID.
      *
      * @param session   The session to change the session ID for
+     *                  变更传入的session#sessionId
      */
     public void changeSessionId(Session session);
 
@@ -229,6 +244,7 @@ public interface Manager {
      *
      * @param session   The session to change the session ID for
      * @param newId   new session ID
+     *                指定要变更的session 同时还指定了新的 id
      */
     public void changeSessionId(Session session, String newId);
 
@@ -239,6 +255,7 @@ public interface Manager {
      * because it reads it from the Store.
      *
      * @return An empty Session object
+     * 创建一个 空的session 对象
      */
     public Session createEmptySession();
 
@@ -259,6 +276,7 @@ public interface Manager {
      *
      * @return An empty Session object with the given ID or a newly created
      *         session ID if none was specified
+     *         根据指定的id 来创建session 对象
      */
     public Session createSession(String sessionId);
 
@@ -276,6 +294,7 @@ public interface Manager {
      *
      * @return the request session or {@code null} if a session with the
      *         requested ID could not be found
+     *         通过 id 查询对应的session 对象
      */
     public Session findSession(String id) throws IOException;
 
@@ -285,6 +304,7 @@ public interface Manager {
      * If this Manager has no active Sessions, a zero-length array is returned.
      *
      * @return All the currently active sessions managed by this manager
+     * 返回manager 内部所有的 session 对象
      */
     public Session[] findSessions();
 
@@ -297,6 +317,7 @@ public interface Manager {
      * @exception ClassNotFoundException if a serialized class cannot be
      *  found during the reload
      * @exception IOException if an input/output error occurs
+     * 尝试从某个持久化 对象中读取数据 如果不支持 持久化 那么不做任何操作
      */
     public void load() throws ClassNotFoundException, IOException;
 
@@ -305,6 +326,7 @@ public interface Manager {
      * Remove this Session from the active Sessions for this Manager.
      *
      * @param session Session to be removed
+     *                将某个session 对象 从manager 中移除
      */
     public void remove(Session session);
 
@@ -313,7 +335,8 @@ public interface Manager {
      * Remove this Session from the active Sessions for this Manager.
      *
      * @param session   Session to be removed
-     * @param update    Should the expiration statistics be updated
+     * @param update    Should the expiration statistics be updated  在移除时是否应该同时做更新操作
+     *                  移除 某个session
      */
     public void remove(Session session, boolean update);
 
@@ -322,6 +345,7 @@ public interface Manager {
      * Remove a property change listener from this component.
      *
      * @param listener The listener to remove
+     *                 将 propChangeListener 从 manager 中移除
      */
     public void removePropertyChangeListener(PropertyChangeListener listener);
 
@@ -332,6 +356,7 @@ public interface Manager {
      * returns without doing anything.
      *
      * @exception IOException if an input/output error occurs
+     * 将当前session 数据持久化到某个地方
      */
     public void unload() throws IOException;
 
@@ -354,6 +379,7 @@ public interface Manager {
      *
      * @return {@code true} if the Manager would distribute the given attribute
      *         otherwise {@code false}
+     *         指定的session 是否支持 分布式环境
      */
     public boolean willAttributeDistribute(String name, Object value);
 }
