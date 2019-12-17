@@ -32,12 +32,17 @@ import org.apache.tomcat.util.res.StringManager;
  * This class handles reading bytes.
  *
  * @author Remy Maucherat
+ * 默认的 servletInputStream 实现类  servletInputStream 是 servletRequest的接口
  */
 public class CoyoteInputStream extends ServletInputStream {
 
     protected static final StringManager sm = StringManager.getManager(CoyoteInputStream.class);
 
 
+    /**
+     * 内部包含一个 inputBuffer 对象
+     * inputStream api 相关的读取就是从该buffer 中读取数据
+     */
     protected InputBuffer ib;
 
 
@@ -48,6 +53,7 @@ public class CoyoteInputStream extends ServletInputStream {
 
     /**
      * Clear facade.
+     * 清除掉内部的 buffer 引用
      */
     void clear() {
         ib = null;
@@ -63,18 +69,25 @@ public class CoyoteInputStream extends ServletInputStream {
     }
 
 
+    /**
+     * 从inputBuffer 中读取数据
+     *
+     * @return
+     * @throws IOException
+     */
     @Override
     public int read() throws IOException {
+        // 检测当前读是否会产生阻塞  如果没有准备好(buffer中没有可用空间) 会抛出异常
         checkNonBlockingRead();
 
+        // 判断是否开启了安全保护
         if (SecurityUtil.isPackageProtectionEnabled()) {
-
             try {
                 Integer result = AccessController
                         .doPrivileged(new PrivilegedExceptionAction<Integer>() {
-
                             @Override
                             public Integer run() throws IOException {
+                                // 读取数据 返回byte 时 转换成int
                                 Integer integer = Integer.valueOf(ib.readByte());
                                 return integer;
                             }
@@ -90,10 +103,16 @@ public class CoyoteInputStream extends ServletInputStream {
                 }
             }
         } else {
+            // 使用 inputBuffer 读取数据
             return ib.readByte();
         }
     }
 
+    /**
+     * 判断还有多少可用长度
+     * @return
+     * @throws IOException
+     */
     @Override
     public int available() throws IOException {
 
@@ -104,6 +123,7 @@ public class CoyoteInputStream extends ServletInputStream {
 
                             @Override
                             public Integer run() throws IOException {
+                                // 委托调用 inputBuffer.available
                                 Integer integer = Integer.valueOf(ib.available());
                                 return integer;
                             }
@@ -123,6 +143,12 @@ public class CoyoteInputStream extends ServletInputStream {
         }
     }
 
+    /**
+     * 将数据读取到 b 中
+     * @param b
+     * @return
+     * @throws IOException
+     */
     @Override
     public int read(final byte[] b) throws IOException {
         checkNonBlockingRead();
@@ -193,7 +219,7 @@ public class CoyoteInputStream extends ServletInputStream {
      *
      * @param b the ByteBuffer into which bytes are to be written.
      * @return an integer specifying the actual number of bytes read, or -1 if
-     *         the end of the stream is reached
+     * the end of the stream is reached
      * @throws IOException if an input or output exception has occurred
      */
     public int read(final ByteBuffer b) throws IOException {

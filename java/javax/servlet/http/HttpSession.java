@@ -62,6 +62,8 @@ import javax.servlet.ServletContext;
  * be directly visible in another.
  *
  * @see HttpSessionBindingListener
+ * servlet 规范中标准的 session 接口 而 tomcat 内部又使用了一个门面类来装饰它 这样 在内部就做到了解耦 没有让tomcat 直接解除到 httpSession
+ * 什么是解耦  就是为了 使得tomcat中能直接访问到 httpSession的 数据尽可能集中到一起 所以使用 tomcat.session 这个门面接口 这样到时候只要修改 tomcat.session 的实现 就可以将改动范围最小化
  */
 public interface HttpSession {
 
@@ -73,6 +75,7 @@ public interface HttpSession {
      *         expressed in milliseconds since 1/1/1970 GMT
      * @exception IllegalStateException
      *                if this method is called on an invalidated session
+     *                获取session 创建时间
      */
     public long getCreationTime();
 
@@ -84,6 +87,7 @@ public interface HttpSession {
      * @return a string specifying the identifier assigned to this session
      * @exception IllegalStateException
      *                if this method is called on an invalidated session
+     *                获取该session 对应的id
      */
     public String getId();
 
@@ -100,6 +104,7 @@ public interface HttpSession {
      *         since 1/1/1970 GMT
      * @exception IllegalStateException
      *                if this method is called on an invalidated session
+     *                获取最后一次访问该session的时间戳
      */
     public long getLastAccessedTime();
 
@@ -108,6 +113,7 @@ public interface HttpSession {
      *
      * @return The ServletContext object for the web application
      * @since 2.3
+     * 获取该session 绑定的上下文 这里使用的是遵循servlet 规范的 servletContext
      */
     public ServletContext getServletContext();
 
@@ -118,6 +124,7 @@ public interface HttpSession {
      *
      * @param interval
      *            An integer specifying the number of seconds
+     *            设置最大失活时间
      */
     public void setMaxInactiveInterval(int interval);
 
@@ -131,6 +138,7 @@ public interface HttpSession {
      * @return an integer specifying the number of seconds this session remains
      *         open between client requests
      * @see #setMaxInactiveInterval
+     * 获取最大失活时间
      */
     public int getMaxInactiveInterval();
 
@@ -154,6 +162,7 @@ public interface HttpSession {
      * @return the object with the specified name
      * @exception IllegalStateException
      *                if this method is called on an invalidated session
+     *                通过name 查询session 中某个属性
      */
     public Object getAttribute(String name);
 
@@ -178,6 +187,7 @@ public interface HttpSession {
      *         specifying the names of all the objects bound to this session
      * @exception IllegalStateException
      *                if this method is called on an invalidated session
+     *                获取当前session 下所有保存的属性
      */
     public Enumeration<String> getAttributeNames();
 
@@ -216,6 +226,7 @@ public interface HttpSession {
      *            the object to be bound
      * @exception IllegalStateException
      *                if this method is called on an invalidated session
+     *                将某个键值对保存到 session 中
      */
     public void setAttribute(String name, Object value);
 
@@ -248,6 +259,7 @@ public interface HttpSession {
      *            the name of the object to remove from this session
      * @exception IllegalStateException
      *                if this method is called on an invalidated session
+     *                从session 中移除掉某个键值对
      */
     public void removeAttribute(String name);
 
@@ -268,6 +280,7 @@ public interface HttpSession {
      *
      * @exception IllegalStateException
      *                if this method is called on an already invalidated session
+     *                将该session 无效化
      */
     public void invalidate();
 
@@ -281,6 +294,7 @@ public interface HttpSession {
      *         client has not yet joined
      * @exception IllegalStateException
      *                if this method is called on an already invalidated session
+     *                判断该session 是否是新建的
      */
     public boolean isNew();
 }

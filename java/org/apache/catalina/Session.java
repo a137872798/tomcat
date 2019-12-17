@@ -31,6 +31,7 @@ import javax.servlet.http.HttpSession;
  * between requests for a particular user of a web application.
  *
  * @author Craig R. McClanahan
+ * http请求本身是无状态的  session 对象是为了 建立一种client 与 webApplication之间的会话体系
  */
 public interface Session {
 
@@ -40,24 +41,29 @@ public interface Session {
 
     /**
      * The SessionEvent event type when a session is created.
+     * 创建会话事件
      */
     public static final String SESSION_CREATED_EVENT = "createSession";
 
 
     /**
      * The SessionEvent event type when a session is destroyed.
+     * 销毁会话事件
      */
     public static final String SESSION_DESTROYED_EVENT = "destroySession";
 
 
     /**
      * The SessionEvent event type when a session is activated.
+     * session激活事件
      */
     public static final String SESSION_ACTIVATED_EVENT = "activateSession";
 
 
     /**
      * The SessionEvent event type when a session is passivated.
+     * session 失活事件
+     *
      */
     public static final String SESSION_PASSIVATED_EVENT = "passivateSession";
 
@@ -68,6 +74,7 @@ public interface Session {
     /**
      * @return the authentication type used to authenticate our cached
      * Principal, if any.
+     * 该会话的 对应的用户验证信息
      */
     public String getAuthType();
 
@@ -77,12 +84,14 @@ public interface Session {
      * Principal, if any.
      *
      * @param authType The new cached authentication type
+     *                 设置验证信息
      */
     public void setAuthType(String authType);
 
 
     /**
      * @return the creation time for this session.
+     * 获取session 的创建时间
      */
     public long getCreationTime();
 
@@ -90,6 +99,7 @@ public interface Session {
     /**
      * @return the creation time for this session, bypassing the session validity
      * checks.
+     * 获取内部创建时间
      */
     public long getCreationTimeInternal();
 
@@ -105,12 +115,14 @@ public interface Session {
 
     /**
      * @return the session identifier for this session.
+     * 获取该session 对应的id
      */
     public String getId();
 
 
     /**
      * @return the session identifier for this session.
+     * 获取session 内部id
      */
     public String getIdInternal();
 
@@ -120,6 +132,7 @@ public interface Session {
      * listeners that a new session has been created.
      *
      * @param id The new session identifier
+     *           设置session 的id
      */
     public void setId(String id);
 
@@ -130,7 +143,7 @@ public interface Session {
      *
      * @param id        The new session identifier
      * @param notify    Should any associated listeners be notified that a new
-     *                      session has been created?
+     *                      session has been created?   代表是否要通知该session 相关的监听器
      */
     public void setId(String id, boolean notify);
 
@@ -141,6 +154,7 @@ public interface Session {
      * GMT.  Actions that your application takes, such as getting or setting
      * a value associated with the session, do not affect the access time.
      * This one gets updated whenever a request starts.
+     * 获取 最后一次访问时间 (尝试处理请求的时间)
      */
     public long getThisAccessedTime();
 
@@ -156,6 +170,7 @@ public interface Session {
      * GMT.  Actions that your application takes, such as getting or setting
      * a value associated with the session, do not affect the access time.
      * This one gets updated whenever a request finishes.
+     * 上面的访问时间是 起始时间 这里是 结束时间 (处理完req 的时间)
      */
     public long getLastAccessedTime();
 
@@ -167,6 +182,7 @@ public interface Session {
 
     /**
      * @return the idle time (in milliseconds) from last client access time.
+     * 距离上次访问已经过了多久
      */
     public long getIdleTime();
 
@@ -178,6 +194,7 @@ public interface Session {
 
     /**
      * @return the Manager within which this Session is valid.
+     * 获取session 管理器对象
      */
     public Manager getManager();
 
@@ -194,6 +211,7 @@ public interface Session {
      * @return the maximum time interval, in seconds, between client requests
      * before the servlet container will invalidate the session.  A negative
      * time indicates that the session should never time out.
+     * 获取session的最大存活时间
      */
     public int getMaxInactiveInterval();
 
@@ -212,6 +230,7 @@ public interface Session {
      * Set the <code>isNew</code> flag for this session.
      *
      * @param isNew The new value for the <code>isNew</code> flag
+     *              当前session 是否是一个新的session
      */
     public void setNew(boolean isNew);
 
@@ -240,6 +259,7 @@ public interface Session {
     /**
      * @return the <code>HttpSession</code> for which this object
      * is the facade.
+     * 该session 对象实际上是  servlet.httpSession 的门面对象
      */
     public HttpSession getSession();
 
@@ -265,6 +285,7 @@ public interface Session {
      * Update the accessed time information for this session.  This method
      * should be called by the context when a request comes in for a particular
      * session, even if the application does not reference it.
+     * 访问该session 对象 在内部会更新最后访问时间戳
      */
     public void access();
 
@@ -274,12 +295,14 @@ public interface Session {
      *
      * @param listener the SessionListener instance that should be notified
      *   for session events
+     *                 为该session 对象设置监听器
      */
     public void addSessionListener(SessionListener listener);
 
 
     /**
      * End access to the session.
+     * 停止本次访问
      */
     public void endAccess();
 
@@ -287,6 +310,7 @@ public interface Session {
     /**
      * Perform the internal processing required to invalidate this session,
      * without triggering an exception if the session has already expired.
+     * session 过期
      */
     public void expire();
 
@@ -296,6 +320,7 @@ public interface Session {
      * for this session, or <code>null</code> if no such binding exists.
      *
      * @param name Name of the note to be returned
+     *             获取session 内部的note 对象
      */
     public Object getNote(String name);
 
@@ -303,6 +328,7 @@ public interface Session {
     /**
      * @return an Iterator containing the String names of all notes bindings
      * that exist for this session.
+     * 获取session 内部所有的note
      */
     public Iterator<String> getNoteNames();
 
@@ -310,6 +336,7 @@ public interface Session {
     /**
      * Release all object references, and initialize instance variables, in
      * preparation for reuse of this object.
+     * 释放该session 相关引用 同时回收该对象 类似于 ringBuffer的设计 在超大并发量 频繁的创建销毁对象时 通过 维护对象实例的方式 减小GC 压力
      */
     public void recycle();
 
@@ -319,6 +346,7 @@ public interface Session {
      * for this session.
      *
      * @param name Name of the note to be removed
+     *             将某个 note 从session 中移除
      */
     public void removeNote(String name);
 
@@ -328,6 +356,7 @@ public interface Session {
      *
      * @param listener remove the session listener, which will no longer be
      *     notified
+     *                 将 监听器从session 中移除
      */
     public void removeSessionListener(SessionListener listener);
 
@@ -338,6 +367,7 @@ public interface Session {
      *
      * @param name Name to which the object should be bound
      * @param value Object to be bound to the specified name
+     *              为session 指定一个note
      */
     public void setNote(String name, Object value);
 
@@ -351,6 +381,7 @@ public interface Session {
      *        notified that session ID has been changed?
      * @param notifyContainerListeners  Should any associated ContainerListeners
      *        be notified that session ID has been changed?
+     *                                  修改sessionId 同时根据情况通知监听器
      */
     public void tellChangedSessionId(String newId, String oldId,
             boolean notifySessionListeners, boolean notifyContainerListeners);
@@ -373,6 +404,7 @@ public interface Session {
      *
      * @return {@code true} if distribution is supported, otherwise {@code
      *         false}
+     *         当前属性是否存在支持分布式环境
      */
     public boolean isAttributeDistributable(String name, Object value);
 }

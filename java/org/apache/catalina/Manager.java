@@ -36,6 +36,7 @@ import java.io.IOException;
  * </ul>
  *
  * @author Craig R. McClanahan
+ * 该对象将 session池化 并做统一管理
  */
 public interface Manager {
 
@@ -45,6 +46,7 @@ public interface Manager {
      * Get the Context with which this Manager is associated.
      *
      * @return The associated Context
+     * 获取该管理器绑定的上下文
      */
     public Context getContext();
 
@@ -57,12 +59,14 @@ public interface Manager {
      * setting a {@code null} value) that the Manager is associated with.
      *
      * @param context The newly associated Context
+     *                设置该管理器所在的上下文
      */
     public void setContext(Context context);
 
 
     /**
      * @return the session id generator
+     * 获取 sessionId 生成器
      */
     public SessionIdGenerator getSessionIdGenerator();
 
@@ -71,6 +75,7 @@ public interface Manager {
      * Sets the session id generator
      *
      * @param sessionIdGenerator The session id generator
+     *                           设置sessionId 生成器
      */
     public void setSessionIdGenerator(SessionIdGenerator sessionIdGenerator);
 

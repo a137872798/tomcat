@@ -25,6 +25,7 @@ import javax.servlet.http.HttpSession;
  * Facade for the StandardSession object.
  *
  * @author Remy Maucherat
+ * 标准session 对象的门面类
  */
 public class StandardSessionFacade implements HttpSession {
 
@@ -44,6 +45,7 @@ public class StandardSessionFacade implements HttpSession {
 
     /**
      * Wrapped session object.
+     * 内部包含的实际对象
      */
     private final HttpSession session;
 

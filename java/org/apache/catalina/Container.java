@@ -407,6 +407,7 @@ public interface Container extends Lifecycle {
      *
      * @param type Event type
      * @param data Event data
+     *             触发容器事件  如果session 相关事件触发 那么也会触发该方法
      */
     public void fireContainerEvent(String type, Object data);
 

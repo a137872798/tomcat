@@ -51,10 +51,13 @@ import java.util.ResourceBundle;
  * This class supports both the RFC 2109 and the RFC 6265 specifications.
  * By default, cookies are created using RFC 6265.
  *
- * servlet.HttpServletRequest 携带的 cookie 对象 ， 对应到浏览器的cookie
+ * servlet.HttpServletRequest 携带的 cookie 对象 ， 对应到浏览器的cookie  该对象只是一个基本的 bean 对象
  */
 public class Cookie implements Cloneable, Serializable {
 
+    /**
+     * cookie 的名字校验器  这个东西不细看 只知道 cookie的命名必须满足某种规范 而不是随便取的
+     */
     private static final CookieNameValidator validation;
     static {
         boolean strictNaming;
@@ -65,6 +68,7 @@ public class Cookie implements Cloneable, Serializable {
             strictNaming = Boolean.getBoolean("org.apache.catalina.STRICT_SERVLET_COMPLIANCE");
         }
 
+        // 根据规范名生成对应的校验器
         if (strictNaming) {
             validation = new RFC2109Validator();
         }
@@ -75,6 +79,9 @@ public class Cookie implements Cloneable, Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * 该 cookie 对应的键值对
+     */
     private final String name;
     private String value;
 
@@ -83,11 +90,29 @@ public class Cookie implements Cloneable, Serializable {
     //
     // Attributes encoded in the header's cookie fields.
     //
+    /**
+     * 描述 cookie 的信息
+     */
     private String comment; // ;Comment=VALUE ... describes cookie's use
+    /**
+     * 该 cookie 所属的范围
+     */
     private String domain; // ;Domain=VALUE ... domain that sees cookie
+    /**
+     * cookie 的最大存活时间
+     */
     private int maxAge = -1; // ;Max-Age=VALUE ... cookies auto-expire
+    /**
+     * 代表 允许看到这个cookie 的 最大路径 此path 下的子path 都可以看见该cookie
+     */
     private String path; // ;Path=VALUE ... URLs that see the cookie
+    /**
+     * 是否使用了 SSL 通道
+     */
     private boolean secure; // ;Secure ... e.g. use SSL
+    /**
+     * 是否只允许http协议
+     */
     private boolean httpOnly; // Not in cookie specs, but supported by browsers
 
     /**
@@ -116,6 +141,7 @@ public class Cookie implements Cloneable, Serializable {
      *             reserved for use by the cookie protocol
      * @see #setValue
      * @see #setVersion
+     * 使用指定的 name/value 初始化 cookie 对象 这里还会对name 做校验
      */
     public Cookie(String name, String value) {
         validation.validate(name);
@@ -383,10 +409,19 @@ public class Cookie implements Cloneable, Serializable {
 }
 
 
+/**
+ * cookie 的名称校验器
+ */
 class CookieNameValidator {
     private static final String LSTRING_FILE = "javax.servlet.http.LocalStrings";
+    /**
+     * 生成资源绑定对象
+     */
     protected static final ResourceBundle lStrings = ResourceBundle.getBundle(LSTRING_FILE);
 
+    /**
+     * 位图对象
+     */
     protected final BitSet allowed;
 
     protected CookieNameValidator(String separators) {

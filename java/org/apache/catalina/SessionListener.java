@@ -25,6 +25,8 @@ import java.util.EventListener;
  * Interface defining a listener for significant Session generated events.
  *
  * @author Craig R. McClanahan
+ * tomcat 中额外拓展 httpsession 的功能 当session触发不同的事件时 可以做处理
+ * 其中分布式session 也是通过该监听器实现的 类似于 jraft中实现 集群的 replicator 吗
  */
 public interface SessionListener extends EventListener {
 

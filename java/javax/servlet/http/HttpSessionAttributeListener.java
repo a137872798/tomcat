@@ -23,6 +23,7 @@ import java.util.EventListener;
  * changes to the attribute lists of sessions within this web application.
  *
  * @since v 2.3
+ * 针对 session中 attr 变更的监听器
  */
 public interface HttpSessionAttributeListener extends EventListener {
 
@@ -31,6 +32,7 @@ public interface HttpSessionAttributeListener extends EventListener {
      * the attribute is added.
      *
      * @param se Information about the added attribute
+     *           触发添加attr事件
      */
     public void attributeAdded(HttpSessionBindingEvent se);
 
@@ -39,6 +41,7 @@ public interface HttpSessionAttributeListener extends EventListener {
      * after the attribute is removed.
      *
      * @param se Information about the removed attribute
+     *           触发移除attr事件
      */
     public void attributeRemoved(HttpSessionBindingEvent se);
 
@@ -47,6 +50,7 @@ public interface HttpSessionAttributeListener extends EventListener {
      * after the attribute is replaced.
      *
      * @param se Information about the replaced attribute
+     *           触发 替换 attr事件
      */
     public void attributeReplaced(HttpSessionBindingEvent se);
 }

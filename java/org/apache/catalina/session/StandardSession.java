@@ -78,28 +78,42 @@ import org.apache.tomcat.util.res.StringManager;
  * @author Craig R. McClanahan
  * @author Sean Legassick
  * @author <a href="mailto:jon@latchkey.com">Jon S. Stevens</a>
+ *
+ * tomcat 内部的标准session 对象 它实现了 servlet规范中 httpSession 接口 同时还实现了 tomcat内部的session 接口
  */
 public class StandardSession implements HttpSession, Session, Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * 是否严格遵守servlet 规范
+     */
     protected static final boolean STRICT_SERVLET_COMPLIANCE;
 
+    /**
+     * 活跃性检查
+     */
     protected static final boolean ACTIVITY_CHECK;
 
+    /**
+     * 上一次访问的起始时间
+     */
     protected static final boolean LAST_ACCESS_AT_START;
 
     static {
         STRICT_SERVLET_COMPLIANCE = Globals.STRICT_SERVLET_COMPLIANCE;
 
+        // 从系统变量中获取是否需要做 活跃性检查
         String activityCheck = System.getProperty(
                 "org.apache.catalina.session.StandardSession.ACTIVITY_CHECK");
         if (activityCheck == null) {
+            // 如果严格遵守  那么就需要做活跃性检查
             ACTIVITY_CHECK = STRICT_SERVLET_COMPLIANCE;
         } else {
             ACTIVITY_CHECK = Boolean.parseBoolean(activityCheck);
         }
 
+        // 如果严格遵守servlet 规范 那么就要记录最后次访问的起始时间
         String lastAccessAtStart = System.getProperty(
                 "org.apache.catalina.session.StandardSession.LAST_ACCESS_AT_START");
         if (lastAccessAtStart == null) {
@@ -117,13 +131,14 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * Construct a new Session associated with the specified Manager.
      *
      * @param manager The manager with which this Session is associated
+     *                根据 manager 创建一个关联的session 对象
      */
     public StandardSession(Manager manager) {
 
         super();
         this.manager = manager;
 
-        // Initialize access count
+        // Initialize access count  如果设置了 activity_check 那么就初始化一个计数器
         if (ACTIVITY_CHECK) {
             accessCount = new AtomicInteger();
         }
@@ -136,12 +151,14 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * Type array.
+     * 创建一个空数组对象
      */
     protected static final String EMPTY_ARRAY[] = new String[0];
 
 
     /**
      * The collection of user data attributes associated with this Session.
+     * 该session 内部维护的 属性容器  该属性在序列化时会保留
      */
     protected ConcurrentMap<String, Object> attributes = new ConcurrentHashMap<>();
 
@@ -157,6 +174,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * The time this session was created, in milliseconds since midnight,
      * January 1, 1970 GMT.
+     * 该session的创建时间
      */
     protected long creationTime = 0L;
 
@@ -165,6 +183,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * We are currently processing a session expiration, so bypass
      * certain IllegalStateException tests.  NOTE:  This value is not
      * included in the serialized version of this object.
+     * 当前是否过期
      */
     protected transient volatile boolean expiring = false;
 
@@ -172,30 +191,35 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * The facade associated with this session.  NOTE:  This value is not
      * included in the serialized version of this object.
+     * 这里包含一个门面类
      */
     protected transient StandardSessionFacade facade = null;
 
 
     /**
      * The session identifier of this Session.
+     * 该session 关联的id
      */
     protected String id = null;
 
 
     /**
      * The last accessed time for this Session.
+     * 最后一次访问该session 的时间戳
      */
     protected volatile long lastAccessedTime = creationTime;
 
 
     /**
      * The session event listeners for this Session.
+     * 该session 关联的监听器对象
      */
     protected transient ArrayList<SessionListener> listeners = new ArrayList<>();
 
 
     /**
      * The Manager with which this Session is associated.
+     * 该session 关联的manager 对象
      */
     protected transient Manager manager = null;
 
@@ -204,18 +228,21 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * The maximum time interval, in seconds, between client requests before
      * the servlet container may invalidate this session.  A negative time
      * indicates that the session should never time out.
+     * 最大失活时间 看来session 默认是不会过期 的 等下 这个过期机制是怎么实现的??? 惰性删除吗 或者使用一个额外线程进行清理???
      */
     protected volatile int maxInactiveInterval = -1;
 
 
     /**
      * Flag indicating whether this session is new or not.
+     * 默认情况 session.isNew 为 false
      */
     protected volatile boolean isNew = false;
 
 
     /**
      * Flag indicating whether this session is valid or not.
+     * 默认为无效
      */
     protected volatile boolean isValid = false;
 
@@ -224,6 +251,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * Internal notes associated with this session by Catalina components
      * and event listeners.  <b>IMPLEMENTATION NOTE:</b> This object is
      * <em>not</em> saved and restored across session serializations!
+     * 内部包含一个  note容器  该属性在序列化时不会被保存
      */
     protected transient Map<String, Object> notes = new Hashtable<>();
 
@@ -244,6 +272,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * The HTTP session context associated with this session.
+     * httpSession 关联的 上下文对象  该类已经被弃用了 此时相关方法返回null 或者空容器
      */
     @Deprecated
     protected static volatile
@@ -260,12 +289,14 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * The current accessed time for this session.
+     * 访问时间 默认为创建时间
      */
     protected volatile long thisAccessedTime = creationTime;
 
 
     /**
      * The access count for this session.
+     * 访问次数
      */
     protected transient AtomicInteger accessCount = null;
 
@@ -288,11 +319,13 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * Principal, if any.
      *
      * @param authType The new cached authentication type
+     *                 设置权限类型
      */
     @Override
     public void setAuthType(String authType) {
         String oldAuthType = this.authType;
         this.authType = authType;
+        // 当设置权限类型时 触发 属性变化监听器  该对象属于 java.beans 的 先不看
         support.firePropertyChange("authType", oldAuthType, this.authType);
     }
 
@@ -302,6 +335,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * Manager when an existing Session instance is reused.
      *
      * @param time The new creation time
+     *             设置当前session的创建时间  同时访问时间也会与创建时间同步
      */
     @Override
     public void setCreationTime(long time) {
@@ -324,6 +358,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * Return the session identifier for this session.
+     * tomcat 内部的session 默认id 与 servlet.session 的id 一致
      */
     @Override
     public String getIdInternal() {
@@ -344,10 +379,12 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * {@inheritDoc}
+     * 当修改id 的时候是否要通知监听器 默认为true
      */
     @Override
     public void setId(String id, boolean notify) {
 
+        // 如果将某个 session的id 修改 那么要先将 session 从manager中移除 之后更新id 后重新设置回manager
         if ((this.id != null) && (manager != null))
             manager.remove(this);
 
@@ -356,6 +393,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
         if (manager != null)
             manager.add(this);
 
+        // 通知生成了一个新的session
         if (notify) {
             tellNew();
         }
@@ -364,27 +402,34 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * Inform the listeners about the new session.
-     *
+     * 代表创建了一个新的session
      */
     public void tellNew() {
 
         // Notify interested session event listeners
+        // 触发session的创建事件 传入的data为null
         fireSessionEvent(Session.SESSION_CREATED_EVENT, null);
 
         // Notify interested application event listeners
+        // 获取 manager相关的上下文对象  在tomcat 中 container 就是一种context  这里就是在获取session当前所属的容器
         Context context = manager.getContext();
+        // 获取 容器级别的生命周期监听对象
         Object listeners[] = context.getApplicationLifecycleListeners();
         if (listeners != null && listeners.length > 0) {
+            // 这里是 servlet 规范内的sessionEvent
             HttpSessionEvent event =
                 new HttpSessionEvent(getSession());
+            // 找到 监听器中 是 servlet.HttpSessionListener 的对象 并触发事件
             for (int i = 0; i < listeners.length; i++) {
                 if (!(listeners[i] instanceof HttpSessionListener))
                     continue;
                 HttpSessionListener listener =
                     (HttpSessionListener) listeners[i];
                 try {
+                    // 使用上下文对象去触发事件
                     context.fireContainerEvent("beforeSessionCreated",
                             listener);
+                    // 触发监听器相关事件
                     listener.sessionCreated(event);
                     context.fireContainerEvent("afterSessionCreated", listener);
                 } catch (Throwable t) {
@@ -412,19 +457,23 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *        notified that session ID has been changed?
      * @param notifyContainerListeners  Should any associated ContainerListeners
      *        be notified that session ID has been changed?
+     *                                  修改当前session的id 同时根据  参数判断是否要通知相关监听器
      */
     @Override
     public void tellChangedSessionId(String newId, String oldId,
             boolean notifySessionListeners, boolean notifyContainerListeners) {
+        // 获取 context对象 (实际上在 tomcat中还有 container 的含义)
         Context context = manager.getContext();
-         // notify ContainerListeners
+         // notify ContainerListeners  当需要通知 容器级别的监听器时
         if (notifyContainerListeners) {
+            // 使用一个 session_id_change 事件触发监听器
             context.fireContainerEvent(Context.CHANGE_SESSION_ID_EVENT,
                     new String[] {oldId, newId});
         }
 
-        // notify HttpSessionIdListener
+        // notify HttpSessionIdListener  当需要通知session级别监听器时
         if (notifySessionListeners) {
+            // 从上下文对象中获取监听器 如果可以转换成 HttpSessionIdListener 则触发相关逻辑
             Object listeners[] = context.getApplicationEventListeners();
             if (listeners != null && listeners.length > 0) {
                 HttpSessionEvent event =
@@ -437,6 +486,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
                     HttpSessionIdListener idListener =
                         (HttpSessionIdListener)listener;
                     try {
+                        // 触发 sessionIdChange
                         idListener.sessionIdChanged(event, oldId);
                     } catch (Throwable t) {
                         manager.getContext().getLogger().error
@@ -454,10 +504,12 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * GMT.  Actions that your application takes, such as getting or setting
      * a value associated with the session, do not affect the access time.
      * This one gets updated whenever a request starts.
+     * 获取当前访问时间
      */
     @Override
     public long getThisAccessedTime() {
 
+        // 判断 isValid 字段 如果为false 则代表当前session 已经无效了
         if (!isValidInternal()) {
             throw new IllegalStateException
                 (sm.getString("standardSession.getThisAccessedTime.ise"));
@@ -481,6 +533,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * GMT.  Actions that your application takes, such as getting or setting
      * a value associated with the session, do not affect the access time.
      * This one gets updated whenever a request finishes.
+     * 获取最后的访问时间
      */
     @Override
     public long getLastAccessedTime() {
@@ -504,6 +557,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * Return the idle time (in milliseconds) from last client access time.
+     * 获取空闲时间
      */
     @Override
     public long getIdleTime() {
@@ -519,11 +573,13 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * Return the idle time from last client access time without invalidation check
      * @see #getIdleTime()
+     * 获取空闲时间  也就是将 当前时间 - 最后访问时间
      */
     @Override
     public long getIdleTimeInternal() {
         long timeNow = System.currentTimeMillis();
         long timeIdle;
+        // 在servlet 规范中 lastAccess 是代表开始处理req 的时候 那么就使用 lastAccessedTime字段
         if (LAST_ACCESS_AT_START) {
             timeIdle = timeNow - lastAccessedTime;
         } else {
@@ -534,6 +590,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * Return the Manager within which this Session is valid.
+     * 获取该session 相关的manager 对象
      */
     @Override
     public Manager getManager() {
@@ -556,6 +613,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * Return the maximum time interval, in seconds, between client requests
      * before the servlet container will invalidate the session.  A negative
      * time indicates that the session should never time out.
+     * 获取session 的最大存活时间
      */
     @Override
     public int getMaxInactiveInterval() {
@@ -580,6 +638,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * Set the <code>isNew</code> flag for this session.
      *
      * @param isNew The new value for the <code>isNew</code> flag
+     *              设置 isNew 标识
      */
     @Override
     public void setNew(boolean isNew) {
@@ -621,6 +680,8 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * Return the <code>HttpSession</code> for which this object
      * is the facade.
+     * 这里返回一个门面对象  虽然本对象也实现了 httpSession 接口 但是除此之外还有很多的 额外方法 为了不将这些暴露给用户 (比如使用者通过 强转的方式 访问到了一些不该访问的方法)
+     * 所以这里又单独使用了一个门面对象
      */
     @Override
     public HttpSession getSession() {
@@ -646,29 +707,37 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * Return the <code>isValid</code> flag for this session.
+     * 这类型 方法 实际上都需要考虑并发问题 当校验session 是否有效时 一些核心的标识类是否正在被其他线程处理
      */
     @Override
     public boolean isValid() {
 
+        // 代表当前session 已经无效
         if (!this.isValid) {
             return false;
         }
 
+        // 代表正在处理过期的情况 此时session 还是有效的
         if (this.expiring) {
             return true;
         }
 
+        // 如果访问次数大于0 就代表当前session 还是有效的  这里的 accessCount 使用 AtomicInteger 修饰  看来当某个session无效时 会将 accessCount重置
         if (ACTIVITY_CHECK && accessCount.get() > 0) {
             return true;
         }
 
+        // 代表设置了 session最大超时时间
         if (maxInactiveInterval > 0) {
             int timeIdle = (int) (getIdleTimeInternal() / 1000L);
+            // 如果超时时间 超过了 最大存活时间 那么就需要将该session 设置为过期 那么session的删除机制使用的是惰性删除
             if (timeIdle >= maxInactiveInterval) {
+                // 设置成超时 同时触发监听器
                 expire(true);
             }
         }
 
+        // 推测在 expire中会将 isVaild 设置成false
         return this.isValid;
     }
 
@@ -691,10 +760,12 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * Update the accessed time information for this session.  This method
      * should be called by the context when a request comes in for a particular
      * session, even if the application does not reference it.
+     * 当某个session 被访问时触发
      */
     @Override
     public void access() {
 
+        // 记录当前访问时间  如果需要记录访问次数 则增加计数器
         this.thisAccessedTime = System.currentTimeMillis();
 
         if (ACTIVITY_CHECK) {
@@ -706,10 +777,12 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * End the access.
+     * 当访问结束时触发
      */
     @Override
     public void endAccess() {
 
+        // 修改 isNew 标识
         isNew = false;
 
         /**
@@ -733,24 +806,24 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * Add a session event listener to this component.
+     * 设置 session 监听器
      */
     @Override
     public void addSessionListener(SessionListener listener) {
 
         listeners.add(listener);
-
     }
 
 
     /**
      * Perform the internal processing required to invalidate this session,
      * without triggering an exception if the session has already expired.
+     * 处理session 过期 默认情况会触发监听器
      */
     @Override
     public void expire() {
 
         expire(true);
-
     }
 
 
@@ -759,44 +832,51 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * without triggering an exception if the session has already expired.
      *
      * @param notify Should we notify listeners about the demise of
-     *  this session?
+     *  this session?   代表是否要通知监听器
+     *               当前session 过期
      */
     public void expire(boolean notify) {
 
         // Check to see if session has already been invalidated.
         // Do not check expiring at this point as expire should not return until
-        // isValid is false
+        // isValid is false  如果当前session 已经失效 可能是多线程 同时触发 isValid 方法 且都进入到这里
         if (!isValid)
             return;
 
+        // 实际处理逻辑进行加锁  尽可能减小锁范围
         synchronized (this) {
             // Check again, now we are inside the sync so this code only runs once
             // Double check locking - isValid needs to be volatile
             // The check of expiring is to ensure that an infinite loop is not
-            // entered as per bug 56339
+            // entered as per bug 56339   expiring 代表正在处理超时逻辑 这里是进行双重检查
             if (expiring || !isValid)
                 return;
 
+            // 如果manager 为null 则不需要处理 不过session 在创建时都会关联到一个manager 上
             if (manager == null)
                 return;
 
-            // Mark this session as "being expired"
+            // Mark this session as "being expired"  标记成 正在处理
             expiring = true;
 
             // Notify interested application event listeners
             // FIXME - Assumes we call listeners in reverse order
+            // 通过manager 获取到关联的上下文对象
             Context context = manager.getContext();
 
             // The call to expire() may not have been triggered by the webapp.
             // Make sure the webapp's class loader is set when calling the
             // listeners
+            // 触发监听器的逻辑都是类似的 首先通过context 获取到绑定的一组监听器 然后遍历 当发现监听器是servlet.httpSessionListener 时进行触发
             if (notify) {
                 ClassLoader oldContextClassLoader = null;
                 try {
+                    // TODO 这里绑定类加载器 需要注意 之后回顾下
                     oldContextClassLoader = context.bind(Globals.IS_SECURITY_ENABLED, null);
                     Object listeners[] = context.getApplicationLifecycleListeners();
                     if (listeners != null && listeners.length > 0) {
                         HttpSessionEvent event =
+                                // getSession() 返回的是门面对象 隐藏了 除了 httpSession 之外的其他实现
                             new HttpSessionEvent(getSession());
                         for (int i = 0; i < listeners.length; i++) {
                             int j = (listeners.length - 1) - i;
@@ -805,6 +885,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
                             HttpSessionListener listener =
                                 (HttpSessionListener) listeners[j];
                             try {
+                                // 触发 sessionDestroyed 事件
                                 context.fireContainerEvent("beforeSessionDestroyed",
                                         listener);
                                 listener.sessionDestroyed(event);
@@ -824,26 +905,30 @@ public class StandardSession implements HttpSession, Session, Serializable {
                         }
                     }
                 } finally {
+                    // 这里又 解除了绑定
                     context.unbind(Globals.IS_SECURITY_ENABLED, oldContextClassLoader);
                 }
             }
 
+            // 将访问数清空
             if (ACTIVITY_CHECK) {
                 accessCount.set(0);
             }
 
             // Remove this session from our manager's active sessions
+            // 将该session 从manager中移除
             manager.remove(this, true);
 
-            // Notify interested session event listeners
+            // Notify interested session event listeners 如果需要通知监听器 这里触发
             if (notify) {
                 fireSessionEvent(Session.SESSION_DESTROYED_EVENT, null);
             }
 
-            // Call the logout method
+            // Call the logout method  权限相关的先不看
             if (principal instanceof TomcatPrincipal) {
                 TomcatPrincipal gp = (TomcatPrincipal) principal;
                 try {
+                    // 这里进行登出
                     gp.logout();
                 } catch (Exception e) {
                     manager.getContext().getLogger().error(
@@ -852,14 +937,16 @@ public class StandardSession implements HttpSession, Session, Serializable {
                 }
             }
 
-            // We have completed expire of this session
+            // We have completed expire of this session  将session 标记成无效
             setValid(false);
+            // 代表处理超时相关逻辑完成
             expiring = false;
 
-            // Unbind any objects associated with this session
+            // Unbind any objects associated with this session  获取当前session 保存的所有attr.key
             String keys[] = keys();
             ClassLoader oldContextClassLoader = null;
             try {
+                // TODO 这里记录了 旧的类加载器后 将 attr 移除 之后又恢复了 classLoader
                 oldContextClassLoader = context.bind(Globals.IS_SECURITY_ENABLED, null);
                 for (int i = 0; i < keys.length; i++) {
                     removeAttributeInternal(keys[i], notify);
@@ -875,17 +962,20 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * Perform the internal processing required to passivate
      * this session.
+     * 使得该session 失活
      */
     public void passivate() {
 
         // Notify interested session event listeners
         fireSessionEvent(Session.SESSION_PASSIVATED_EVENT, null);
 
-        // Notify ActivationListeners
+        // Notify ActivationListeners  这个失活的监听器是从 attr 中获取的 而不是从context中获取的！
         HttpSessionEvent event = null;
         String keys[] = keys();
         for (int i = 0; i < keys.length; i++) {
+            // 获取对应的 attr 属性
             Object attribute = attributes.get(keys[i]);
+            // 处理session失活事件
             if (attribute instanceof HttpSessionActivationListener) {
                 if (event == null)
                     event = new HttpSessionEvent(getSession());
@@ -906,6 +996,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * Perform internal processing required to activate this
      * session.
+     * 某个session 恢复活跃状态  当某个session被使用时会先调用该方法
      */
     public void activate() {
 
@@ -920,6 +1011,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
         // Notify ActivationListeners
         HttpSessionEvent event = null;
         String keys[] = keys();
+        // 同样从 attr 中获取监听器对象 并触发函数
         for (int i = 0; i < keys.length; i++) {
             Object attribute = attributes.get(keys[i]);
             if (attribute instanceof HttpSessionActivationListener) {
@@ -944,6 +1036,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * for this session, or <code>null</code> if no such binding exists.
      *
      * @param name Name of the note to be returned
+     *             获取对应的note 属性
      */
     @Override
     public Object getNote(String name) {
@@ -954,6 +1047,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * Return an Iterator containing the String names of all notes bindings
      * that exist for this session.
+     * 获取内部 notes 关联的 key
      */
     @Override
     public Iterator<String> getNoteNames() {
@@ -964,6 +1058,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * Release all object references, and initialize instance variables, in
      * preparation for reuse of this object.
+     * 当对象被回收时置空相关引用
      */
     @Override
     public void recycle() {
@@ -990,6 +1085,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * for this session.
      *
      * @param name Name of the note to be removed
+     *             从该对象的 notes 中移除某个 note
      */
     @Override
     public void removeNote(String name) {
@@ -1001,6 +1097,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * Remove a session event listener from this component.
+     * 将某个监听器移除
      */
     @Override
     public void removeSessionListener(SessionListener listener) {
@@ -1016,6 +1113,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *
      * @param name Name to which the object should be bound
      * @param value Object to be bound to the specified name
+     *              将某个note 设置到session 中
      */
     @Override
     public void setNote(String name, Object value) {
@@ -1046,10 +1144,11 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * the specified object input stream, without requiring that the
      * StandardSession itself have been serialized.
      *
-     * @param stream The object input stream to read from
+     * @param stream The object input stream to read from  该输入流是基于 java自带的序列化
      *
      * @exception ClassNotFoundException if an unknown class is specified
      * @exception IOException if an input/output error occurs
+     * 从 某个输入流对象中读取数据用来初始化 session 对象
      */
     public void readObjectData(ObjectInputStream stream)
         throws ClassNotFoundException, IOException {
@@ -1067,6 +1166,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * @param stream The object output stream to write to
      *
      * @exception IOException if an input/output error occurs
+     * 将session 对象写入到某个对象输出流中
      */
     public void writeObjectData(ObjectOutputStream stream)
         throws IOException {
@@ -1085,6 +1185,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *
      * @exception IllegalStateException if this method is called on an
      *  invalidated session
+     * 返回该session 对象的创建时间
      */
     @Override
     public long getCreationTime() {
@@ -1099,6 +1200,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * Return the time when this session was created, in milliseconds since
      * midnight, January 1, 1970 GMT, bypassing the session validation checks.
+     * 默认情况  creationTimeInternal 返回的时间与  creationTime 一致
      */
     @Override
     public long getCreationTimeInternal() {
@@ -1108,12 +1210,14 @@ public class StandardSession implements HttpSession, Session, Serializable {
 
     /**
      * Return the ServletContext to which this session belongs.
+     * 获取上下文对象
      */
     @Override
     public ServletContext getServletContext() {
         if (manager == null) {
             return null;
         }
+        // 通过manager 获取到 servletContext
         Context context = manager.getContext();
         return context.getServletContext();
     }
@@ -1125,6 +1229,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * @deprecated As of Version 2.1, this method is deprecated and has no
      *  replacement.  It will be removed in a future version of the
      *  Java Servlet API.
+     *  该对象已经被废弃 内部的接口实现都是返回 null 或者是无效数据
      */
     @Override
     @Deprecated
@@ -1146,6 +1251,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *
      * @exception IllegalStateException if this method is called on an
      *  invalidated session
+     *  获取到 session 中某个属性
      */
     @Override
     public Object getAttribute(String name) {
@@ -1165,6 +1271,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *
      * @exception IllegalStateException if this method is called on an
      *  invalidated session
+     *  获取该session 下所有的 attrName
      */
     @Override
     public Enumeration<String> getAttributeNames() {
@@ -1174,6 +1281,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
                 (sm.getString("standardSession.getAttributeNames.ise"));
 
         Set<String> names = new HashSet<>();
+        // 采用拷贝的方式 返回一份副本  对外暴露数据的方法 尽可能返回副本对象 这样不会对源数据造成污染
         names.addAll(attributes.keySet());
         return Collections.enumeration(names);
     }
@@ -1226,6 +1334,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *
      * @exception IllegalStateException if this method is called on
      *  an invalidated session
+     *  强制该session 无效
      */
     @Override
     public void invalidate() {
@@ -1249,6 +1358,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *
      * @exception IllegalStateException if this method is called on an
      *  invalidated session
+     *  返回当前 session.isNew  如果 client 禁用cookie 那么每个请求对应的 session 都是新的
      */
     @Override
     public boolean isNew() {
@@ -1300,6 +1410,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *
      * @exception IllegalStateException if this method is called on an
      *  invalidated session
+     *  将某个属性从attr 中移除
      */
     @Override
     public void removeAttribute(String name) {
@@ -1320,10 +1431,11 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *
      * @param name Name of the object to remove from this session.
      * @param notify Should we notify interested listeners that this
-     *  attribute is being removed?
+     *  attribute is being removed?  代表是否要触发监听器
      *
      * @exception IllegalStateException if this method is called on an
      *  invalidated session
+     *  将某个属性从 attr 中移除的时候
      */
     public void removeAttribute(String name, boolean notify) {
 
@@ -1400,6 +1512,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *  non-serializable object in an environment marked distributable.
      * @exception IllegalStateException if this method is called on an
      *  invalidated session
+     *  将某个属性设置到 attr中
      */
 
     public void setAttribute(String name, Object value, boolean notify) {
@@ -1409,7 +1522,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
             throw new IllegalArgumentException
                 (sm.getString("standardSession.setAttribute.namenull"));
 
-        // Null value is the same as removeAttribute()
+        // Null value is the same as removeAttribute()  如果 name 对应的value 为nul 就代表是remove 操作
         if (value == null) {
             removeAttribute(name);
             return;
@@ -1420,15 +1533,18 @@ public class StandardSession implements HttpSession, Session, Serializable {
             throw new IllegalStateException(sm.getString(
                     "standardSession.setAttribute.ise", getIdInternal()));
         }
+        // 如果当前context 支持分布式  而该属性不支持分布式  并且 不是被排除的 (应该就是指在支持分布式的前提下 允许某些属性 仅作为单节点session数据)
         if ((manager != null) && manager.getContext().getDistributable() &&
+                // 只要 value 实现了序列化接口 就代表该属性 支持分布式
                 !isAttributeDistributable(name, value) && !exclude(name, value)) {
             throw new IllegalArgumentException(sm.getString(
                     "standardSession.setAttribute.iae", name));
         }
-        // Construct an event with the new value
+        // Construct an event with the new value   生成一个sessionBind 事件
         HttpSessionBindingEvent event = null;
 
         // Call the valueBound() method if necessary
+        // 如果 设置的 value 是  监听器  触发 监听器的 valueBound 方法  attr 中还有可能设置 sessionActivionListener 等监听session 其他状态的监听器
         if (notify && value instanceof HttpSessionBindingListener) {
             // Don't call any notification if replacing with the same value
             Object oldValue = attributes.get(name);
@@ -1443,10 +1559,10 @@ public class StandardSession implements HttpSession, Session, Serializable {
             }
         }
 
-        // Replace or add this attribute
+        // Replace or add this attribute  将attr 键值对设置到 map中
         Object unbound = attributes.put(name, value);
 
-        // Call the valueUnbound() method if necessary
+        // Call the valueUnbound() method if necessary  如果是覆盖操作   而且被覆盖的对象也是 bindingListener  触发 valueBound（event, name） 方法
         if (notify && (unbound != null) && (unbound != value) &&
             (unbound instanceof HttpSessionBindingListener)) {
             try {
@@ -1459,6 +1575,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
             }
         }
 
+        // 如果不需要触发 context 级别的监听器 那么在此时可以返回了
         if ( !notify ) return;
 
         // Notify interested application event listeners
@@ -1466,12 +1583,14 @@ public class StandardSession implements HttpSession, Session, Serializable {
         Object listeners[] = context.getApplicationEventListeners();
         if (listeners == null)
             return;
+        // 寻找监听器中是 HttpSessionAttributeListener 子类的对象
         for (int i = 0; i < listeners.length; i++) {
             if (!(listeners[i] instanceof HttpSessionAttributeListener))
                 continue;
             HttpSessionAttributeListener listener =
                 (HttpSessionAttributeListener) listeners[i];
             try {
+                // 这里根据是否有 旧的 数据映射成对应的事件
                 if (unbound != null) {
                     context.fireContainerEvent("beforeSessionAttributeReplaced",
                             listener);
@@ -1531,6 +1650,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * This implementation simply checks the value for serializability.
      * Sub-classes might use other distribution technology not based on
      * serialization and can override this check.
+     * 判断该attr 是否支持分布式环境 只要实现序列化接口即可
      */
     @Override
     public boolean isAttributeDistributable(String name, Object value) {
@@ -1549,11 +1669,13 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *
      * @exception ClassNotFoundException if an unknown class is specified
      * @exception IOException if an input/output error occurs
+     * 从 输入流中读取数据并进行初始化  看来该方法应该是给 分布式session用的  默认采用java自带序列化方式 然后通过该方法 在另一个节点上反序列化session
      */
     protected void doReadObject(ObjectInputStream stream)
         throws ClassNotFoundException, IOException {
 
         // Deserialize the scalar instance variables (except Manager)
+        // 看来序列化是以当前对象字段的顺序进行的 所以只要按顺序读取属性就能完成反序列化 同时 不需要的字段 使用transient 进行修饰
         authType = null;        // Transient only
         creationTime = ((Long) stream.readObject()).longValue();
         lastAccessedTime = ((Long) stream.readObject()).longValue();
@@ -1564,17 +1686,21 @@ public class StandardSession implements HttpSession, Session, Serializable {
         principal = null;        // Transient only
         //        setId((String) stream.readObject());
         id = (String) stream.readObject();
+        // 这里 manager 没有参与序列化
         if (manager.getContext().getLogger().isDebugEnabled())
             manager.getContext().getLogger().debug
                 ("readObject() loading session " + id);
 
         // Deserialize the attribute count and attribute values
+        // 初始化 attr 对应容器
         if (attributes == null)
             attributes = new ConcurrentHashMap<>();
+        // 这里应该是写入了 attributes的长度
         int n = ((Integer) stream.readObject()).intValue();
         boolean isValidSave = isValid;
         isValid = true;
         for (int i = 0; i < n; i++) {
+            // 挨个读取键值对
             String name = (String) stream.readObject();
             final Object value;
             try {
@@ -1597,6 +1723,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
                     "' with value '" + value + "'");
             // Handle the case where the filter configuration was changed while
             // the web application was stopped.
+            // 如果是不需要写入的属性 就跳过
             if (exclude(name, value)) {
                 continue;
             }
@@ -1604,6 +1731,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
         }
         isValid = isValidSave;
 
+        // listener 和 notes 都没有做序列化 这样 session 只能实现读取 而无法正常触发其他事件啊   因为该理由没有启用 tomcat自带的 分布式session 吗???
         if (listeners == null) {
             listeners = new ArrayList<>();
         }
@@ -1632,6 +1760,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * @param stream The output stream to write to
      *
      * @exception IOException if an input/output error occurs
+     * 将session中核心字段写入到 对象输出流中
      */
     protected void doWriteObject(ObjectOutputStream stream) throws IOException {
 
@@ -1659,6 +1788,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
                 saveNames.add(keys[i]);
                 saveValues.add(value);
             } else {
+                // 不支持分布式的属性 会触发移除
                 removeAttributeInternal(keys[i], true);
             }
         }
@@ -1699,6 +1829,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *
      * @return {@code true} if the attribute should be excluded from
      *         distribution, otherwise {@code false}
+     *         该属性是否被排除在外
      */
     protected boolean exclude(String name, Object value) {
         if (Constants.excludedAttributeNames.contains(name)) {
@@ -1713,7 +1844,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
             return false;
         }
 
-        // Last check so use a short-cut
+        // Last check so use a short-cut  判断 该attr 是否支持分布式session
         return !manager.willAttributeDistribute(name, value);
     }
 
@@ -1727,13 +1858,17 @@ public class StandardSession implements HttpSession, Session, Serializable {
      *
      * @param type Event type
      * @param data Event data
+     *             触发相关的session 事件
      */
     public void fireSessionEvent(String type, Object data) {
+        // 如果当前没有设置监听器对象 直接返回
         if (listeners.size() < 1)
             return;
+        // 将 type 和session 对象封装成 event 并触发监听器
         SessionEvent event = new SessionEvent(this, type, data);
         SessionListener list[] = new SessionListener[0];
         synchronized (listeners) {
+            // 这里拷贝了一份副本对象  内部调用了 system.copyArray
             list = listeners.toArray(list);
         }
 
@@ -1768,6 +1903,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
      * @param name Name of the object to remove from this session.
      * @param notify Should we notify interested listeners that this
      *  attribute is being removed?
+     *               将attr中某个属性移除  当 将session 往分布式系统中其他节点写入时 如果某属性不支持分布式 那么会被移除  TODO 为什么这样设计
      */
     protected void removeAttributeInternal(String name, boolean notify) {
 

@@ -33,6 +33,7 @@ import java.io.InputStream;
  * this class must implement the <code>java.io.InputStream.read()</code> method.
  *
  * @see ServletRequest
+ * servlet 规范中 servletRequest 会携带一个 getInputStream() 方法 该方法可以返回一个 serveltInputStream
  */
 public abstract class ServletInputStream extends InputStream {
 
@@ -62,14 +63,17 @@ public abstract class ServletInputStream extends InputStream {
      *         the end of the stream is reached
      * @exception IOException
      *                if an input or output exception has occurred
+     *                从输入流中读取一行数据 并写入到 byte[] 中
      */
     public int readLine(byte[] b, int off, int len) throws IOException {
 
+        // 如果读取长度本身为0 本次不做任何处理
         if (len <= 0) {
             return 0;
         }
         int count = 0, c;
 
+        // read()由子类实现
         while ((c = read()) != -1) {
             b[off++] = (byte) c;
             count++;
@@ -87,6 +91,7 @@ public abstract class ServletInputStream extends InputStream {
      * else <code>false</code>
      *
      * @since Servlet 3.1
+     * 判断该输入流的数据是否全部被读取
      */
     public abstract boolean isFinished();
 
@@ -99,6 +104,7 @@ public abstract class ServletInputStream extends InputStream {
      * <code>false</code>
      *
      * @since Servlet 3.1
+     * 是否已经准备好读取本数据 这样就不需要阻塞了
      */
     public abstract boolean isReady();
 
@@ -116,6 +122,7 @@ public abstract class ServletInputStream extends InputStream {
      * @throws NullPointerException     If listener is null
      *
      * @since Servlet 3.1
+     * 设置读监听器
      */
     public abstract void setReadListener(ReadListener listener);
 }

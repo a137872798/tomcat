@@ -323,7 +323,7 @@ public class InputBuffer extends Reader
 
 
     /**
-     * 是否准备完毕
+     * 是否准备完毕  该对象会被封装到 coyoteInputStream 中 ，当读取数据时如果发现 还没有准备完成会抛出异常
      * @return
      */
     public boolean isReady() {
@@ -334,7 +334,7 @@ public class InputBuffer extends Reader
             }
             return false;
         }
-        // 如果已经处理完成了
+        // 如果已经处理完成了 也就是没有多余空间了
         if (isFinished()) {
             // If this is a non-container thread, need to trigger a read
             // which will eventually lead to a call to onAllDataRead() via a
@@ -365,6 +365,10 @@ public class InputBuffer extends Reader
     }
 
 
+    /**
+     * 判断本buffer 对象是否是 阻塞的 这里判断是否设置了 readListener 是为什么???
+     * @return
+     */
     boolean isBlocking() {
         return coyoteRequest.getReadListener() == null;
     }
@@ -611,6 +615,11 @@ public class InputBuffer extends Reader
     }
 
 
+    /**
+     * 标记当前buf 的位置
+     * @param readAheadLimit
+     * @throws IOException
+     */
     @Override
     public void mark(int readAheadLimit) throws IOException {
 
@@ -735,6 +744,7 @@ public class InputBuffer extends Reader
      */
     private boolean checkByteBufferEof() throws IOException {
         if (bb.remaining() == 0) {
+            // 当 byteBuffer 已经没有数据时 没有直接认定无数据 而是先尝试 从coyoteRequest中继续读取数据
             int n = realReadBytes();
             if (n < 0) {
                 return true;

@@ -26,6 +26,7 @@ import java.util.EventListener;
  *
  * @see HttpSessionEvent
  * @since v 2.3
+ * servlet 规范中 当session 发生变化时 触发的监听器
  */
 public interface HttpSessionListener extends EventListener {
 

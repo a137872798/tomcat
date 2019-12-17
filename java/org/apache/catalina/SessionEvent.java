@@ -26,6 +26,7 @@ import java.util.EventObject;
  * General event for notifying listeners of significant changes on a Session.
  *
  * @author Craig R. McClanahan
+ * 当session 发生了相关事件时 通过创建对应的event 对象来 触发监听器
  */
 public final class SessionEvent extends EventObject {
 
@@ -34,18 +35,21 @@ public final class SessionEvent extends EventObject {
 
     /**
      * The event data associated with this event.
+     * 触发事件时携带的数据
      */
     private final Object data;
 
 
     /**
      * The Session on which this event occurred.
+     * 事件关联的session 对象
      */
     private final Session session;
 
 
     /**
      * The event type this instance represents.
+     * 事件类型
      */
     private final String type;
 

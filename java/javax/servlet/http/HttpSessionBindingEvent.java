@@ -31,6 +31,7 @@ package javax.servlet.http;
  * @see HttpSession
  * @see HttpSessionBindingListener
  * @see HttpSessionAttributeListener
+ * session 绑定事件  当往session.attr 中添加一个attr时 就会触发 相关事件
  */
 public class HttpSessionBindingEvent extends HttpSessionEvent {
 

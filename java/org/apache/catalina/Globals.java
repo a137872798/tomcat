@@ -20,6 +20,7 @@ package org.apache.catalina;
  * Global constants that are applicable to multiple packages within Catalina.
  *
  * @author Craig R. McClanahan
+ * 这里维护一些全局属性
  */
 public final class Globals {
 

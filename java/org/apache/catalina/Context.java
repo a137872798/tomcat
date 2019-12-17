@@ -57,6 +57,7 @@ import org.apache.tomcat.util.http.CookieProcessor;
  * <p>
  *
  * @author Craig R. McClanahan
+ * 该对象是tomcat 用来适配 servlet 内部的上下文的  同时该接口也中作为 container的子接口
  */
 public interface Context extends Container, ContextBind {
 

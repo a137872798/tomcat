@@ -26,6 +26,7 @@ import java.util.EventListener;
  * HttpSessionActivationListener.
  *
  * @since 2.3
+ * 这里只处理 session 失活/激活的相关事件
  */
 public interface HttpSessionActivationListener extends EventListener {
 

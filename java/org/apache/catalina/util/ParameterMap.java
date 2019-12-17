@@ -36,13 +36,21 @@ import org.apache.tomcat.util.res.StringManager;
  * @param <V> The type of Value
  *
  * @author Craig R. McClanahan
+ *
+ * tomcat 内部使用的 并发容器
  */
 public final class ParameterMap<K,V> implements Map<K,V>, Serializable {
 
     private static final long serialVersionUID = 2L;
 
+    /**
+     * 内部代理容器
+     */
     private final Map<K,V> delegatedMap;
 
+    /**
+     * 内部代理容器的视图对象   使用装饰器模式 实际上内部也是 delegatedMap
+     */
     private final Map<K,V> unmodifiableDelegatedMap;
 
 
@@ -94,6 +102,7 @@ public final class ParameterMap<K,V> implements Map<K,V>, Serializable {
 
     /**
      * The current lock state of this parameter map.
+     * 代表map 对象是否上锁
      */
     private boolean locked = false;
 
@@ -126,6 +135,7 @@ public final class ParameterMap<K,V> implements Map<K,V>, Serializable {
      * {@inheritDoc}
      *
      * @exception IllegalStateException if this map is currently locked
+     * 尝试对容器做操作时要先确保持有锁
      */
     @Override
     public void clear() {

@@ -190,7 +190,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * The set of cookies associated with this Request.
-     * 对外暴露的 req 对象 不同与  coyote.Request
+     * 对外暴露的 req 对象 不同与  coyote.Request  该 cookie 对象内部只有很简单的一些基本属性
      */
     protected Cookie[] cookies = null;
 
@@ -225,6 +225,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * The attributes associated with this Request, keyed by attribute name.
+     * 每个req 对象上还可以携带一组 attr
      */
     private final Map<String, Object> attributes = new ConcurrentHashMap<>();
 
@@ -271,6 +272,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * ServletInputStream.
+     * 将 inputBuffer 包装成一个 输入流 读取数据 实际上就是从inputBuffer 中读取
      */
     protected CoyoteInputStream inputStream =
             new CoyoteInputStream(inputBuffer);
@@ -278,18 +280,21 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * Reader.
+     * 跟 coyoteInputStream 类似不过是字符流而不是字节流  包含一个 readLine 方法
      */
     protected CoyoteReader reader = new CoyoteReader(inputBuffer);
 
 
     /**
      * Using stream flag.
+     * 代表当前使用的是 coyoteInputStream
      */
     protected boolean usingInputStream = false;
 
 
     /**
      * Using reader flag.
+     * 代表当前使用的是 coyoteReader
      */
     protected boolean usingReader = false;
 
@@ -302,6 +307,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * Request parameters parsed flag.
+     * 是否解析过参数
      */
     protected boolean parametersParsed = false;
 
@@ -309,6 +315,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * Cookie headers parsed flag. Indicates that the cookie headers have been
      * parsed into ServerCookies.
+     * 是否解析过cookie
      */
     protected boolean cookiesParsed = false;
 
@@ -316,12 +323,14 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * Cookie parsed flag. Indicates that the ServerCookies have been converted
      * into user facing Cookie objects.
+     * 是否解析过 convert
      */
     protected boolean cookiesConverted = false;
 
 
     /**
      * Secure flag.
+     * 是否使用了 SSL 通道
      */
     protected boolean secure = false;
 
@@ -333,32 +342,39 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
 
     /**
-     * Post data buffer.
+     * Post data buffer.   POST 请求允许传入的最大数据大小为 1k
      */
     protected static final int CACHED_POST_LEN = 8192;
+    /**
+     * postData 应该是代表 POST 请求时 表单数据的内容
+     */
     protected byte[] postData = null;
 
 
     /**
      * Hash map used in the getParametersMap method.
+     * 简单的对一个 hashmap 的写操作上锁  同时尝试迭代内部元素时 如果发现当前对象上锁 那么 会返回一个视图对象 避免在并发操作中修改容器
      */
     protected ParameterMap<String, String[]> parameterMap = new ParameterMap<>();
 
 
     /**
      * The parts, if any, uploaded with this request.
+     * 本次请求携带的文件片段
      */
     protected Collection<Part> parts = null;
 
 
     /**
      * The exception thrown, if any when parsing the parts.
+     * 当解析part 时如果遇到异常 设置该属性
      */
     protected Exception partsParseException = null;
 
 
     /**
      * The currently active session for this request.
+     * 当前请求关联的session 对象
      */
     protected Session session = null;
 
