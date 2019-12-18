@@ -31,6 +31,7 @@ import org.apache.tomcat.util.buf.UDecoder;
  * a URL pattern or a servlet name.
  *
  * @author Craig R. McClanahan
+ * 这个是映射用的 代表某个url 请求是否在该过滤器的过滤范围内
  */
 public class FilterMap extends XmlEncodingBase implements Serializable {
 

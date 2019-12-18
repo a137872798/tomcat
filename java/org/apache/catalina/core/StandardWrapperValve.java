@@ -47,6 +47,8 @@ import org.apache.tomcat.util.res.StringManager;
  * <code>StandardWrapper</code> container implementation.
  *
  * @author Craig R. McClanahan
+ * 最基层的 valve  对应 servlet(MVC框架) 级别
+ * 核心逻辑就是构建一个过滤链 并将请求交由 过滤链处理 而在过滤链尾部 就是servlet
  */
 final class StandardWrapperValve
     extends ValveBase {
@@ -62,10 +64,14 @@ final class StandardWrapperValve
     // Some JMX statistics. This valve is associated with a StandardWrapper.
     // We expose the StandardWrapper as JMX ( j2eeType=Servlet ). The fields
     // are here for performance.
+    // 记录一个请求在 servlet的处理时长
     private volatile long processingTime;
+    // 记录目前处理最大的耗时
     private volatile long maxTime;
     private volatile long minTime = Long.MAX_VALUE;
+    // 处理的请求数量
     private final AtomicInteger requestCount = new AtomicInteger(0);
+    // 出现异常的数量
     private final AtomicInteger errorCount = new AtomicInteger(0);
 
 
@@ -88,6 +94,7 @@ final class StandardWrapperValve
      *
      * @exception IOException if an input/output error occurred
      * @exception ServletException if a servlet error occurred
+     * 使用servlet 处理 req/res
      */
     @Override
     public final void invoke(Request request, Response response)
@@ -98,19 +105,23 @@ final class StandardWrapperValve
         Throwable throwable = null;
         // This should be a Request attribute...
         long t1=System.currentTimeMillis();
+        // 增加处理的请求数量
         requestCount.incrementAndGet();
+        // valve 本身是实现了 Contained 接口的 可以直接获取绑定的容器对象
         StandardWrapper wrapper = (StandardWrapper) getContainer();
         Servlet servlet = null;
+        // 这里获取父级别容器
         Context context = (Context) wrapper.getParent();
 
         // Check for the application being marked unavailable
+        // 如果当前应用级别不可使用 设置异常状态 这样在 hostValve 层就会根据 res 中的 error信息寻找 errorPage
         if (!context.getState().isAvailable()) {
             response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                            sm.getString("standardContext.isUnavailable"));
             unavailable = true;
         }
 
-        // Check for the servlet being marked unavailable
+        // Check for the servlet being marked unavailable  这里确保 wrapper层可用
         if (!unavailable && wrapper.isUnavailable()) {
             container.getLogger().info(sm.getString("standardWrapper.isUnavailable",
                     wrapper.getName()));
@@ -130,9 +141,11 @@ final class StandardWrapperValve
 
         // Allocate a servlet instance to process this request
         try {
+            // 如果servlet 不可用 直接分配一个 servlet 就好了
             if (!unavailable) {
                 servlet = wrapper.allocate();
             }
+            // 还是无法分配的情况 将异常结果设置到 res 中
         } catch (UnavailableException e) {
             container.getLogger().error(
                     sm.getString("standardWrapper.allocateException",
@@ -162,27 +175,33 @@ final class StandardWrapperValve
             servlet = null;
         }
 
+        // 进入到这里时 应该已经创建完了 servlet 如果servlet 可用的情况  那么不需要新建 而是尽可能复用之前的servlet
         MessageBytes requestPathMB = request.getRequestPathMB();
+        // 本次是正常的分发请求 所以类型是 request
         DispatcherType dispatcherType = DispatcherType.REQUEST;
+        // 如果本次请求是一个 异步请求 那么修改状态
         if (request.getDispatcherType()==DispatcherType.ASYNC) dispatcherType = DispatcherType.ASYNC;
         request.setAttribute(Globals.DISPATCHER_TYPE_ATTR,dispatcherType);
         request.setAttribute(Globals.DISPATCHER_REQUEST_PATH_ATTR,
                 requestPathMB);
-        // Create the filter chain for this request
+        // Create the filter chain for this request  这里构建了一个 处理链 这个地方跟 dubbo的rpc处理好相似
         ApplicationFilterChain filterChain =
                 ApplicationFilterFactory.createFilterChain(request, wrapper, servlet);
 
         // Call the filter chain for this request
         // NOTE: This also calls the servlet's service() method
+        // 这里确保成功 构建了chain
         try {
             if ((servlet != null) && (filterChain != null)) {
-                // Swallow output if needed
+                // Swallow output if needed   吞吐输出标识???
                 if (context.getSwallowOutput()) {
                     try {
                         SystemLogHandler.startCapture();
+                        // 如果该请求支持异步分发 通过 asyncContext 进行处理
                         if (request.isAsyncDispatching()) {
                             request.getAsyncContextInternal().doInternalDispatch();
                         } else {
+                            // 否则在当前通过 过滤链处理请求 同时在内部会通过servlet 处理请求
                             filterChain.doFilter(request.getRequest(),
                                     response.getResponse());
                         }
@@ -255,12 +274,14 @@ final class StandardWrapperValve
             exception(request, response, e);
         } finally {
             // Release the filter chain (if any) for this request
+            // 当处理完请求后 释放内存
             if (filterChain != null) {
                 filterChain.release();
             }
 
             // Deallocate the allocated servlet instance
             try {
+                // 将servlet 归还给wrapper
                 if (servlet != null) {
                     wrapper.deallocate(servlet);
                 }
@@ -291,6 +312,7 @@ final class StandardWrapperValve
             }
             long t2=System.currentTimeMillis();
 
+            // 更新统计数据
             long time=t2-t1;
             processingTime += time;
             if( time > maxTime) maxTime=time;

@@ -59,6 +59,7 @@ import org.apache.tomcat.util.res.StringManager;
  * <code>javax.servlet.ServletResponseWrapper</code>.
  *
  * @author Craig R. McClanahan
+ * 分发器实现类
  */
 final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher {
 
@@ -67,8 +68,14 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
     public static final String FORWARD_MAPPING = "javax.servlet.forward.mapping";
     public static final String INCLUDE_MAPPING = "javax.servlet.include.mapping";
 
+    /**
+     * 是否严格遵守 servlet 规范
+     */
     static final boolean STRICT_SERVLET_COMPLIANCE;
 
+    /**
+     * 是否要包装相同对象  如果设置了 在filterChain 中会初始化 lastServicedRequest/lastServicedResponse
+     */
     static final boolean WRAP_SAME_OBJECT;
 
 
@@ -141,8 +148,16 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
      * Used to pass state when the request dispatcher is used. Using instance
      * variables causes threading issues and state is too complex to pass and
      * return single ServletRequest or ServletResponse objects.
+     * 分发器内部有一个 状态class
      */
     private static class State {
+
+        /**
+         * 通过 req/res include 进行初始化
+         * @param request
+         * @param response
+         * @param including
+         */
         State(ServletRequest request, ServletResponse response,
                 boolean including) {
             this.outerRequest = request;
@@ -152,6 +167,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
 
         /**
          * The outermost request that will be passed on to the invoked servlet.
+         * 外部请求???
          */
         ServletRequest outerRequest = null;
 
@@ -163,6 +179,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
 
         /**
          * The request wrapper we have created and installed (if any).
+         * 包装请求
          */
         ServletRequest wrapRequest = null;
 
@@ -174,6 +191,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
 
         /**
          * Are we performing an include() instead of a forward()?
+         * 是否倾向于使用 include 而不是 forward
          */
         boolean including = false;
 

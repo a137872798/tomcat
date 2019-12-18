@@ -31,6 +31,7 @@ import org.apache.tomcat.util.descriptor.web.FilterMap;
  *
  * @author Greg Murray
  * @author Remy Maucherat
+ * 应用处理链 当wrapper处理请求时 会封装一个应用链 处理req 对象
  */
 public final class ApplicationFilterFactory {
 
@@ -42,6 +43,7 @@ public final class ApplicationFilterFactory {
     /**
      * Construct a FilterChain implementation that will wrap the execution of
      * the specified servlet instance.
+     * 将servlet 对象 包装成一个执行链
      *
      * @param request The servlet request we are processing
      * @param wrapper The wrapper managing the servlet instance
@@ -53,18 +55,20 @@ public final class ApplicationFilterFactory {
     public static ApplicationFilterChain createFilterChain(ServletRequest request,
             Wrapper wrapper, Servlet servlet) {
 
-        // If there is no servlet to execute, return null
+        // If there is no servlet to execute, return null  如果servlet 为null 直接返回
         if (servlet == null)
             return null;
 
-        // Create and initialize a filter chain object
+        // Create and initialize a filter chain object  开始构建处理链
         ApplicationFilterChain filterChain = null;
         if (request instanceof Request) {
             Request req = (Request) request;
+            // 如果是安全模式下 每次创建一个新的 applicationFilterChain
             if (Globals.IS_SECURITY_ENABLED) {
                 // Security: Do not recycle
                 filterChain = new ApplicationFilterChain();
             } else {
+                // 非安全模式 尝试从 req 对象上获取绑定的 过滤链
                 filterChain = (ApplicationFilterChain) req.getFilterChain();
                 if (filterChain == null) {
                     filterChain = new ApplicationFilterChain();
@@ -72,10 +76,11 @@ public final class ApplicationFilterFactory {
                 }
             }
         } else {
-            // Request dispatcher in use
+            // Request dispatcher in use  如果该请求对象不是 tomcat封装过的 那么每次都要创建一个新的 filterChain
             filterChain = new ApplicationFilterChain();
         }
 
+        // 设置servlet 和是否支持异步
         filterChain.setServlet(servlet);
         filterChain.setServletSupportsAsync(wrapper.isAsyncSupported());
 

@@ -636,7 +636,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * Get filter chain associated with the request.
-     *
+     * 获取绑定在该请求上的过滤链
      * @return the associated filter chain
      */
     public FilterChain getFilterChain() {

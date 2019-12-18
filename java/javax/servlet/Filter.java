@@ -42,6 +42,7 @@ import java.io.IOException;
  * 9) Mime-type chain Filter <br>
  *
  * @since Servlet 2.3
+ * 过滤器接口  用于构成 filterChain
  */
 public interface Filter {
 
@@ -63,6 +64,7 @@ public interface Filter {
      *                     filter instance being initialised
      *
      * @throws ServletException if the initialisation fails
+     * 使用配置对象 初始化 filter
      */
     public void init(FilterConfig filterConfig) throws ServletException;
 
@@ -96,6 +98,7 @@ public interface Filter {
      * @throws IOException if an I/O error occurs during this filter's
      *                     processing of the request
      * @throws ServletException if the processing fails for any other reason
+     * 针对请求对象 进行过滤
      */
     public void doFilter(ServletRequest request, ServletResponse response,
             FilterChain chain) throws IOException, ServletException;
@@ -112,6 +115,7 @@ public interface Filter {
      * that are being held (for example, memory, file handles, threads) and make
      * sure that any persistent state is synchronized with the filter's current
      * state in memory.
+     * 销毁过滤器
      */
     public void destroy();
 }

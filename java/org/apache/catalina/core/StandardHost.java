@@ -53,6 +53,7 @@ import org.apache.tomcat.util.ExceptionUtils;
  *
  * @author Craig R. McClanahan
  * @author Remy Maucherat
+ * host 级别的容器    engine->host->context->wrapper
  */
 public class StandardHost extends ContainerBase implements Host {
 
@@ -67,6 +68,7 @@ public class StandardHost extends ContainerBase implements Host {
     public StandardHost() {
 
         super();
+        // 使用 host阀门初始化 管道对象
         pipeline.setBasic(new StandardHostValve());
 
     }
@@ -76,34 +78,46 @@ public class StandardHost extends ContainerBase implements Host {
 
 
     /**
-     * The set of aliases for this Host.
+     * The set of aliases for this Host.  该主机可能会有一组别名
      */
     private String[] aliases = new String[0];
 
+    /**
+     * 修改 aliases 的锁对象
+     */
     private final Object aliasesLock = new Object();
 
 
     /**
      * The application root for this Host.
+     * host 应用根目录
      */
     private String appBase = "webapps";
+    /**
+     * 文件对象
+     */
     private volatile File appBaseFile = null;
 
     /**
      * The XML root for this Host.
+     * xml文件
      */
     private String xmlBase = null;
 
     /**
      * host's default config path
+     * host 级别配置文件
      */
     private volatile File hostConfigBase = null;
 
     /**
      * The auto deploy flag for this Host.
+     * 是否开启自动部署
      */
     private boolean autoDeploy = true;
 
+
+    // 这里的2个属性 标明了 context 的实现类 以及配置类名
 
     /**
      * The Java class name of the default context configuration class
@@ -123,12 +137,14 @@ public class StandardHost extends ContainerBase implements Host {
 
     /**
      * The deploy on startup flag for this Host.
+     * 是否在 startup 的时候开始部署
      */
     private boolean deployOnStartup = true;
 
 
     /**
      * deploy Context XML config files property.
+     * 部署xml
      */
     private boolean deployXML = !Globals.IS_SECURITY_ENABLED;
 
@@ -137,6 +153,7 @@ public class StandardHost extends ContainerBase implements Host {
      * Should XML files be copied to
      * $CATALINA_BASE/conf/&lt;engine&gt;/&lt;host&gt; by default when
      * a web application is deployed?
+     * 当部署应用时 是否需要拷贝一份xml 文件
      */
     private boolean copyXML = false;
 
@@ -144,6 +161,7 @@ public class StandardHost extends ContainerBase implements Host {
     /**
      * The Java class name of the default error reporter implementation class
      * for deployed web applications.
+     * 当需要报告遇到的异常时 该功能是通过哪个阀门类实现的
      */
     private String errorReportValveClass =
         "org.apache.catalina.valves.ErrorReportValve";
@@ -151,18 +169,21 @@ public class StandardHost extends ContainerBase implements Host {
 
     /**
      * Unpack WARs property.
+     * 是否要解压war 包
      */
     private boolean unpackWARs = true;
 
 
     /**
      * Work Directory base for applications.
+     * 获取当前应用的工作目录
      */
     private String workDir = null;
 
 
     /**
      * Should we create directories upon startup for appBase and xmlBase
+     * 如果文件不存在是否强制创建
      */
     private boolean createDirs = true;
 
@@ -170,6 +191,7 @@ public class StandardHost extends ContainerBase implements Host {
     /**
      * Track the class loaders for the child web applications so memory leaks
      * can be detected.
+     * 用于检测内存泄露的map
      */
     private final Map<ClassLoader, String> childClassLoaders =
             new WeakHashMap<>();
@@ -179,12 +201,19 @@ public class StandardHost extends ContainerBase implements Host {
      * Any file or directory in {@link #appBase} that this pattern matches will
      * be ignored by the automatic deployment process (both
      * {@link #deployOnStartup} and {@link #autoDeploy}).
+     * 匹配上的文件将不会在部署阶段被启动
      */
     private Pattern deployIgnore = null;
 
 
+    /**
+     * 是否卸载旧版本
+     */
     private boolean undeployOldVersions = false;
 
+    /**
+     * 当 servlet 启动失败时 是否 failCtx???
+     */
     private boolean failCtxIfServletStartFails = false;
 
 

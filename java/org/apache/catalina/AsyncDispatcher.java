@@ -22,6 +22,9 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 
+/**
+ * 异步分发器接口
+ */
 public interface AsyncDispatcher {
 
     /**

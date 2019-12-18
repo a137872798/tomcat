@@ -42,15 +42,17 @@ import org.apache.tomcat.util.res.StringManager;
  * <code>doFilter()</code> will execute the servlet's <code>service()</code>
  * method itself.
  *
- * @author Craig R. McClanahan
+ * @author Craig R. McClanahan、
+ * 过滤器链实现类
  */
 public final class ApplicationFilterChain implements FilterChain {
 
-    // Used to enforce requirements of SRV.8.2 / SRV.14.2.5.1
+    // Used to enforce requirements of SRV.8.2 / SRV.14.2.5.1   处理的最后一个 req 和 res
     private static final ThreadLocal<ServletRequest> lastServicedRequest;
     private static final ThreadLocal<ServletResponse> lastServicedResponse;
 
     static {
+        // 当设置了 WrapSameObject 时 才设置 lastServicedRequest/lastServicedResponse
         if (ApplicationDispatcher.WRAP_SAME_OBJECT) {
             lastServicedRequest = new ThreadLocal<>();
             lastServicedResponse = new ThreadLocal<>();
@@ -89,6 +91,7 @@ public final class ApplicationFilterChain implements FilterChain {
 
     /**
      * The servlet instance to be executed by this chain.
+     * 该过滤链 最后会将req 交由 servlet 处理
      */
     private Servlet servlet = null;
 

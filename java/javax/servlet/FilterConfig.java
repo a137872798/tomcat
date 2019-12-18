@@ -26,6 +26,7 @@ import java.util.Enumeration;
  *
  * @see Filter
  * @since Servlet 2.3
+ * 过滤器配置对象 当触发 filter.init() 时 都会通过该对象进行初始化
  */
 public interface FilterConfig {
 
@@ -34,6 +35,7 @@ public interface FilterConfig {
      *
      * @return The filter-name of this filter as defined in the deployment
      *         descriptor.
+     *         获取 过滤器的名称
      */
     public String getFilterName();
 
@@ -45,6 +47,7 @@ public interface FilterConfig {
      *         with its servlet container
      *
      * @see ServletContext
+     * 获取过滤器关联的 上下文对象
      */
     public ServletContext getServletContext();
 
@@ -59,6 +62,7 @@ public interface FilterConfig {
      *
      * @return <code>String</code> containing the value of the initialization
      *         parameter
+     *         获取拦截器中的初始化参数
      */
     public String getInitParameter(String name);
 
@@ -69,6 +73,7 @@ public interface FilterConfig {
      *
      * @return <code>Enumeration</code> of <code>String</code> objects
      *         containing the names of the filter's initialization parameters
+     *         获取所有初始化参数
      */
     public Enumeration<String> getInitParameterNames();
 

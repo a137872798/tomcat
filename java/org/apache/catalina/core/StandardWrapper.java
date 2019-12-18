@@ -736,6 +736,7 @@ public class StandardWrapper extends ContainerBase
      * @exception ServletException if the servlet init() method threw
      *  an exception
      * @exception ServletException if a loading error occurs
+     * 使用 wrapper 创建一个新的 servlet对象 用于处理 req/ res
      */
     @Override
     public Servlet allocate() throws ServletException {

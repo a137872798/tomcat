@@ -42,6 +42,7 @@ import java.util.regex.Pattern;
  * of Context (representing an individual servlet context).
  *
  * @author Craig R. McClanahan
+ * host级别的容器接口
  */
 public interface Host extends Container {
 
@@ -71,6 +72,7 @@ public interface Host extends Container {
      * pathname, a relative pathname, or a URL.
      * If null, the base path defaults to
      * ${catalina.base}/conf/&lt;engine name&gt;/&lt;host name&gt; directory
+     * 获取 主机级别的 xml文件
      */
     public String getXmlBase();
 

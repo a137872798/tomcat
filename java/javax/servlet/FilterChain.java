@@ -27,6 +27,7 @@ import java.io.IOException;
  *
  * @see Filter
  * @since Servlet 2.3
+ * filter 本身是 servlet 规范的接口 当wrapper 处理外部传入的请求时 会构建一个 filterChain 并处理请求 只有满足条件的req 最终才会被 servlet.service() 处理
  **/
 
 public interface FilterChain {
@@ -46,6 +47,7 @@ public interface FilterChain {
      * @throws ServletException if the processing fails for any other reason
 
      * @since 2.3
+     * 处理 req/res
      */
     public void doFilter(ServletRequest request, ServletResponse response)
             throws IOException, ServletException;

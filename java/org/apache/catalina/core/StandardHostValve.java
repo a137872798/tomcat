@@ -67,7 +67,7 @@ final class StandardHostValve extends ValveBase {
     static final boolean STRICT_SERVLET_COMPLIANCE;
 
     /**
-     * 是否访问session ???   如果严格遵守servlet 规范 那么 access_session 为 true
+     * 如果严格遵守servlet 规范 那么 access_session 为 true
      */
     static final boolean ACCESS_SESSION;
 
@@ -151,7 +151,7 @@ final class StandardHostValve extends ValveBase {
                 if (!response.isErrorReportRequired()) {
                     context.getPipeline().getFirst().invoke(request, response);
                 }
-                // 这里能够捕获到的方法 甚至是 wrapper 处理req 的级别
+                // 在wrapper 处理层 (也就是servlet) mvc 框架有自己的异常处理逻辑 先不管这里
             } catch (Throwable t) {
                 ExceptionUtils.handleThrowable(t);
                 container.getLogger().error("Exception Processing " + request.getRequestURI(), t);
@@ -168,12 +168,14 @@ final class StandardHostValve extends ValveBase {
             // Now that the request/response pair is back under container
             // control lift the suspension so that the error handling can
             // complete and/or the container can flush any remaining data
+            // 当处理完成后 将悬置标识设置为false 代表已经处理完毕了
             response.setSuspended(false);
 
+            // 尝试获取异常对象 如果在 wrapper层消化了异常 那么这里应该没有结果
             Throwable t = (Throwable) request.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
 
             // Protect against NPEs if the context was destroyed during a
-            // long running request.
+            // long running request.   如果当前context 已经被关闭 直接返回
             if (!context.getState().isAvailable()) {
                 return;
             }
@@ -193,16 +195,19 @@ final class StandardHostValve extends ValveBase {
                 }
             }
 
+            // 当一个req 被处理完毕后 会将该req 进行销毁
             if (!request.isAsync() && !asyncAtStart) {
                 context.fireRequestDestroyEvent(request.getRequest());
             }
         } finally {
             // Access a session (if present) to update last accessed time, based
             // on a strict interpretation of the specification
+            // 如果 access-session 为 true 更新session 的 lastAccessedTime
             if (ACCESS_SESSION) {
                 request.getSession(false);
             }
 
+            // 恢复类加载器
             context.unbind(Globals.IS_SECURITY_ENABLED, MY_CLASSLOADER);
         }
     }
@@ -290,7 +295,7 @@ final class StandardHostValve extends ValveBase {
      * @param response The response being generated
      * @param throwable The exception that occurred (which possibly wraps
      *  a root cause exception
-     *                  当处理请求时 发生了特殊异常 需要通过该方法做处理
+     *                  当处理请求时 发生了特殊异常 需要通过该方法做处理  mvc框架应该是自己消化了异常并转换成 json 格式返回了所以这里先不看
      */
     protected void throwable(Request request, Response response,
                              Throwable throwable) {
@@ -328,28 +333,40 @@ final class StandardHostValve extends ValveBase {
             errorPage = context.findErrorPage(realError);
         }
 
+        // 如果找到了错误页面
         if (errorPage != null) {
+            // 这里将异常状态 改为 reported  可能代表一种已经处理过的状态吧
             if (response.setErrorReported()) {
+                // 设置成未提交
                 response.setAppCommitted(false);
+                // 将请求处理path 引导到 错误页面位置
                 request.setAttribute(Globals.DISPATCHER_REQUEST_PATH_ATTR,
                         errorPage.getLocation());
+                // 引导类型设置成 error
                 request.setAttribute(Globals.DISPATCHER_TYPE_ATTR,
                         DispatcherType.ERROR);
+                // 设置错误码 500
                 request.setAttribute(RequestDispatcher.ERROR_STATUS_CODE,
                         Integer.valueOf(HttpServletResponse.SC_INTERNAL_SERVER_ERROR));
+                // 指定错误消息
                 request.setAttribute(RequestDispatcher.ERROR_MESSAGE,
                                   throwable.getMessage());
+                // 指定异常对象
                 request.setAttribute(RequestDispatcher.ERROR_EXCEPTION,
                                   realError);
+                // 标记 该req 是被哪个servlet 处理的  也就是wrapper 对应的是servlet 级别
                 Wrapper wrapper = request.getWrapper();
                 if (wrapper != null) {
                     request.setAttribute(RequestDispatcher.ERROR_SERVLET_NAME,
                                       wrapper.getName());
                 }
+                // 设置 请求的错误url是什么
                 request.setAttribute(RequestDispatcher.ERROR_REQUEST_URI,
                                      request.getRequestURI());
+                // 设置异常class类型
                 request.setAttribute(RequestDispatcher.ERROR_EXCEPTION_TYPE,
                                   realError.getClass());
+                // 进行自定义处理
                 if (custom(request, response, errorPage)) {
                     try {
                         response.finishResponse();

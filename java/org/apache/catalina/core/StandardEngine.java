@@ -49,7 +49,7 @@ import org.apache.juli.logging.LogFactory;
  * fully qualified host name of that virtual host. <br>
  * You can set the jvmRoute direct or with the System.property <b>jvmRoute</b>.
  *
- * 引擎标准实现
+ * 引擎标准实现   engine 作为 tomcat的最上层容器 内部包含多个 host 之后是 context wrapper
  * @author Craig R. McClanahan
  */
 public class StandardEngine extends ContainerBase implements Engine {
@@ -65,14 +65,16 @@ public class StandardEngine extends ContainerBase implements Engine {
     public StandardEngine() {
 
         super();
+        // 将 engine 相关标准阀门对象设置到管道中  该阀门的作用就是简单的将请求发往下层 host
         pipeline.setBasic(new StandardEngineValve());
         /* Set the jmvRoute using the system property jvmRoute */
         try {
+            // 获取 jvmRoute 主要是在 分布式环境中用于生成唯一sessionId  默认情况下是不设置的  可以在 server.xml 中指定 一般项目中不会设置该标识
             setJvmRoute(System.getProperty("jvmRoute"));
         } catch(Exception ex) {
             log.warn(sm.getString("standardEngine.jvmRouteFail"));
         }
-        // By default, the engine will hold the reloading thread
+        // By default, the engine will hold the reloading thread  代表后台线程的触发时间  也就是 sleep(backgroundProcessorDelay*1000)
         backgroundProcessorDelay = 10;
 
     }
@@ -84,24 +86,28 @@ public class StandardEngine extends ContainerBase implements Engine {
     /**
      * Host name to use when no server host, or an unknown host,
      * is specified in the request.
+     * 当没有指定 host时 使用的默认host
      */
     private String defaultHost = null;
 
 
     /**
      * The <code>Service</code> that owns this Engine, if any.
+     * 每个 engine 对应一个 service 对象 service 是用来接收数据流并解析成 req 的 而 engine (container) 是用来处理req 的
      */
     private Service service = null;
 
     /**
      * The JVM Route ID for this Tomcat instance. All Route ID's must be unique
      * across the cluster.
+     * 本 server对应的jvmId 用于在分布式系统中确保唯一性 不过集群一般不会依赖tomcat 这层来实现 每个 应用服务器 都尽可能无状态化 靠其他辅助中间件来支撑分布式系统
      */
     private String jvmRouteId;
 
     /**
      * Default access log to use for request/response pairs where we can't ID
      * the intended host and context.
+     * 打印日志对象 不细看
      */
     private final AtomicReference<AccessLog> defaultAccessLog =
         new AtomicReference<>();
@@ -113,6 +119,7 @@ public class StandardEngine extends ContainerBase implements Engine {
      * when no explicit configuration is set.
      *
      * @return configured realm, or a {@link NullRealm} by default
+     * 获取权限认证对象
      */
     @Override
     public Realm getRealm() {
@@ -129,6 +136,7 @@ public class StandardEngine extends ContainerBase implements Engine {
 
     /**
      * Return the default host.
+     * 获取默认主机
      */
     @Override
     public String getDefaultHost() {
@@ -140,6 +148,7 @@ public class StandardEngine extends ContainerBase implements Engine {
      * Set the default host.
      *
      * @param host The new default host
+     *             设置默认主机
      */
     @Override
     public void setDefaultHost(String host) {
@@ -180,6 +189,7 @@ public class StandardEngine extends ContainerBase implements Engine {
 
     /**
      * Return the <code>Service</code> with which we are associated (if any).
+     * 获取engine 关联的service
      */
     @Override
     public Service getService() {
@@ -205,6 +215,7 @@ public class StandardEngine extends ContainerBase implements Engine {
      * of Host.
      *
      * @param child Child container to be added
+     *              将 host 级别的 container 添加到 engine 中
      */
     @Override
     public void addChild(Container child) {
@@ -222,6 +233,7 @@ public class StandardEngine extends ContainerBase implements Engine {
      * Engine is supposed to be at the top of the Container hierarchy.
      *
      * @param container Proposed parent Container
+     *                  engine 作为最高级别的容器 不支持设置父容器
      */
     @Override
     public void setParent(Container container) {
@@ -232,11 +244,17 @@ public class StandardEngine extends ContainerBase implements Engine {
     }
 
 
+    /**
+     * 初始化 engine
+     * @throws LifecycleException
+     */
     @Override
     protected void initInternal() throws LifecycleException {
         // Ensure that a Realm is present before any attempt is made to start
         // one. This will create the default NullRealm if necessary.
+        // 触发 realm 的创建
         getRealm();
+        // 初始化 startstop 线程池 用于启动 添加进来的 子容器
         super.initInternal();
     }
 
@@ -247,6 +265,7 @@ public class StandardEngine extends ContainerBase implements Engine {
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  该方法使用 synchronized 修饰
      */
     @Override
     protected synchronized void startInternal() throws LifecycleException {
@@ -255,7 +274,7 @@ public class StandardEngine extends ContainerBase implements Engine {
         if(log.isInfoEnabled())
             log.info( "Starting Servlet Engine: " + ServerInfo.getServerInfo());
 
-        // Standard container startup
+        // Standard container startup  启动相关组件
         super.startInternal();
     }
 
@@ -265,6 +284,7 @@ public class StandardEngine extends ContainerBase implements Engine {
      * Engine, look for one in the Engine's default host and then the default
      * host's ROOT context. If still none is found, return the default NoOp
      * access log.
+     * 打印日志不看
      */
     @Override
     public void logAccess(Request request, Response response, long time,
@@ -330,6 +350,7 @@ public class StandardEngine extends ContainerBase implements Engine {
 
     /**
      * Return the parent class loader for this component.
+     * 获取父类加载器 注意 service 的类加载器 就是 commonClassLoader
      */
     @Override
     public ClassLoader getParentClassLoader() {
@@ -341,6 +362,8 @@ public class StandardEngine extends ContainerBase implements Engine {
         return ClassLoader.getSystemClassLoader();
     }
 
+
+    // 获取 catalina 的文件目录 就是从server 中获取  而server 内部包含解析xml 文件的 对象 通过解析 server.xml 生成相关配置
 
     @Override
     public File getCatalinaBase() {

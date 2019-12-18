@@ -17,6 +17,7 @@
 package javax.servlet;
 
 /**
+ * 引导类型
  * @since Servlet 3.0
  */
 public enum DispatcherType {
@@ -24,5 +25,8 @@ public enum DispatcherType {
     INCLUDE,
     REQUEST,
     ASYNC,
+    /**
+     * 代表定位到 错误页面 比如404 那种
+     */
     ERROR
 }
