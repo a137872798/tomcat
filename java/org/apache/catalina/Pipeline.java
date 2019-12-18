@@ -35,12 +35,14 @@ import java.util.Set;
  *
  * @author Craig R. McClanahan
  * @author Peter Donald
+ * 管道对象 每个容器在处理请求的时候 实际上都是通过一个管道对象在处理的
  */
 public interface Pipeline {
 
     /**
      * @return the Valve instance that has been distinguished as the basic
      * Valve for this Pipeline (if any).
+     * 获取 基础阀门 实际上就是 默认阀门
      */
     public Valve getBasic();
 
@@ -56,6 +58,7 @@ public interface Pipeline {
      * a different Container.</p>
      *
      * @param valve Valve to be distinguished as the basic Valve
+     *              设置默认阀门对象
      */
     public void setBasic(Valve valve);
 
@@ -82,6 +85,7 @@ public interface Pipeline {
      *  associated with this Container
      * @exception IllegalStateException if the specified Valve is already
      *  associated with a different Container
+     *  往阀门链上追加新的阀门
      */
     public void addValve(Valve valve);
 
@@ -90,6 +94,7 @@ public interface Pipeline {
      * @return the set of Valves in the pipeline associated with this
      * Container, including the basic Valve (if any).  If there are no
      * such Valves, a zero-length array is returned.
+     * 获取该管道下所有的阀门对象
      */
     public Valve[] getValves();
 
@@ -105,6 +110,7 @@ public interface Pipeline {
      * call is successful.</p>
      *
      * @param valve Valve to be removed
+     *              将某个阀门从 责任链中移除
      */
     public void removeValve(Valve valve);
 
@@ -112,6 +118,7 @@ public interface Pipeline {
     /**
      * @return the Valve instance that has been distinguished as the basic
      * Valve for this Pipeline (if any).
+     * 获取首个阀门对象
      */
     public Valve getFirst();
 
@@ -119,12 +126,14 @@ public interface Pipeline {
     /**
      * Returns true if all the valves in this pipeline support async, false otherwise
      * @return true if all the valves in this pipeline support async, false otherwise
+     * 是否支持异步处理 应该就是责任链中处理每一环节是否有关联的线程池对象
      */
     public boolean isAsyncSupported();
 
 
     /**
      * @return the Container with which this Pipeline is associated.
+     * 获取维护该管道的容器对象
      */
     public Container getContainer();
 
@@ -144,6 +153,7 @@ public interface Pipeline {
      * @param result The Set to which the fully qualified class names of each
      *               Valve in this Pipeline that does not support async will be
      *               added
+     *               将阀门链中不支持异步的阀门保存到set 中
      */
     public void findNonAsyncValves(Set<String> result);
 }

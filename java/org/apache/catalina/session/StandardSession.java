@@ -962,7 +962,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * Perform the internal processing required to passivate
      * this session.
-     * 使得该session 失活
+     * 使得该session 失活  当session 要保存到持久层时触发
      */
     public void passivate() {
 
@@ -996,7 +996,7 @@ public class StandardSession implements HttpSession, Session, Serializable {
     /**
      * Perform internal processing required to activate this
      * session.
-     * 某个session 恢复活跃状态  当某个session被使用时会先调用该方法
+     * 某个session 恢复活跃状态  比如从文件中恢复session的数据
      */
     public void activate() {
 

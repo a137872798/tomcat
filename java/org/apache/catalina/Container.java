@@ -72,9 +72,10 @@ import org.apache.juli.logging.Log;
  *     resources, enabling custom linkages to existing server components when
  *     Catalina is embedded in a larger server.
  * </ul>
- * 容器对象   Engine Host Wrapper Context 都属于 container
  * @author Craig R. McClanahan
  * @author Remy Maucherat
+ *
+ *  容器对象   Engine Host Wrapper Context 都属于 container
  */
 public interface Container extends Lifecycle {
 
@@ -162,6 +163,7 @@ public interface Container extends Lifecycle {
      * this Container.
      *
      * @return The Pipeline
+     * 获取容器内部包含的 管道对象
      */
     public Pipeline getPipeline();
 
@@ -197,6 +199,7 @@ public interface Container extends Lifecycle {
      *         on this container and its children. A non-positive value
      *         indicates that background processing will be managed by the
      *         parent.
+     *         该容器后台线程每隔多久运行一次
      */
     public int getBackgroundProcessorDelay();
 
@@ -241,6 +244,7 @@ public interface Container extends Lifecycle {
      * @return Return the Container for which this Container is a child, if
      *         there is one. If there is no defined parent, return
      *         <code>null</code>.
+     *         获取父容器
      */
     public Container getParent();
 
@@ -265,6 +269,7 @@ public interface Container extends Lifecycle {
      * @return the parent class loader for this component. If not set, return
      *         {@link #getParent()}.{@link #getParentClassLoader()}. If no
      *         parent has been set, return the system class loader.
+     *         获取父容器的类加载器
      */
     public ClassLoader getParentClassLoader();
 
@@ -286,6 +291,7 @@ public interface Container extends Lifecycle {
      * @return The associated Realm; if there is no associated Realm, the
      *         Realm associated with the parent Container (if any); otherwise
      *         return <code>null</code>.
+     *         获取容器相关的认证对象
      */
     public Realm getRealm();
 
@@ -305,6 +311,7 @@ public interface Container extends Lifecycle {
      * Execute a periodic task, such as reloading, etc. This method will be
      * invoked inside the classloading context of this container. Unexpected
      * throwables will be caught and logged.
+     * 触发一次后台任务
      */
     public void backgroundProcess();
 
@@ -325,6 +332,7 @@ public interface Container extends Lifecycle {
      *  a name unique from that of existing children of this Container
      * @exception IllegalStateException if this Container does not support
      *  child Containers
+     *  将某个子容器设置到当前容器中
      */
     public void addChild(Container child);
 
@@ -333,6 +341,7 @@ public interface Container extends Lifecycle {
      * Add a container event listener to this component.
      *
      * @param listener The listener to add
+     *                 增加容器监听器
      */
     public void addContainerListener(ContainerListener listener);
 
@@ -352,6 +361,7 @@ public interface Container extends Lifecycle {
      *
      * @return The child Container with the given name or <code>null</code> if
      *         no such child exists.
+     *         查找指定的 child 属性
      */
     public Container findChild(String name);
 
@@ -361,6 +371,7 @@ public interface Container extends Lifecycle {
      *
      * @return An array containing all children of this container. If this
      *         Container has no children, a zero-length array is returned.
+     *         获取当前容器下所有子容器
      */
     public Container[] findChildren();
 
@@ -371,6 +382,7 @@ public interface Container extends Lifecycle {
      * @return An array containing the container listeners associated with this
      *         Container. If this Container has no registered container
      *         listeners, a zero-length array is returned.
+     *         获取当前容器所有的监听器对象
      */
     public ContainerListener[] findContainerListeners();
 
@@ -435,6 +447,7 @@ public interface Container extends Lifecycle {
      *
      * @return The AccessLog to use for a request/response destined for this
      *         container
+     *         获取访问日志
      */
     public AccessLog getAccessLog();
 
@@ -446,6 +459,7 @@ public interface Container extends Lifecycle {
      *
      * @return The currently configured number of threads used to start/stop
      *         children associated with this container
+     *         获取 start/stop 线程数  啥意思???
      */
     public int getStartStopThreads();
 
@@ -463,6 +477,7 @@ public interface Container extends Lifecycle {
      * Obtain the location of CATALINA_BASE.
      *
      * @return  The location of CATALINA_BASE.
+     * 获取 catalina 基本文件
      */
     public File getCatalinaBase();
 
@@ -471,6 +486,7 @@ public interface Container extends Lifecycle {
      * Obtain the location of CATALINA_HOME.
      *
      * @return The location of CATALINA_HOME.
+     * 获取主目录文件
      */
     public File getCatalinaHome();
 }

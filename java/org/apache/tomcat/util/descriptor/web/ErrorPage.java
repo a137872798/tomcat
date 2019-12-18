@@ -26,6 +26,7 @@ import org.apache.tomcat.util.buf.UDecoder;
  * deployment descriptor.
  *
  * @author Craig R. McClanahan
+ * 异常页面对象 比如 返回 404 页面
  */
 public class ErrorPage implements Serializable {
 
@@ -37,18 +38,21 @@ public class ErrorPage implements Serializable {
     /**
      * The error (status) code for which this error page is active. Note that
      * status code 0 is used for the default error page.
+     * 本次失败的 错误码
      */
     private int errorCode = 0;
 
 
     /**
      * The exception type for which this error page is active.
+     * 异常类型
      */
     private String exceptionType = null;
 
 
     /**
      * The context-relative location to handle this error or exception.
+     * 该页面对应 context 的相对位置
      */
     private String location = null;
 

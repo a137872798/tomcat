@@ -22,6 +22,7 @@ import java.util.EventObject;
  * General event for notifying listeners of significant changes on a Container.
  *
  * @author Craig R. McClanahan
+ * 容器事件 ，只是一个javaBean 配合 监听器使用
  */
 public final class ContainerEvent extends EventObject {
 

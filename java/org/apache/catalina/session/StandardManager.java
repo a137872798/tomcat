@@ -55,7 +55,7 @@ import org.apache.tomcat.util.ExceptionUtils;
  * <code>stop()</code> methods of this class at the correct times.
  *
  * @author Craig R. McClanahan
- * manager标准实现类
+ * manager标准实现类  实际上只是多了 获取context 以及读取session 和持久化session
  */
 public class StandardManager extends ManagerBase {
 
@@ -225,16 +225,19 @@ public class StandardManager extends ManagerBase {
                 try (ObjectInputStream ois = new CustomObjectInputStream(bis, classLoader, logger,
                         getSessionAttributeValueClassNamePattern(),
                         getWarnOnSessionAttributeFilterFailure())) {
+                    // 该对象流中首个数据 代表内部存放了多少session
                     Integer count = (Integer) ois.readObject();
                     int n = count.intValue();
                     if (log.isDebugEnabled())
                         log.debug("Loading " + n + " persisted sessions");
+                    // 根据数量创建对应的 session 对象
                     for (int i = 0; i < n; i++) {
                         StandardSession session = getNewSession();
                         session.readObjectData(ois);
                         session.setManager(this);
                         sessions.put(session.getIdInternal(), session);
                         session.activate();
+                        // 如果发现当前session 是无效的  需要调用expire 方法 进行失效处理
                         if (!session.isValidInternal()) {
                             // If session is already invalid,
                             // expire session to prevent memory leak.
@@ -244,7 +247,7 @@ public class StandardManager extends ManagerBase {
                         sessionCounter++;
                     }
                 } finally {
-                    // Delete the persistent storage file
+                    // Delete the persistent storage file  加载完后删除持久化文件
                     if (file.exists()) {
                         if (!file.delete()) {
                             log.warn(sm.getString("standardManager.deletePersistedFileFail", file));
@@ -265,6 +268,10 @@ public class StandardManager extends ManagerBase {
     }
 
 
+    /**
+     * 将当前session 数据保存到持久化文件中
+     * @throws IOException
+     */
     @Override
     public void unload() throws IOException {
         if (SecurityUtil.isPackageProtectionEnabled()) {
@@ -327,6 +334,7 @@ public class StandardManager extends ManagerBase {
                 for (Session s : sessions.values()) {
                     StandardSession session = (StandardSession) s;
                     list.add(session);
+                    // 要对session做持久化时 触发 失活方法
                     session.passivate();
                     session.writeObjectData(oos);
                 }
@@ -339,10 +347,12 @@ public class StandardManager extends ManagerBase {
         }
         for (StandardSession session : list) {
             try {
+                // 走一遍session 过期逻辑
                 session.expire(false);
             } catch (Throwable t) {
                 ExceptionUtils.handleThrowable(t);
             } finally {
+                // 将相关属性清除  注意该对象本身因为 sessions 的存在 没有被回收
                 session.recycle();
             }
         }
@@ -359,6 +369,7 @@ public class StandardManager extends ManagerBase {
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  当启动manager.start 时触发
      */
     @Override
     protected synchronized void startInternal() throws LifecycleException {
@@ -367,6 +378,7 @@ public class StandardManager extends ManagerBase {
 
         // Load unloaded sessions, if any
         try {
+            // 每次启动时 尝试从持久化文件中读取上次的session数据
             load();
         } catch (Throwable t) {
             ExceptionUtils.handleThrowable(t);
@@ -395,6 +407,7 @@ public class StandardManager extends ManagerBase {
 
         // Write out sessions
         try {
+            // 每当manager 停止时 需要将session信息写入到持久层中
             unload();
         } catch (Throwable t) {
             ExceptionUtils.handleThrowable(t);

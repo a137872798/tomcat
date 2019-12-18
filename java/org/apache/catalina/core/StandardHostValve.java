@@ -48,6 +48,7 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @author Craig R. McClanahan
  * @author Remy Maucherat
+ * host 级别的阀门     engine 级别的阀门对象 只是直接将req/res 转发到下游
  */
 final class StandardHostValve extends ValveBase {
 
@@ -56,11 +57,18 @@ final class StandardHostValve extends ValveBase {
     // Saves a call to getClassLoader() on very request. Under high load these
     // calls took just long enough to appear as a hot spot (although a very
     // minor one) in a profiler.
+    // 这里获取了 host 对应的类加载器 推测是 commonClassLoader
     private static final ClassLoader MY_CLASSLOADER =
             StandardHostValve.class.getClassLoader();
 
+    /**
+     * 是否严格遵循 servlet 规范
+     */
     static final boolean STRICT_SERVLET_COMPLIANCE;
 
+    /**
+     * 是否访问session ???   如果严格遵守servlet 规范 那么 access_session 为 true
+     */
     static final boolean ACCESS_SESSION;
 
     static {
@@ -102,6 +110,7 @@ final class StandardHostValve extends ValveBase {
      *
      * @exception IOException if an input/output error occurred
      * @exception ServletException if a servlet error occurred
+     * hostValve 处理  req/res
      */
     @Override
     public final void invoke(Request request, Response response)
@@ -117,11 +126,14 @@ final class StandardHostValve extends ValveBase {
             request.setAsyncSupported(context.getPipeline().isAsyncSupported());
         }
 
+        // 判断当前请求是否支持异步处理
         boolean asyncAtStart = request.isAsync();
 
         try {
+            // 这里将 创建 HostValve 的类加载器绑定到 context 上
             context.bind(Globals.IS_SECURITY_ENABLED, MY_CLASSLOADER);
 
+            // 如果不支持异步req  且 传播init 事件失败 拒绝处理本次请求
             if (!asyncAtStart && !context.fireRequestInitEvent(request.getRequest())) {
                 // Don't fire listeners during async processing (the listener
                 // fired for the request that called startAsync()).
@@ -135,16 +147,20 @@ final class StandardHostValve extends ValveBase {
             // application defined error pages so DO NOT forward them to the the
             // application for processing.
             try {
+                // 如果当前res 还没有标记异常 传播到 context 级别 并继续处理 注意在 session 是绑定在context级别的
                 if (!response.isErrorReportRequired()) {
                     context.getPipeline().getFirst().invoke(request, response);
                 }
+                // 这里能够捕获到的方法 甚至是 wrapper 处理req 的级别
             } catch (Throwable t) {
                 ExceptionUtils.handleThrowable(t);
                 container.getLogger().error("Exception Processing " + request.getRequestURI(), t);
                 // If a new error occurred while trying to report a previous
                 // error allow the original error to be reported.
+                // 当捕获到异常时 如果发现 res 还没有指定异常结果 则设置异常属性
                 if (!response.isErrorReportRequired()) {
                     request.setAttribute(RequestDispatcher.ERROR_EXCEPTION, t);
+                    // 处理异常对象
                     throwable(request, response, t);
                 }
             }
@@ -274,9 +290,11 @@ final class StandardHostValve extends ValveBase {
      * @param response The response being generated
      * @param throwable The exception that occurred (which possibly wraps
      *  a root cause exception
+     *                  当处理请求时 发生了特殊异常 需要通过该方法做处理
      */
     protected void throwable(Request request, Response response,
                              Throwable throwable) {
+        // 获取 req 绑定的 context 对象
         Context context = request.getContext();
         if (context == null) {
             return;
@@ -284,6 +302,7 @@ final class StandardHostValve extends ValveBase {
 
         Throwable realError = throwable;
 
+        // 如果是 servlet 规范定义的 异常 那么  获取 rootCause 属性 并将 realError 指向该属性
         if (realError instanceof ServletException) {
             realError = ((ServletException) realError).getRootCause();
             if (realError == null) {
@@ -292,6 +311,7 @@ final class StandardHostValve extends ValveBase {
         }
 
         // If this is an aborted request from a client just log it and return
+        // 客户端禁止异常  可能是在 wrapper 处理过程中抛出的吧
         if (realError instanceof ClientAbortException ) {
             if (log.isDebugEnabled()) {
                 log.debug
@@ -301,7 +321,9 @@ final class StandardHostValve extends ValveBase {
             return;
         }
 
+        // 从 context 中根据 异常类型查询匹配的异常页面
         ErrorPage errorPage = context.findErrorPage(throwable);
+        // 如果原始异常没有找到匹配的页面 则尝试使用 realError 寻找匹配的错误页面
         if ((errorPage == null) && (realError != throwable)) {
             errorPage = context.findErrorPage(realError);
         }

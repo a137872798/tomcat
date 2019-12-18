@@ -36,6 +36,7 @@ import org.apache.catalina.connector.Response;
  * @author Craig R. McClanahan
  * @author Gunnar Rjnning
  * @author Peter Donald
+ * 责任链中的阀门接口 包含一个处理逻辑 当container 接收到 acceptor 解析的req/res 后 通过该阀门对象处理数据
  */
 public interface Valve {
 
@@ -44,6 +45,7 @@ public interface Valve {
 
     /**
      * @return the next Valve in the pipeline containing this Valve, if any.
+     * 获取下一个阀门对象
      */
     public Valve getNext();
 
@@ -52,6 +54,7 @@ public interface Valve {
      * Set the next Valve in the pipeline containing this Valve.
      *
      * @param valve The new next valve, or <code>null</code> if none
+     *              设置链表的下一环
      */
     public void setNext(Valve valve);
 
@@ -63,6 +66,7 @@ public interface Valve {
      * Execute a periodic task, such as reloading, etc. This method will be
      * invoked inside the classloading context of this container. Unexpected
      * throwables will be caught and logged.
+     * 触发后台任务
      */
     public void backgroundProcess();
 
@@ -113,10 +117,15 @@ public interface Valve {
      *  by a subsequently invoked Valve, Filter, or Servlet
      * @exception ServletException if a servlet error occurs, or is thrown
      *  by a subsequently invoked Valve, Filter, or Servlet
+     *  处理请求和 响应结果 注意这里使用的是 tomcat 已经封装过的 req res
      */
     public void invoke(Request request, Response response)
         throws IOException, ServletException;
 
 
+    /**
+     * 判断该阀门是否支持异步处理
+     * @return
+     */
     public boolean isAsyncSupported();
 }

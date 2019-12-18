@@ -37,11 +37,15 @@ import org.apache.tomcat.util.res.StringManager;
  * when processing HTTP requests.
  *
  * @author Craig R. McClanahan
+ * context 级别的标准阀门对象
  */
 final class StandardContextValve extends ValveBase {
 
     private static final StringManager sm = StringManager.getManager(StandardContextValve.class);
 
+    /**
+     * context 标准阀门是 支持处理 异步 req 的
+     */
     public StandardContextValve() {
         super(true);
     }
@@ -57,12 +61,14 @@ final class StandardContextValve extends ValveBase {
      *
      * @exception IOException if an input/output error occurred
      * @exception ServletException if a servlet error occurred
+     * 在context 级别 处理 req/res
      */
     @Override
     public final void invoke(Request request, Response response)
         throws IOException, ServletException {
 
         // Disallow any direct access to resources under WEB-INF or META-INF
+        // 如果尝试访问的请求路径 是 WEB-INF 或者 META-INF 下 这是不允许的  直接返回 NOT_FOUND
         MessageBytes requestPathMB = request.getRequestPathMB();
         if ((requestPathMB.startsWithIgnoreCase("/META-INF/", 0))
                 || (requestPathMB.equalsIgnoreCase("/META-INF"))
@@ -72,14 +78,14 @@ final class StandardContextValve extends ValveBase {
             return;
         }
 
-        // Select the Wrapper to be used for this Request
+        // Select the Wrapper to be used for this Request  获取 wrapper 级别的容器 如果wrapper不存在 返回NOT_FOUND
         Wrapper wrapper = request.getWrapper();
         if (wrapper == null || wrapper.isUnavailable()) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
 
-        // Acknowledge the request
+        // Acknowledge the request  应该是代表该req 被正常处理了
         try {
             response.sendAcknowledgement();
         } catch (IOException ioe) {
@@ -90,9 +96,11 @@ final class StandardContextValve extends ValveBase {
             return;
         }
 
+        // 如果wrapper 本身不支持 异步 那么 req 也要设置成相关的状态
         if (request.isAsyncSupported()) {
             request.setAsyncSupported(wrapper.getPipeline().isAsyncSupported());
         }
+        // 交由下层的 wrapper 来处理 看来 他们之间的关系是这样 context -> wrapper
         wrapper.getPipeline().getFirst().invoke(request, response);
     }
 }

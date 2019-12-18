@@ -609,6 +609,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * to return a value, and thus enables parsing of the request URI.
      *
      * @return the Context mapped with the request
+     * 获取 context 级别的容器
      */
     public Context getContext() {
         return mappingData.context;
@@ -654,6 +655,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * @return the Host within which this Request is being processed.
+     * 每个tomcat req 对象内包含了 host context wrapper
      */
     public Host getHost() {
         return mappingData.host;
@@ -771,6 +773,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * @return the Wrapper within which this Request is being processed.
+     * 代表该请求对象最终被哪个 Wrapper 处理
      */
     public Wrapper getWrapper() {
         return mappingData.wrapper;
@@ -1795,6 +1798,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         return result.get();
     }
 
+    /**
+     * 判断该请求本身是否支持异步  针对servlet3+规范
+     * @return
+     */
     @Override
     public boolean isAsyncSupported() {
         if (this.asyncSupported == null) {

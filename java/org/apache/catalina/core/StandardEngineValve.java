@@ -35,10 +35,15 @@ import org.apache.tomcat.util.res.StringManager;
  * when processing HTTP requests.
  *
  * @author Craig R. McClanahan
+ * engine 对应 service 是 tomcat 最上层的 容器
  */
 final class StandardEngineValve extends ValveBase {
 
     //------------------------------------------------------ Constructor
+
+    /**
+     * engineValve 本身是支持处理 异步req 的
+     */
     public StandardEngineValve() {
         super(true);
     }
@@ -65,13 +70,17 @@ final class StandardEngineValve extends ValveBase {
      *
      * @exception IOException if an input/output error occurred
      * @exception ServletException if a servlet error occurred
+     *
+     * 4 个容器的级别分别是  Engine -> host -> context -> wrapper 同时 session 是绑定在context 这层的
      */
     @Override
     public final void invoke(Request request, Response response)
         throws IOException, ServletException {
 
         // Select the Host to be used for this Request
+        // 请求中还直接绑定了 host
         Host host = request.getHost();
+        // 当没指定host 的情况 ， 以异常返回返回res
         if (host == null) {
             response.sendError
                 (HttpServletResponse.SC_BAD_REQUEST,
@@ -79,11 +88,12 @@ final class StandardEngineValve extends ValveBase {
                               request.getServerName()));
             return;
         }
+        // 如果host 本身不支持异步处理 那么 将req 修改成不支持异步
         if (request.isAsyncSupported()) {
             request.setAsyncSupported(host.getPipeline().isAsyncSupported());
         }
 
-        // Ask this Host to process this request
+        // Ask this Host to process this request   使用 host关联的pipeline 处理 req res
         host.getPipeline().getFirst().invoke(request, response);
 
     }

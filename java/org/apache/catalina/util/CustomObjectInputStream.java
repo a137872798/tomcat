@@ -52,8 +52,12 @@ public final class CustomObjectInputStream extends ObjectInputStream {
 
     /**
      * The class loader we will use to resolve classes.
+     * 该对象本身关联的classLoader
      */
     private final ClassLoader classLoader;
+    /**
+     * 被报告的 class ?   在 reportedClassCache 中应该就是以 classLoader 为key  reportedClasses 为value
+     */
     private final Set<String> reportedClasses;
     private final Log log;
 
@@ -92,6 +96,7 @@ public final class CustomObjectInputStream extends ObjectInputStream {
      * @param warnOnFailure Should any failures be logged?
      *
      * @exception IOException if an input/output error occurs
+     * 使用一个输入流初始化 对象 同时还指定了一个classLoader
      */
     public CustomObjectInputStream(InputStream stream, ClassLoader classLoader,
             Log log, Pattern allowedClassNamePattern, boolean warnOnFailure)
@@ -140,6 +145,7 @@ public final class CustomObjectInputStream extends ObjectInputStream {
      *
      * @exception ClassNotFoundException if this class cannot be found
      * @exception IOException if an input/output error occurs
+     * 这里主要是在 resolverClass 方法中指定了使用的classLoader
      */
     @Override
     public Class<?> resolveClass(ObjectStreamClass classDesc)

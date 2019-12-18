@@ -34,6 +34,7 @@ import org.apache.tomcat.util.res.StringManager;
  * management and lifecycle support.
  *
  * @author Craig R. McClanahan
+ * 阀门基类
  */
 public abstract class ValveBase extends LifecycleMBeanBase implements Contained, Valve {
 
@@ -56,12 +57,14 @@ public abstract class ValveBase extends LifecycleMBeanBase implements Contained,
 
     /**
      * Does this valve support Servlet 3+ async requests?
+     * 标识了是否支持处理异步请求   异步请求是由 servlet 3+ 规范制定的
      */
     protected boolean asyncSupported;
 
 
     /**
      * The Container whose pipeline this Valve is a component of.
+     * 内部关联的 容器对象
      */
     protected Container container = null;
 
@@ -138,6 +141,7 @@ public abstract class ValveBase extends LifecycleMBeanBase implements Contained,
      * Execute a periodic task, such as reloading, etc. This method will be
      * invoked inside the classloading context of this container. Unexpected
      * throwables will be caught and logged.
+     * 该方法由子类实现
      */
     @Override
     public void backgroundProcess() {

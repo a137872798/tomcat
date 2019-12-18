@@ -124,7 +124,7 @@ import org.apache.tomcat.util.res.StringManager;
  * Subclasses that fire additional events should document them in the
  * class comments of the implementation class.
  *
- * 容器基类
+ * 容器基类  同时实现了生命周期接口
  * @author Craig R. McClanahan
  */
 public abstract class ContainerBase extends LifecycleMBeanBase
@@ -167,7 +167,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
     /**
      * The processor delay for this component.
-     * 处理组件 延时
+     * 后台任务 每隔多久触发一次
      */
     protected int backgroundProcessorDelay = -1;
 
@@ -229,12 +229,14 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
     /**
      * The Realm with which this Container is associated.
+     * 认证相关的
      */
     private volatile Realm realm = null;
 
 
     /**
      * Lock used to control access to the Realm.
+     * 访问 realm 使用的读写锁
      */
     private final ReadWriteLock realmLock = new ReentrantReadWriteLock();
 
@@ -283,9 +285,12 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
     /**
      * The number of threads available to process start and stop events for any
-     * children associated with this container.
+     * children associated with this container.  用于处理关联到 本container 的 子容器 的 start/stop 使用的额外线程数量
      */
     private int startStopThreads = 1;
+    /**
+     * startStopThreads 对应的线程池
+     */
     protected ThreadPoolExecutor startStopExecutor;
 
 
@@ -307,6 +312,8 @@ public abstract class ContainerBase extends LifecycleMBeanBase
             return result;
         }
 
+        // 如果没有指定线程数量 那么使用 cpu 核数 + result
+
         // Zero == Runtime.getRuntime().availableProcessors()
         // -ve  == Runtime.getRuntime().availableProcessors() + value
         // These two are the same
@@ -317,6 +324,10 @@ public abstract class ContainerBase extends LifecycleMBeanBase
         return result;
     }
 
+    /**
+     * 指定 start/stop的线程数量
+     * @param   startStopThreads    The new number of threads to be used
+     */
     @Override
     public void setStartStopThreads(int startStopThreads) {
         this.startStopThreads = startStopThreads;
@@ -339,6 +350,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      * a thread to be spawn. After waiting the specified amount of time,
      * the thread will invoke the executePeriodic method on this container
      * and all its children.
+     * 后台线程执行任务的延迟
      */
     @Override
     public int getBackgroundProcessorDelay() {
@@ -523,6 +535,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      * they are added to this container.
      *
      * @return <code>true</code> if the children will be started
+     * 当将某个 子container 加入到当前container 时 时候会立即启动子容器
      */
     public boolean getStartChildren() {
         return startChildren;
@@ -578,6 +591,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      * Return the parent class loader (if any) for this web application.
      * This call is meaningful only <strong>after</strong> a Loader has
      * been configured.
+     * 尝试获取 父容器的类加载器 如果没有的话 使用系统级别的类加载器 就是 ApplicationClassLoader
      */
     @Override
     public ClassLoader getParentClassLoader() {
@@ -718,6 +732,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      *  a name unique from that of existing children of this Container
      * @exception IllegalStateException if this Container does not support
      *  child Containers
+     *  添加一个子容器
      */
     @Override
     public void addChild(Container child) {
@@ -730,11 +745,16 @@ public abstract class ContainerBase extends LifecycleMBeanBase
         }
     }
 
+    /**
+     * 为当前容器添加一个子容器
+     * @param child
+     */
     private void addChildInternal(Container child) {
 
         if( log.isDebugEnabled() )
             log.debug("Add child " + child + " " + this);
         synchronized(children) {
+            // 避免重复添加
             if (children.get(child.getName()) != null)
                 throw new IllegalArgumentException("addChild:  Child name '" +
                                                    child.getName() +
@@ -746,6 +766,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
         // Start child
         // Don't do this inside sync block - start can be a slow process and
         // locking the children object can cause problems elsewhere
+        // 如果当前container 已经处于可用状态 或者正处于 启动状态 且设置了 startChildren 那么直接启动child
         try {
             if ((getState().isAvailable() ||
                     LifecycleState.STARTING_PREP.equals(getState())) &&
@@ -831,6 +852,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      * Container.
      *
      * @param child Existing child Container to be removed
+     *              将某个子容器 从 当前容器移除
      */
     @Override
     public void removeChild(Container child) {
@@ -840,6 +862,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
         }
 
         try {
+            // 移除 child 的时候 调用stop
             if (child.getState().isAvailable()) {
                 child.stop();
             }
@@ -851,6 +874,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
             // child.destroy() may have already been called which would have
             // triggered this call. If that is the case, no need to destroy the
             // child again.
+            // 在调用完 stop 后 还必须确保 child 都是destroy 如果不是 则手动触发 destroy 方法
             if (!LifecycleState.DESTROYING.equals(child.getState())) {
                 child.destroy();
             }
@@ -858,6 +882,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
             log.error("ContainerBase.removeChild: destroy: ", e);
         }
 
+        // 将child 从容器中移除
         synchronized(children) {
             if (children.get(child.getName()) == null)
                 return;
@@ -892,14 +917,20 @@ public abstract class ContainerBase extends LifecycleMBeanBase
     }
 
 
+    /**
+     * 针对container 进行初始化
+     * @throws LifecycleException
+     */
     @Override
     protected void initInternal() throws LifecycleException {
         BlockingQueue<Runnable> startStopQueue = new LinkedBlockingQueue<>();
+        // 初始化时 创建 start/stop 相关的线程池对象
         startStopExecutor = new ThreadPoolExecutor(
                 getStartStopThreadsInternal(),
                 getStartStopThreadsInternal(), 10, TimeUnit.SECONDS,
                 startStopQueue,
                 new StartStopThreadFactory(getName() + "-startStop-"));
+        // 这里允许核心线程超时 也就是不会保留无效的线程
         startStopExecutor.allowCoreThreadTimeOut(true);
         super.initInternal();
     }
@@ -911,6 +942,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  启动容器 方法
      */
     @Override
     protected synchronized void startInternal() throws LifecycleException {
@@ -918,6 +950,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
         // Start our subordinate components, if any
         logger = null;
         getLogger();
+        // 如果 包含集群对象 /  realm  同时触发start
         Cluster cluster = getClusterInternal();
         if (cluster instanceof Lifecycle) {
             ((Lifecycle) cluster).start();
@@ -927,7 +960,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
             ((Lifecycle) realm).start();
         }
 
-        // Start our child containers, if any
+        // Start our child containers, if any  获取所有子容器 并提交启动任务
         Container children[] = findChildren();
         List<Future<Void>> results = new ArrayList<>();
         for (int i = 0; i < children.length; i++) {
@@ -936,6 +969,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
         MultiThrowable multiThrowable = null;
 
+        // 阻塞等待所有子容器完成任务
         for (Future<Void> result : results) {
             try {
                 result.get();
@@ -948,12 +982,13 @@ public abstract class ContainerBase extends LifecycleMBeanBase
             }
 
         }
+        // 如果有某个 任务启动失败了 抛出相关异常
         if (multiThrowable != null) {
             throw new LifecycleException(sm.getString("containerBase.threadedStartFailed"),
                     multiThrowable.getThrowable());
         }
 
-        // Start the Valves in our pipeline (including the basic), if any
+        // Start the Valves in our pipeline (including the basic), if any  启动valve 阀门对象
         if (pipeline instanceof Lifecycle) {
             ((Lifecycle) pipeline).start();
         }
@@ -961,7 +996,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
         setState(LifecycleState.STARTING);
 
-        // Start our thread
+        // Start our thread  启动后台线程  用于执行一些后台任务
         threadStart();
     }
 
@@ -976,24 +1011,27 @@ public abstract class ContainerBase extends LifecycleMBeanBase
     @Override
     protected synchronized void stopInternal() throws LifecycleException {
 
-        // Stop our thread
+        // Stop our thread  终止后台线程 就是修改标识 这样在 runnable 的下次轮询时就会自动停止
         threadStop();
 
         setState(LifecycleState.STOPPING);
 
         // Stop the Valves in our pipeline (including the basic), if any
+        // 如果内部的 pipeline 也实现了 Lifecycle 接口 那么触发 stop 方法
         if (pipeline instanceof Lifecycle &&
                 ((Lifecycle) pipeline).getState().isAvailable()) {
             ((Lifecycle) pipeline).stop();
         }
 
-        // Stop our child containers, if any
+        // Stop our child containers, if any 获取所有的子容器
         Container children[] = findChildren();
         List<Future<Void>> results = new ArrayList<>();
         for (int i = 0; i < children.length; i++) {
+            // 触发  child.stop  不过将耗时任务 通过线程池执行
             results.add(startStopExecutor.submit(new StopChild(children[i])));
         }
 
+        // 等待所有子容器 执行完毕 这里应该是将 父容器生命周期相关的 cpu 消耗和  子容器生命周期相关的cpu 消耗分割开 就是利用线程池做解耦
         boolean fail = false;
         for (Future<Void> result : results) {
             try {
@@ -1003,12 +1041,14 @@ public abstract class ContainerBase extends LifecycleMBeanBase
                 fail = true;
             }
         }
+        // 当启动失败时抛出异常
         if (fail) {
             throw new LifecycleException(
                     sm.getString("containerBase.threadedStopFailed"));
         }
 
         // Stop our subordinate components, if any
+        // 如果携带  realm 和 cluster 则进行关闭  当 realm 和 cluster 为null 时 instanceof 为false
         Realm realm = getRealmInternal();
         if (realm instanceof Lifecycle) {
             ((Lifecycle) realm).stop();
@@ -1019,6 +1059,10 @@ public abstract class ContainerBase extends LifecycleMBeanBase
         }
     }
 
+    /**
+     * 触发销毁方法  就是触发相关组件的 destroy 同时将自身从父容器中移除
+     * @throws LifecycleException
+     */
     @Override
     protected void destroyInternal() throws LifecycleException {
 
@@ -1122,6 +1166,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      *  associated with this Container
      * @exception IllegalStateException if the specified Valve is already
      *  associated with a different Container
+     *  为 容器添加一个阀门对象 实际上就是委托给 内部的 pipeline 对象 这里同样使用管道模式 跟netty 一致 主要这种处理 可以通过责任链 + defaultValve 作为 灵活插拔
      */
     public synchronized void addValve(Valve valve) {
 
@@ -1133,13 +1178,16 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      * Execute a periodic task, such as reloading, etc. This method will be
      * invoked inside the classloading context of this container. Unexpected
      * throwables will be caught and logged.
+     * 触发一次后台任务
      */
     @Override
     public void backgroundProcess() {
 
+        // 如果当前 container 已经处在不可用的状态 比如调用过 stop destroy 等等
         if (!getState().isAvailable())
             return;
 
+        // 依次调用相关组件的 backgroundProcess
         Cluster cluster = getClusterInternal();
         if (cluster != null) {
             try {
@@ -1201,6 +1249,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      *
      * @param type Event type
      * @param data Event data
+     *             触发容器事件
      */
     @Override
     public void fireContainerEvent(String type, Object data) {
@@ -1208,6 +1257,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
         if (listeners.size() < 1)
             return;
 
+        // 将 参数包装成 event 对象 同时触发监听器
         ContainerEvent event = new ContainerEvent(this, type, data);
         // Note for each uses an iterator internally so this is safe
         for (ContainerListener listener : listeners) {
@@ -1286,13 +1336,16 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      */
     protected void threadStart() {
 
+        // 后台线程已经创建的情况下直接返回
         if (thread != null)
             return;
+        // 如果 后台线程触发事件间隔为 负数 代表不需要创建后台线程
         if (backgroundProcessorDelay <= 0)
             return;
 
         threadDone = false;
         String threadName = "ContainerBackgroundProcessor[" + toString() + "]";
+        // 该 runnable 对象会 挨个触发 所有容器 的 backgroundProcess 并且在执行过程中 会先将容器对应的类加载器置空
         thread = new Thread(new ContainerBackgroundProcessor(), threadName);
         thread.setDaemon(true);
         thread.start();
@@ -1303,6 +1356,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
     /**
      * Stop the background thread that is periodically checking for
      * session timeouts.
+     * 停止后台线程
      */
     protected void threadStop() {
 
@@ -1343,6 +1397,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
     /**
      * Private thread class to invoke the backgroundProcess method
      * of this container and its children after a fixed delay.
+     * 后台线程触发任务    实际上定时任务的实现 内部也是通过 sleep() 实现线程 沉睡的   这里只是更加原生的实现
      */
     protected class ContainerBackgroundProcessor implements Runnable {
 
@@ -1353,6 +1408,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
                     "containerBase.backgroundProcess.unexpectedThreadDeath",
                     Thread.currentThread().getName());
             try {
+                // 当后台线程还处于 可用状态
                 while (!threadDone) {
                     try {
                         Thread.sleep(backgroundProcessorDelay * 1000L);
@@ -1360,6 +1416,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
                         // Ignore
                     }
                     if (!threadDone) {
+                        // 开始处理子容器
                         processChildren(ContainerBase.this);
                     }
                 }
@@ -1373,11 +1430,17 @@ public abstract class ContainerBase extends LifecycleMBeanBase
             }
         }
 
+        /**
+         * 处理子容器
+         * @param container  将自身作为参数
+         */
         protected void processChildren(Container container) {
             ClassLoader originalClassLoader = null;
 
             try {
+                // 如果当前容器 是context
                 if (container instanceof Context) {
+                    // 获取加载器对象
                     Loader loader = ((Context) container).getLoader();
                     // Loader will be null for FailedContext instances
                     if (loader == null) {
@@ -1386,8 +1449,10 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
                     // Ensure background processing for Contexts and Wrappers
                     // is performed under the web app's class loader
+                    // TODO 啥意思啊 这里将类加载器 置空
                     originalClassLoader = ((Context) container).bind(false, null);
                 }
+                // 触发一次后台任务
                 container.backgroundProcess();
                 Container[] children = container.findChildren();
                 for (int i = 0; i < children.length; i++) {
@@ -1399,6 +1464,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
                 ExceptionUtils.handleThrowable(t);
                 log.error("Exception invoking periodic operation: ", t);
             } finally {
+                // TODO 恢复类加载器
                 if (container instanceof Context) {
                     ((Context) container).unbind(false, originalClassLoader);
                }
@@ -1409,6 +1475,9 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
     // ----------------------------- Inner classes used with start/stop Executor
 
+    /**
+     * 该任务用于启动子容器
+     */
     private static class StartChild implements Callable<Void> {
 
         private Container child;
@@ -1441,7 +1510,13 @@ public abstract class ContainerBase extends LifecycleMBeanBase
         }
     }
 
+    /**
+     * 针对 start/stop child 的线程工厂
+     */
     private static class StartStopThreadFactory implements ThreadFactory {
+        /**
+         * 该线程工厂创建的线程 与当前线程 共用同一个线程组
+         */
         private final ThreadGroup group;
         private final AtomicInteger threadNumber = new AtomicInteger(1);
         private final String namePrefix;
@@ -1454,6 +1529,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
         @Override
         public Thread newThread(Runnable r) {
+            // 这里创建的只是普通线程 而不是 tomcat 定制的那种
             Thread thread = new Thread(group, r, namePrefix + threadNumber.getAndIncrement());
             thread.setDaemon(true);
             return thread;

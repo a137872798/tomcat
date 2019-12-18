@@ -26,6 +26,7 @@ import java.util.List;
  * actions are taken before any errors are reported.
  * <p>
  * This class is <b>NOT</b> threadsafe.
+ * 一个组合异常对象  内部包含多个 Throwable
  */
 public class MultiThrowable extends Throwable {
 

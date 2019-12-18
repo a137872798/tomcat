@@ -16,6 +16,9 @@
  */
 package org.apache.tomcat;
 
+/**
+ * 将上下文绑定相关的方法抽象到该接口中
+ */
 public interface ContextBind {
 
     /**
@@ -38,6 +41,7 @@ public interface ContextBind {
      * @return If the class loader has been changed by the method it will return
      *         the thread context class loader in use when the method was
      *         called. If no change was made then this method returns null.
+     *         为当前上下文绑定一个专门的类加载器
      */
     ClassLoader bind(boolean usePrivilegedAction, ClassLoader originalClassLoader);
 
@@ -55,6 +59,7 @@ public interface ContextBind {
      *          setting the current thread context class loader?
      * @param originalClassLoader
      *          The class loader to restore as the thread context class loader
+     *          使用原始的类加载器 去替换新设置到 context 中的类加载器
      */
     void unbind(boolean usePrivilegedAction, ClassLoader originalClassLoader);
 }

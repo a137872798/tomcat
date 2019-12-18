@@ -22,6 +22,7 @@ package org.apache.catalina;
  *
  * @author Craig R. McClanahan
  * @author Peter Donald
+ * 如果某个对象 维护了容器信息 那么就可以选择实现该接口
  */
 public interface Contained {
 

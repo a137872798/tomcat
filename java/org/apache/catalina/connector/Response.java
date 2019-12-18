@@ -1205,6 +1205,7 @@ public class Response implements HttpServletResponse {
      * Send an acknowledgement of a request.
      *
      * @exception IOException if an input/output error occurs
+     * 触发一个 ack action
      */
     public void sendAcknowledgement()
         throws IOException {

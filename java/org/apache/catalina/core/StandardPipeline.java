@@ -49,6 +49,7 @@ import org.apache.tomcat.util.res.StringManager;
  * @author Craig R. McClanahan
  */
 public class StandardPipeline extends LifecycleBase
+    // 因为该对象绑定在一个容器对象上 所以实现了 contained 接口
         implements Pipeline, Contained {
 
     private static final Log log = LogFactory.getLog(StandardPipeline.class);
@@ -72,6 +73,7 @@ public class StandardPipeline extends LifecycleBase
      * specified Container.
      *
      * @param container The container we should be associated with
+     *                  通过一个容器对象来初始化 pipeline
      */
     public StandardPipeline(Container container) {
 
@@ -86,28 +88,37 @@ public class StandardPipeline extends LifecycleBase
 
     /**
      * The basic Valve (if any) associated with this Pipeline.
+     * 基础阀门 很多通用逻辑保存在内部 用户通过设置额外的阀门对象 以实现不同功能
      */
     protected Valve basic = null;
 
 
     /**
      * The Container with which this Pipeline is associated.
+     * 该管道关联的容器对象
      */
     protected Container container = null;
 
 
     /**
      * The first valve associated with this Pipeline.
+     * 第一个阀门对象
      */
     protected Valve first = null;
 
 
     // --------------------------------------------------------- Public Methods
 
+    /**
+     * 判断该 责任链是否支持 异步调用
+     * @return
+     */
     @Override
     public boolean isAsyncSupported() {
+        // 如果指定了链表头 则以链表头为起点  否则默认情况下 使用basic 作为起点
         Valve valve = (first!=null)?first:basic;
         boolean supported = true;
+        // 这里必须 所有阀门都支持 异步 才算允许异步处理  也就是将整个责任链看作一个整体
         while (supported && valve!=null) {
             supported = supported & valve.isAsyncSupported();
             valve = valve.getNext();
@@ -116,6 +127,12 @@ public class StandardPipeline extends LifecycleBase
     }
 
 
+    /**
+     * 将内部 不支持 异步处理的阀门返回
+     * @param result The Set to which the fully qualified class names of each
+     *               Valve in this Pipeline that does not support async will be
+     *               added
+     */
     @Override
     public void findNonAsyncValves(Set<String> result) {
         Valve valve = (first!=null) ? first : basic;
@@ -162,15 +179,17 @@ public class StandardPipeline extends LifecycleBase
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  启动管道对象
      */
     @Override
     protected synchronized void startInternal() throws LifecycleException {
 
-        // Start the Valves in our pipeline (including the basic), if any
+        // Start the Valves in our pipeline (including the basic), if any  首先获取起始阀门 在没有指定首个阀门的时候 使用basic
         Valve current = first;
         if (current == null) {
             current = basic;
         }
+        // 挨个触发所有的阀门对象
         while (current != null) {
             if (current instanceof Lifecycle)
                 ((Lifecycle) current).start();
@@ -187,6 +206,7 @@ public class StandardPipeline extends LifecycleBase
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  停止管道
      */
     @Override
     protected synchronized void stopInternal() throws LifecycleException {
@@ -206,6 +226,9 @@ public class StandardPipeline extends LifecycleBase
     }
 
 
+    /**
+     * 将每个阀门从管道中移除 同时触发 destroy
+     */
     @Override
     protected void destroyInternal() {
         Valve[] valves = getValves();
@@ -251,6 +274,7 @@ public class StandardPipeline extends LifecycleBase
      * a different Container.</p>
      *
      * @param valve Valve to be distinguished as the basic Valve
+     *              设置 basic 阀门
      */
     @Override
     public void setBasic(Valve valve) {
@@ -260,7 +284,7 @@ public class StandardPipeline extends LifecycleBase
         if (oldBasic == valve)
             return;
 
-        // Stop the old component if necessary
+        // Stop the old component if necessary   如果存在旧的 basic 那么终止旧阀门
         if (oldBasic != null) {
             if (getState().isAvailable() && (oldBasic instanceof Lifecycle)) {
                 try {
@@ -269,6 +293,7 @@ public class StandardPipeline extends LifecycleBase
                     log.error(sm.getString("standardPipeline.basic.stop"), e);
                 }
             }
+            // 将旧容器的引用置空
             if (oldBasic instanceof Contained) {
                 try {
                     ((Contained) oldBasic).setContainer(null);
@@ -284,6 +309,7 @@ public class StandardPipeline extends LifecycleBase
         if (valve instanceof Contained) {
             ((Contained) valve).setContainer(this.container);
         }
+        // 启动阀门对象
         if (getState().isAvailable() && valve instanceof Lifecycle) {
             try {
                 ((Lifecycle) valve).start();
@@ -296,6 +322,7 @@ public class StandardPipeline extends LifecycleBase
         // Update the pipeline
         Valve current = first;
         while (current != null) {
+            // 替换原来 basic 的位置
             if (current.getNext() == oldBasic) {
                 current.setNext(valve);
                 break;
@@ -326,6 +353,7 @@ public class StandardPipeline extends LifecycleBase
      *  associated with this Container
      * @exception IllegalStateException if the specified Valve is already
      *  associated with a different Container
+     *  为管道增加阀门对象
      */
     @Override
     public void addValve(Valve valve) {
@@ -345,7 +373,7 @@ public class StandardPipeline extends LifecycleBase
             }
         }
 
-        // Add this Valve to the set associated with this Pipeline
+        // Add this Valve to the set associated with this Pipeline  新增的 阀门会添加到链表的首部 而 basic 会往后推
         if (first == null) {
             first = valve;
             valve.setNext(basic);
@@ -361,6 +389,7 @@ public class StandardPipeline extends LifecycleBase
             }
         }
 
+        // 触发监听器
         container.fireContainerEvent(Container.ADD_VALVE_EVENT, valve);
     }
 
@@ -369,6 +398,7 @@ public class StandardPipeline extends LifecycleBase
      * Return the set of Valves in the pipeline associated with this
      * Container, including the basic Valve (if any).  If there are no
      * such Valves, a zero-length array is returned.
+     * 获取该管道所有的阀门对象
      */
     @Override
     public Valve[] getValves() {
@@ -387,6 +417,7 @@ public class StandardPipeline extends LifecycleBase
 
     }
 
+    // JMX 相关的先忽略
     public ObjectName[] getValveObjectNames() {
 
         List<ObjectName> valveList = new ArrayList<>();
@@ -412,6 +443,7 @@ public class StandardPipeline extends LifecycleBase
      * will be called if it implements <code>Contained</code>.
      *
      * @param valve Valve to be removed
+     *              从责任链中移除一个阀门对象
      */
     @Override
     public void removeValve(Valve valve) {
@@ -436,6 +468,7 @@ public class StandardPipeline extends LifecycleBase
         if (valve instanceof Contained)
             ((Contained) valve).setContainer(null);
 
+        // 从链表中移除元素后 触发 stop 和 destroy
         if (valve instanceof Lifecycle) {
             // Stop this valve if necessary
             if (getState().isAvailable()) {

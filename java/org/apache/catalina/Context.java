@@ -58,6 +58,8 @@ import org.apache.tomcat.util.http.CookieProcessor;
  *
  * @author Craig R. McClanahan
  * 该对象是tomcat 用来适配 servlet 内部的上下文的  同时该接口也中作为 container的子接口
+ *
+ * 在tomcat 中 engine  wrapper  host 都属于 container
  */
 public interface Context extends Container, ContextBind {
 
@@ -94,6 +96,7 @@ public interface Context extends Container, ContextBind {
      * @return <code>true</code> if requests mapped to servlets without
      *    "multipart config" to parse multipart/form-data requests,
      *    <code>false</code> otherwise.
+     *    是否允许解析多媒体数据 ???
      */
     public boolean getAllowCasualMultipartParsing();
 
@@ -106,6 +109,7 @@ public interface Context extends Container, ContextBind {
      *
      * @param allowCasualMultipartParsing <code>true</code> to allow such
      *        casual parsing, <code>false</code> otherwise.
+    *                                    设置是否允许解析多媒体数据
      */
     public void setAllowCasualMultipartParsing(boolean allowCasualMultipartParsing);
 
@@ -116,6 +120,7 @@ public interface Context extends Container, ContextBind {
      * @return An array containing the application event listener instances for
      *         this web application in the order they were specified in the web
      *         application deployment descriptor
+     *         获取应用级别的 事件监听器
      */
     public Object[] getApplicationEventListeners();
 
@@ -126,6 +131,7 @@ public interface Context extends Container, ContextBind {
      * descriptor, for this application.
      *
      * @param listeners The set of instantiated listener objects.
+     *                  设置应用级别事件监听器
      */
     public void setApplicationEventListeners(Object listeners[]);
 
@@ -136,6 +142,7 @@ public interface Context extends Container, ContextBind {
      * @return An array containing the application lifecycle listener instances
      *         for this web application in the order they were specified in the
      *         web application deployment descriptor
+     *         获取应用生命周期相关的监听器
      */
     public Object[] getApplicationLifecycleListeners();
 
@@ -146,6 +153,7 @@ public interface Context extends Container, ContextBind {
      * descriptor, for this application.
      *
      * @param listeners The set of instantiated listener objects.
+     *                  设置应用生命周期相关的监听器
      */
     public void setApplicationLifecycleListeners(Object listeners[]);
 
@@ -159,6 +167,7 @@ public interface Context extends Container, ContextBind {
      *               returned
      *
      * @return The name of the character set to use with the given Locale
+     * 获取字符集
      */
     public String getCharset(Locale locale);
 
@@ -167,6 +176,7 @@ public interface Context extends Container, ContextBind {
      * Return the URL of the XML descriptor for this context.
      *
      * @return The URL of the XML descriptor for this context
+     * 获取当前上下文的 xml描述信息
      */
     public URL getConfigFile();
 
@@ -175,6 +185,7 @@ public interface Context extends Container, ContextBind {
      * Set the URL of the XML descriptor for this context.
      *
      * @param configFile The URL of the XML descriptor for this context.
+     *                   设置 xml描述信息
      */
     public void setConfigFile(URL configFile);
 
@@ -184,6 +195,7 @@ public interface Context extends Container, ContextBind {
      *
      * @return <code>true</code> if the Context has been correctly configured,
      *         otherwise <code>false</code>
+     *         判断当前上下文是否已经配置完毕
      */
     public boolean getConfigured();
 
@@ -204,6 +216,7 @@ public interface Context extends Container, ContextBind {
      * @return <code>true</code> if it is permitted to use cookies to track
      *         session IDs for this web application, otherwise
      *         <code>false</code>
+     *         获取当前context 绑定的所有cookie
      */
     public boolean getCookies();
 
@@ -222,6 +235,7 @@ public interface Context extends Container, ContextBind {
      *
      * @return  The value of the default session cookie name or null if not
      *          specified
+     *          获取 session 对应的名称
      */
     public String getSessionCookieName();
 
@@ -240,6 +254,7 @@ public interface Context extends Container, ContextBind {
      *
      * @return <code>true</code> if the HttpOnly flag should be set on session
      *         cookies
+     *         是否只允许在http协议中开启 session flag
      */
     public boolean getUseHttpOnly();
 
@@ -1024,6 +1039,7 @@ public interface Context extends Container, ContextBind {
      *
      * @return the error page entry for the specified Java exception type,
      *         if any; otherwise return {@code null}.
+     *         通过异常类型来返回对应的异常页面
      */
     public ErrorPage findErrorPage(Throwable throwable);
 

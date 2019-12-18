@@ -143,6 +143,8 @@ import org.apache.tomcat.util.security.PrivilegedSetTccl;
  *
  * @author Craig R. McClanahan
  * @author Remy Maucherat
+ * 标准上下文对象 首先继承字 容器基类    容器存在4个级别 分别是 host wrapper engine context  至于大小关系有点忘了 先看看具体实现吧
+ * 需要注意的就是 session 本身是 context 级别的 可以通过session 获取到关联的上下文对象
  */
 public class StandardContext extends ContainerBase
         implements Context, NotificationEmitter {
@@ -155,6 +157,7 @@ public class StandardContext extends ContainerBase
 
     /**
      * Create a new StandardContext component with the default basic Valve.
+     * 当创建标准上下文对象的同时 会设置 context 级别的阀门对象
      */
     public StandardContext() {
 
@@ -5888,6 +5891,11 @@ public class StandardContext extends ContainerBase
     }
 
 
+    /**
+     * 在 context级别传播请求 代表 某个servlet.req 被启动了
+     * @param request The request object that will be passed to the listener
+     * @return
+     */
     @Override
     public boolean fireRequestInitEvent(ServletRequest request) {
 
