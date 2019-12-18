@@ -21,7 +21,7 @@ import javax.servlet.annotation.WebServlet;
 /**
  * Represents how the request from which this object was obtained was mapped to
  * the associated servlet.
- *
+ * 这里可以以非配置文件的方式 直接将 path 与servlet 的映射关系设置起来
  * @since 4.0
  */
 public interface HttpServletMapping {

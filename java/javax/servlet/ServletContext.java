@@ -265,6 +265,7 @@ public interface ServletContext {
      *         <code>RequestDispatcher</code>
      * @see RequestDispatcher
      * @see ServletContext#getContext
+     * 通过 路径 获取对应的请求分发对象
      */
     public RequestDispatcher getRequestDispatcher(String path);
 

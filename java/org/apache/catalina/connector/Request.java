@@ -138,7 +138,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         // 这里存储了常用的模板
         formats = new SimpleDateFormat[formatsTemplate.length];
         for(int i = 0; i < formats.length; i++) {
-            // 可能 simpleDateFormat是非线程安全的吧
+            // 可能 simpleDateFormat是非线程安全的吧  所以这里要单独维护一份数据
             formats[i] = (SimpleDateFormat) formatsTemplate[i].clone();
         }
     }
@@ -149,7 +149,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * Coyote request.
-     * 内部 适配了 coyote.Request
+     * 内部包含了 coyote.Request
      */
     protected org.apache.coyote.Request coyoteRequest;
 
@@ -259,6 +259,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * The current dispatcher type.
+     * 该请求的分发类型 比如 error会分发到 errorPage  而 request 会分发到servlet
      */
     protected DispatcherType internalDispatcherType = null;
 
@@ -323,7 +324,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * Cookie parsed flag. Indicates that the ServerCookies have been converted
      * into user facing Cookie objects.
-     * 是否解析过 convert
+     * 是否将 ServerCookie 解析成了 门面类  Cookie 对象
      */
     protected boolean cookiesConverted = false;
 
@@ -381,24 +382,28 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * The current request dispatcher path.
+     * 当前req 被分发的路径
      */
     protected Object requestDispatcherPath = null;
 
 
     /**
      * Was the requested session ID received in a cookie?
+     * 是否需要从 cookie中获取 sessionId
      */
     protected boolean requestedSessionCookie = false;
 
 
     /**
      * The requested session ID (if any) for this request.
+     * 本次req 携带的sessionId
      */
     protected String requestedSessionId = null;
 
 
     /**
      * Was the requested session ID received in a URL?
+     * 是否要从 url 上获取 sessionId
      */
     protected boolean requestedSessionURL = false;
 
@@ -449,25 +454,45 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     protected String localName = null;
 
     /**
-     * AsyncContext
+     * AsyncContext  异步相关的先不看
      */
     private volatile AsyncContextImpl asyncContext = null;
 
+    /**
+     * 本req 对象 是否支持异步处理
+     */
     protected Boolean asyncSupported = null;
 
+    /**
+     * 内部包含的 servlet.req
+     */
     private HttpServletRequest applicationRequest = null;
 
 
     // --------------------------------------------------------- Public Methods
 
+    /**
+     * coyoteRequest 中 path相关参数 是一个 hashMap 这里是将数据插入到 map 中
+     * @param name
+     * @param value
+     */
     protected void addPathParameter(String name, String value) {
         coyoteRequest.addPathParameter(name, value);
     }
 
+    /**
+     * 从 coyote.req 中获取路径参数
+     * @param name
+     * @return
+     */
     protected String getPathParameter(String name) {
         return coyoteRequest.getPathParameter(name);
     }
 
+    /**
+     * 设置是否支持异步
+     * @param asyncSupported
+     */
     public void setAsyncSupported(boolean asyncSupported) {
         this.asyncSupported = Boolean.valueOf(asyncSupported);
     }
@@ -475,6 +500,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * Release all object references, and initialize instance variables, in
      * preparation for reuse of this object.
+     * 将该对象的引用置空后存储起来 避免重复创建
      */
     public void recycle() {
 
@@ -489,6 +515,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         subject = null;
         parametersParsed = false;
         if (parts != null) {
+            // 如果存在文件碎片 进行删除
             for (Part part: parts) {
                 try {
                     part.delete();
@@ -513,25 +540,34 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         sslAttributesParsed = false;
         notes.clear();
 
+        // 更新session的最后访问时间  并置空 该req 对象中与session 有关的配置
         recycleSessionInfo();
+        // 回收所有cookie
         recycleCookieInfo(false);
 
         if (Globals.IS_SECURITY_ENABLED || Connector.RECYCLE_FACADES) {
+            // 这里初始化了一个 paramMap
             parameterMap = new ParameterMap<>();
         } else {
+            // 这里 该对象本身没有回收只是 置空了内部真正的map 对象
             parameterMap.setLocked(false);
             parameterMap.clear();
         }
 
+        // 回收 mappingData 对象  该对象内部有很多描述 path 的 MessageBytes
         mappingData.recycle();
+        // 将appMapping 也回收 该对象是用来匹配 path 与 servlet 的关系的 比如哪个路径应该由哪个servlet 处理
         applicationMapping.recycle();
 
+        // servlet 传播过来的req 对象  这里也置空
         applicationRequest = null;
         if (Globals.IS_SECURITY_ENABLED || Connector.RECYCLE_FACADES) {
             if (facade != null) {
+                // 此门面对象 内部包装的就是自身 不过对外隐藏了接口 这样用户就不能通过强转访问到一些不该访问的属性
                 facade.clear();
                 facade = null;
             }
+            // 将输入流清空
             if (inputStream != null) {
                 inputStream.clear();
                 inputStream = null;
@@ -543,6 +579,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         }
 
         asyncSupported = null;
+        // 回收异步上下文对象
         if (asyncContext!=null) {
             asyncContext.recycle();
         }
@@ -550,6 +587,9 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
 
+    /**
+     * 准备回收session 信息
+     */
     protected void recycleSessionInfo() {
         if (session != null) {
             try {
@@ -567,6 +607,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
 
+    /**
+     * 代表是否要回收 cookie
+     * @param recycleCoyote
+     */
     protected void recycleCookieInfo(boolean recycleCoyote) {
         cookiesParsed = false;
         cookiesConverted = false;
@@ -581,6 +625,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * Associated Catalina connector.
+     * 内部关联的连接对象 实际上 数据流就是通过connector 变成req的 这里又要转发给 container
      */
     protected Connector connector;
 
@@ -631,6 +676,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * Filter chain associated with the request.
+     * 之后用于处理该req 的过滤链  当链式处理完成后 就会交由servlet
      */
     protected FilterChain filterChain = null;
 
@@ -664,6 +710,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * Mapping data.
+     * req 的映射相关信息
      */
     protected final MappingData mappingData = new MappingData();
     private final ApplicationMapping applicationMapping = new ApplicationMapping(mappingData);
@@ -685,8 +732,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * @return the <code>ServletRequest</code> for which this object
      * is the facade.  This method must be implemented by a subclass.
+     * 获取内部的 httpServletRequest 对象
      */
     public HttpServletRequest getRequest() {
+        // 这里采用门面模式 加工自身
         if (facade == null) {
             facade = new RequestFacade(this);
         }
@@ -708,9 +757,11 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     public void setRequest(HttpServletRequest applicationRequest) {
         // Check the wrapper wraps this request
         ServletRequest r = applicationRequest;
+        // 解包装
         while (r instanceof HttpServletRequestWrapper) {
             r = ((HttpServletRequestWrapper) r).getRequest();
         }
+        // 这里是什么意思 必须要是门面对象才可以???
         if (r != facade) {
             throw new IllegalArgumentException(sm.getString("request.illegalWrap"));
         }
@@ -720,6 +771,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * The response with which this request is associated.
+     * 该请求对象关联的res
      */
     protected org.apache.catalina.connector.Response response = null;
 
@@ -744,6 +796,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      */
     public InputStream getStream() {
         if (inputStream == null) {
+            // coyoteInputStream 就是封装了 访问 inputBuffer 的逻辑
             inputStream = new CoyoteInputStream(inputBuffer);
         }
         return inputStream;
@@ -751,6 +804,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * URI byte to char converter.
+     * 一个 字符转换器
      */
     protected B2CConverter URIConverter = null;
 
@@ -816,9 +870,12 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * stream or reader, in a single operation.
      *
      * @exception IOException if an input/output error occurs
+     * 结束本次请求 ???
      */
     public void finishRequest() throws IOException {
+        // 如果 res的状态为 reqEntity too large
         if (response.getStatus() == HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE) {
+            // 检查吞吐
             checkSwallowInput();
         }
     }
@@ -838,6 +895,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * Remove any object bound to the specified name in the internal notes
      * for this request.
+     * 从notes 中移除某个属性
      *
      * @param name Name of the note to be removed
      */
@@ -916,25 +974,30 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * <code>null</code>.
      *
      * @param name Name of the request attribute to return
+     *             获取 req 中的某个属性
      */
     @Override
     public Object getAttribute(String name) {
-        // Special attributes
+        // Special attributes  这里优先尝试从特殊属性中获取  这些属性是在 req 对象被创建时的静态块中设置的
         SpecialAttributeAdapter adapter = specialAttributes.get(name);
         if (adapter != null) {
             return adapter.get(this, name);
         }
 
+        // 其次打算从 attr 中根据name 获取相关属性
         Object attr = attributes.get(name);
 
         if (attr != null) {
             return attr;
         }
 
+        // 之后 打算从req 中 获取attr 属性 如果存在直接返回
         attr = coyoteRequest.getAttribute(name);
         if (attr != null) {
             return attr;
         }
+
+        // 判断尝试获取的是否是某些特殊属性   这个先忽略吧 反正就是获取一些特殊属性
         if (TLSUtil.isTLSRequestAttribute(name)) {
             coyoteRequest.action(ActionCode.REQ_SSL_ATTRIBUTE, coyoteRequest);
             attr = coyoteRequest.getAttribute(Globals.CERTIFICATES_ATTR);
@@ -968,6 +1031,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
 
+    /**
+     * 获取内容体长度
+     * @return
+     */
     @Override
     public long getContentLengthLong() {
         return coyoteRequest.getContentLengthLong();
@@ -1001,6 +1068,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * attributes and may also support additional attributes.
      *
      * @return the attribute names enumeration
+     * 尝试获取所有属性 并设置到一个 Enumeration
      */
     @Override
     public Enumeration<String> getAttributeNames() {
@@ -1010,6 +1078,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         // Take a copy to prevent ConcurrentModificationExceptions if used to
         // remove attributes
         Set<String> names = new HashSet<>();
+        // 将 本对象内部的 attrs 返回
         names.addAll(attributes.keySet());
         return Collections.enumeration(names);
     }
@@ -1017,6 +1086,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * @return the character encoding for this Request.
+     * 获取字符集
      */
     @Override
     public String getCharacterEncoding() {
@@ -1025,6 +1095,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             return characterEncoding;
         }
 
+        // 如果req 设置了 那么使用req指定的字符集 否则使用 context 也就是容器默认的字符集
         Context context = getContext();
         if (context != null) {
             return context.getRequestCharacterEncoding();
@@ -1033,7 +1104,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         return null;
     }
 
-
+    /**
+     * 尝试获取字符集 如果 req 对象中不存在 则尝试从 context 中获取
+     * @return
+     */
     private Charset getCharset() {
         Charset charset = null;
         try {
@@ -1097,10 +1171,12 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * @exception IllegalStateException if <code>getReader()</code> has
      *  already been called for this request
      * @exception IOException if an input/output error occurs
+     * 获取输入流
      */
     @Override
     public ServletInputStream getInputStream() throws IOException {
 
+        // 如果指定了使用reader 则不允许调用该方法
         if (usingReader) {
             throw new IllegalStateException(sm.getString("coyoteRequest.getInputStream.ise"));
         }
@@ -1164,14 +1240,17 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * return only the first one.
      *
      * @param name Name of the desired request parameter
+     *             coyoteRequest 中有一个 paramMap 存放了 url 后面的 参数信息
      */
     @Override
     public String getParameter(String name) {
 
+        // 如果参数还没有被解析 那么先解析参数
         if (!parametersParsed) {
             parseParameters();
         }
 
+        // 从paramMap 中查询对应的参数
         return coyoteRequest.getParameters().getParameter(name);
 
     }
@@ -1190,10 +1269,12 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     @Override
     public Map<String, String[]> getParameterMap() {
 
+        // 可能上锁代表着数据已经从 coyoteRequest中拷贝到 paramMap 中了
         if (parameterMap.isLocked()) {
             return parameterMap;
         }
 
+        // 将 coyoteRequest 的数据 转移到了该 req 中
         Enumeration<String> enumeration = getParameterNames();
         while (enumeration.hasMoreElements()) {
             String name = enumeration.nextElement();
@@ -1243,6 +1324,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * @return the protocol and version used to make this Request.
+     * 获取 请求对象使用的协议
      */
     @Override
     public String getProtocol() {
@@ -1259,15 +1341,18 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * @exception IllegalStateException if <code>getInputStream()</code>
      *  has already been called for this request
      * @exception IOException if an input/output error occurs
+     * 获取一个 reader 对象
      */
     @Override
     public BufferedReader getReader() throws IOException {
 
+        // 如果指定了使用 inputStream 则抛出异常
         if (usingInputStream) {
             throw new IllegalStateException(sm.getString("coyoteRequest.getReader.ise"));
         }
 
         usingReader = true;
+        // 初始化 converter 对象
         inputBuffer.checkConverter();
         if (reader == null) {
             reader = new CoyoteReader(inputBuffer);
@@ -1307,6 +1392,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * @return the remote IP address making this Request.
+     * 获取远端地址  从req 中获取   coyoteRequest 应该就是 connector 封装成的吧
      */
     @Override
     public String getRemoteAddr() {
@@ -1320,6 +1406,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * @return the remote host name making this Request.
+     * 获取远端主机   同样从req 中获取
      */
     @Override
     public String getRemoteHost() {
@@ -1327,6 +1414,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             if (!connector.getEnableLookups()) {
                 remoteHost = getRemoteAddr();
             } else {
+                // action 会转发到 req.hook 上 实际上 hook 实现类 为 各种协议对应的processor 比如 Http11Processor
                 coyoteRequest.action(ActionCode.REQ_HOST_ATTRIBUTE, coyoteRequest);
                 remoteHost = coyoteRequest.remoteHost().toString();
             }
@@ -1341,6 +1429,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     @Override
     public int getRemotePort(){
         if (remotePort == -1) {
+            // 对应属性的首次初始化 会触发一次 hook
             coyoteRequest.action(ActionCode.REQ_REMOTEPORT_ATTRIBUTE, coyoteRequest);
             remotePort = coyoteRequest.getRemotePort();
         }
@@ -1392,6 +1481,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * path, which may be interpreted as relative to the current request path.
      *
      * @param path Path of the resource to be wrapped
+     *             根据路径获取 请求分发对象
      */
     @Override
     public RequestDispatcher getRequestDispatcher(String path) {
@@ -1439,6 +1529,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         String servletPath = (String) getAttribute(
                 RequestDispatcher.INCLUDE_SERVLET_PATH);
         if (servletPath == null) {
+            // 获取servlet 路径
             servletPath = getServletPath();
         }
 
@@ -2773,9 +2864,11 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * Check the configuration for aborted uploads and if configured to do so,
      * disable the swallowing of any remaining input and close the connection
      * once the response has been written.
+     * 检查吞吐量
      */
     protected void checkSwallowInput() {
         Context context = getContext();
+        // 如果是禁止下载  触发  DISABLE_SWALLOW_INPUT
         if (context != null && !context.getSwallowAbortedUploads()) {
             coyoteRequest.action(ActionCode.DISABLE_SWALLOW_INPUT, null);
         }
@@ -3469,7 +3562,11 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     // ----------------------------------------------------- Special attributes handling
 
+    /**
+     * 特殊属性适配器
+     */
     private static interface SpecialAttributeAdapter {
+        // 传入指定的req  对象 并根据 attrName 获取对应属性
         Object get(Request request, String name);
 
         void set(Request request, String name, Object value);
@@ -3478,9 +3575,16 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         // void remove(Request request, String name);
     }
 
+    /**
+     * 该容器内部是 存储特殊属性的
+     */
     private static final Map<String, SpecialAttributeAdapter> specialAttributes = new HashMap<>();
 
+    /**
+     * 一开始 填充 特殊属性容器
+     */
     static {
+        // key 是 分发类型
         specialAttributes.put(Globals.DISPATCHER_TYPE_ATTR,
                 new SpecialAttributeAdapter() {
                     @Override
@@ -3489,6 +3593,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
                                 : request.internalDispatcherType;
                     }
 
+                    // 注意这里name 参数是不使用的 直接将 dispatcherType修改成 value
                     @Override
                     public void set(Request request, String name, Object value) {
                         request.internalDispatcherType = (DispatcherType) value;

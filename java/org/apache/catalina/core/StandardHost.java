@@ -249,17 +249,20 @@ public class StandardHost extends ContainerBase implements Host {
 
     /**
      * ({@inheritDoc}
+     * 获取该host 下 的应用文件夹
      */
     @Override
     public File getAppBaseFile() {
 
+        // 如果文件已经被初始化 直接返回
         if (appBaseFile != null) {
             return appBaseFile;
         }
 
+        // 以 "webapp" 作为应用目录
         File file = new File(getAppBase());
 
-        // If not absolute, make it absolute
+        // If not absolute, make it absolute  如果当前路径不是绝对路径 拼接上catalina的基础路径
         if (!file.isAbsolute()) {
             file = new File(getCatalinaBase(), file.getPath());
         }
@@ -281,6 +284,7 @@ public class StandardHost extends ContainerBase implements Host {
      * pathname, a relative pathname, or a URL.
      *
      * @param appBase The new application root
+     *                指定当前 host 的应用根路径
      */
     @Override
     public void setAppBase(String appBase) {
@@ -291,6 +295,7 @@ public class StandardHost extends ContainerBase implements Host {
         String oldAppBase = this.appBase;
         this.appBase = appBase;
         support.firePropertyChange("appBase", oldAppBase, this.appBase);
+        // 同时会置空 之前的文件
         this.appBaseFile = null;
     }
 
@@ -317,9 +322,11 @@ public class StandardHost extends ContainerBase implements Host {
 
     /**
      * ({@inheritDoc}
+     * 获取配置文件
      */
     @Override
     public File getConfigBaseFile() {
+        // 如果已经存在配置对象 直接返回
         if (hostConfigBase != null) {
             return hostConfigBase;
         }
@@ -327,6 +334,7 @@ public class StandardHost extends ContainerBase implements Host {
         if (getXmlBase()!=null) {
             path = getXmlBase();
         } else {
+            // 否则 获取 conf/{engineName}/{hostName} 作为 配置文件路径
             StringBuilder xmlDir = new StringBuilder("conf");
             Container parent = getParent();
             if (parent instanceof Engine) {
@@ -337,6 +345,7 @@ public class StandardHost extends ContainerBase implements Host {
             xmlDir.append(getName());
             path = xmlDir.toString();
         }
+        // 转换成绝对路径后 设置到hostConfigBase 中
         File file = new File(path);
         if (!file.isAbsolute())
             file = new File(getCatalinaBase(), path);
@@ -352,6 +361,7 @@ public class StandardHost extends ContainerBase implements Host {
     /**
      * @return <code>true</code> if the Host will attempt to create directories for appBase and xmlBase
      * unless they already exist.
+     * 如果 appBase和xmlBase 不存在 是否会进行创建
      */
     @Override
     public boolean getCreateDirs() {

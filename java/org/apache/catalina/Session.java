@@ -302,7 +302,7 @@ public interface Session {
 
     /**
      * End access to the session.
-     * 停止本次访问
+     * 代表本次访问session 结束
      */
     public void endAccess();
 
