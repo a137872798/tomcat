@@ -53,7 +53,7 @@ public class CoyoteReader
 
 
     /**
-     * 填装了 一行数据的 数组对象
+     * 填装了 一行数据的 数组对象 注意这里使用了char 类型 这样直接是字符流 不需要通过charset处理
      */
     protected char[] lineBuffer = null;
 
