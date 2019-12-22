@@ -35,16 +35,31 @@ import org.apache.tomcat.util.http.parser.AcceptEncoding;
 import org.apache.tomcat.util.http.parser.TokenList;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * 压缩配置
+ */
 public class CompressionConfig {
 
     private static final Log log = LogFactory.getLog(CompressionConfig.class);
     private static final StringManager sm = StringManager.getManager(CompressionConfig.class);
 
+    /**
+     * 压缩级别
+     */
     private int compressionLevel = 0;
     private Pattern noCompressionUserAgents = null;
+    /**
+     * 被压缩的多媒体类型
+     */
     private String compressibleMimeType = "text/html,text/xml,text/plain,text/css," +
             "text/javascript,application/javascript,application/json,application/xml";
+    /**
+     * 当前允许被压缩的多媒体类型
+     */
     private String[] compressibleMimeTypes = null;
+    /**
+     * 启用压缩的 最小长度 也就是 至少大于 2048 才允许进行压缩 不然 额外的解压缩 也会浪费时间
+     */
     private int compressionMinSize = 2048;
 
 
@@ -54,6 +69,7 @@ public class CompressionConfig {
      * @param compression One of <code>on</code>, <code>force</code>,
      *                    <code>off</code> or the minimum compression size in
      *                    bytes which implies <code>on</code>
+     *                    设置压缩级别
      */
     public void setCompression(String compression) {
         if (compression.equals("on")) {
@@ -63,6 +79,7 @@ public class CompressionConfig {
         } else if (compression.equals("off")) {
             this.compressionLevel = 0;
         } else {
+            // 其余情况 看作是 设置 compressionMinSize 同时 level 默认为1
             try {
                 // Try to parse compression as an int, which would give the
                 // minimum compression size
@@ -79,6 +96,7 @@ public class CompressionConfig {
      * Return compression level.
      *
      * @return The current compression level in string form (off/on/force)
+     * 当前是否打开了 压缩开关
      */
     public String getCompression() {
         switch (compressionLevel) {
@@ -147,12 +165,17 @@ public class CompressionConfig {
     }
 
 
+    /**
+     * 获取支持的压缩类型
+     * @return
+     */
     public String[] getCompressibleMimeTypes() {
         String[] result = compressibleMimeTypes;
         if (result != null) {
             return result;
         }
         List<String> values = new ArrayList<>();
+        // 根据 "," 进行拆分
         StringTokenizer tokens = new StringTokenizer(compressibleMimeType, ",");
         while (tokens.hasMoreTokens()) {
             String token = tokens.nextToken().trim();
@@ -191,22 +214,26 @@ public class CompressionConfig {
      *
      * @return {@code true} if compression was enabled for the given response,
      *         otherwise {@code false}
+     *         将req res 使用压缩处理
      */
     public boolean useCompression(Request request, Response response) {
         // Check if compression is enabled
+        // 本身关闭了压缩功能 直接返回
         if (compressionLevel == 0) {
             return false;
         }
 
+        // 获取响应头
         MimeHeaders responseHeaders = response.getMimeHeaders();
 
-        // Check if content is not already compressed
+        // Check if content is not already compressed   获取 content-encoding 属性
         MessageBytes contentEncodingMB = responseHeaders.getValue("Content-Encoding");
         if (contentEncodingMB != null) {
             // Content-Encoding values are ordered but order is not important
             // for this check so use a Set rather than a List
             Set<String> tokens = new HashSet<>();
             try {
+                // 将content-encoding 中的信息解析出来后设置到 tokens 中
                 TokenList.parseTokenList(responseHeaders.values("Content-Encoding"), tokens);
             } catch (IOException e) {
                 // Because we are using StringReader, any exception here is a
@@ -214,22 +241,28 @@ public class CompressionConfig {
                 log.warn(sm.getString("compressionConfig.ContentEncodingParseFail"), e);
                 return false;
             }
+            // 如果压缩方式是  gzip 或者br 放弃压缩
             if (tokens.contains("gzip") || tokens.contains("br")) {
                 return false;
             }
         }
 
         // If force mode, the length and MIME type checks are skipped
+        // level = 2 代表强制压缩模式
         if (compressionLevel != 2) {
             // Check if the response is of sufficient length to trigger the compression
+            // 非强制压缩的情况 要检查以下 是否可以压缩
             long contentLength = response.getContentLengthLong();
+            // 必须超过最小压缩长度 才允许压缩
             if (contentLength != -1 && contentLength < compressionMinSize) {
                 return false;
             }
 
             // Check for compatible MIME-TYPE
+            // 获取压缩类型
             String[] compressibleMimeTypes = getCompressibleMimeTypes();
             if (compressibleMimeTypes != null &&
+                    // 如果指定的 压缩方式没有包含在内部 则无法压缩
                     !startsWithStringArray(compressibleMimeTypes, response.getContentType())) {
                 return false;
             }
@@ -237,6 +270,7 @@ public class CompressionConfig {
 
         // If processing reaches this far, the response might be compressed.
         // Therefore, set the Vary header to keep proxies happy
+        // 如果进入到这一步 可能 已经被压缩过了 啥 happy???   这里是指定使用的 压缩方式
         ResponseUtil.addVaryFieldName(responseHeaders, "accept-encoding");
 
         // Check if user-agent supports gzip encoding
@@ -253,6 +287,7 @@ public class CompressionConfig {
                 return false;
             }
 
+            // 寻找内部 有 gzip 的
             for (AcceptEncoding acceptEncoding : acceptEncodings) {
                 if ("gzip".equalsIgnoreCase(acceptEncoding.getEncoding())) {
                     foundGzip = true;
@@ -261,6 +296,7 @@ public class CompressionConfig {
             }
         }
 
+        // 没有找到 gzip 代表无法压缩 那么上面是在干嘛???
         if (!foundGzip) {
             return false;
         }
@@ -285,6 +321,7 @@ public class CompressionConfig {
         // Compressed content length is unknown so mark it as such.
         response.setContentLength(-1);
         // Configure the content encoding for compressed content
+        // 这里强制指定了 压缩方式为 gzip
         responseHeaders.setValue("Content-Encoding").setString("gzip");
 
         return true;

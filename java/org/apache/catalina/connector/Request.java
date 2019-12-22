@@ -1119,11 +1119,13 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             return charset;
         }
 
+        // 获取当前请求对应的上下文对象
         Context context = getContext();
         if (context != null) {
             String encoding = context.getRequestCharacterEncoding();
             if (encoding != null) {
                 try {
+                    // 如果加密的情况获取对应的字符集
                     return B2CConverter.getCharset(encoding);
                 } catch (UnsupportedEncodingException e) {
                     // Ignore
@@ -1879,11 +1881,16 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         return result.get();
     }
 
+    /**
+     * 判断当前请求是否支持异步调用 就是判断 asyncContext 是否为null
+     * @return
+     */
     public boolean isAsync() {
         if (asyncContext == null) {
             return false;
         }
 
+        // 通过 hook 处理后才知道是否支持异步
         AtomicBoolean result = new AtomicBoolean(false);
         coyoteRequest.action(ActionCode.ASYNC_IS_ASYNC, result);
         return result.get();
@@ -2268,19 +2275,28 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
 
+    /**
+     * 从路径上移除掉 param 的部分   到底什么部分算是  param呢
+     * @param input
+     * @return
+     */
     private String removePathParameters(String input) {
+        // 直接寻找 ; 如果没有找到  直接返回原字符串
         int nextSemiColon = input.indexOf(';');
         // Shortcut
         if (nextSemiColon == -1) {
             return input;
         }
         StringBuilder result = new StringBuilder(input.length());
+        // 截取掉 ; 后面的部分
         result.append(input.substring(0, nextSemiColon));
         while (true) {
+            // 从 ; 开始往后查找 / 没找到的情况 退出循环
             int nextSlash = input.indexOf('/', nextSemiColon);
             if (nextSlash == -1) {
                 break;
             }
+            // 从指定位置开始 继续寻找 ;
             nextSemiColon = input.indexOf(';', nextSlash);
             if (nextSemiColon == -1) {
                 result.append(input.substring(nextSlash));
@@ -2294,6 +2310,12 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
 
+    /**
+     *  %2F 估计就对应 / 吧 这里 处理能匹配 / 外 还能匹配 %2F
+     * @param uri
+     * @param startPos
+     * @return
+     */
     private int nextSlash(char[] uri, int startPos) {
         int len = uri.length;
         int pos = startPos;
@@ -2348,16 +2370,18 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      *
      * @exception IllegalArgumentException if the specified header value
      *  cannot be converted to a date
+     *   从请求头中解析出 name 对应的时间属性
      */
     @Override
     public long getDateHeader(String name) {
 
+        // 从 coyoteRequest中获取对应属性
         String value = getHeader(name);
         if (value == null) {
             return -1L;
         }
 
-        // Attempt to convert the date header in a variety of formats
+        // Attempt to convert the date header in a variety of formats  如果是 时间属性 则转换成时间戳
         long result = FastHttpDateFormat.parseDate(value);
         if (result != (-1L)) {
             return result;
@@ -2386,6 +2410,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      *
      * @param name Name of the requested header
      * @return the enumeration with the header values
+     * 获取name 对应的一组 多媒体头
      */
     @Override
     public Enumeration<String> getHeaders(String name) {
@@ -2424,6 +2449,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
 
+    /**
+     * 获取请求的 映射处理路径
+     * @return
+     */
     @Override
     public HttpServletMapping getHttpServletMapping() {
         return applicationMapping.getHttpServletMapping();
@@ -2520,6 +2549,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
 
+    /**
+     * 将req 的 url 信息组装起来
+     * @return
+     */
     @Override
     public StringBuffer getRequestURL() {
 
@@ -2558,6 +2591,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * @return the session associated with this Request, creating one
      * if necessary.
+     * 获取 该req 对象内部的session 如果没有则创建
      */
     @Override
     public HttpSession getSession() {
@@ -2654,6 +2688,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
         Session session = null;
         try {
+            // manager 中将session 以 对应的id 作为 map 保存起来
             session = manager.findSession(requestedSessionId);
         } catch (IOException e) {
             // Can't find the session
@@ -2664,6 +2699,8 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             if (getMappingData().contexts == null) {
                 return false;
             } else {
+                // mappingData 中怎么会包含多个 context 呢  然后session 本身是以context 为单位的  那么通过sessionId 可以尝试寻找对应的session
+                // 如果不存在则返回false
                 for (int i = (getMappingData().contexts.length); i > 0; i--) {
                     Context ctxt = getMappingData().contexts[i - 1];
                     try {
@@ -2783,6 +2820,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * authentication process.
      *
      * @param newSessionId   The session to change the session ID for
+     *                       修改当前 req 对应的sessionId
      */
     public void changeSessionId(String newSessionId) {
         // This should only ever be called if there was an old session ID but
@@ -2791,8 +2829,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
             requestedSessionId = newSessionId;
         }
 
+        // 获取 req 绑定的context
         Context context = getContext();
         if (context != null &&
+                // 如果 context 本身不支持 cookie 形式 那么直接返回
                 !context.getServletContext()
                         .getEffectiveSessionTrackingModes()
                         .contains(SessionTrackingMode.COOKIE)) {
@@ -2933,6 +2973,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         return parts;
     }
 
+    /**
+     * 尝试解析片段
+     * @param explicit  是否允许冲突
+     */
     private void parseParts(boolean explicit) {
 
         // Return immediately if the parts have already been parsed
@@ -2941,8 +2985,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         }
 
         Context context = getContext();
+        // 从 servlet 级别 获取 parts 的配置信息
         MultipartConfigElement mce = getWrapper().getMultipartConfigElement();
 
+        // 没有设置配置时尝试使用默认配置
         if (mce == null) {
             if(context.getAllowCasualMultipartParsing()) {
                 mce = new MultipartConfigElement(null, connector.getMaxPostSize(),
@@ -2964,6 +3010,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
         boolean success = false;
         try {
+            // 这里在获取临时文件的位置
             File location;
             String locationStr = mce.getLocation();
             if (locationStr == null || locationStr.length() == 0) {
@@ -3098,6 +3145,11 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     // ------------------------------------------------------ Protected Methods
 
+    /**
+     * 获取session
+     * @param create  是否创建新的session
+     * @return
+     */
     protected Session doGetSession(boolean create) {
 
         // There cannot be a session if no context has been assigned yet
@@ -3119,6 +3171,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         if (manager == null) {
             return null;      // Sessions are not supported
         }
+        // 如果存在 requestedSessionId   使用id 查询session 如果session 已失效 尝试创建新session
         if (requestedSessionId != null) {
             try {
                 session = manager.findSession(requestedSessionId);
@@ -3140,6 +3193,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         }
         boolean trackModesIncludesCookie =
                 context.getServletContext().getEffectiveSessionTrackingModes().contains(SessionTrackingMode.COOKIE);
+        // 如果 res 已经提交了 那么不允许调用 doGetSession(true)
         if (trackModesIncludesCookie && response.getResponse().isCommitted()) {
             throw new IllegalStateException(sm.getString("coyoteRequest.sessionCreateCommitted"));
         }
@@ -3239,6 +3293,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
         ServerCookies serverCookies = coyoteRequest.getCookies();
         serverCookies.setLimit(connector.getMaxCookieCount());
+        // 使用 cookie 处理器来初始 cookieHeader
         CookieProcessor cookieProcessor = getContext().getCookieProcessor();
         cookieProcessor.parseCookieHeader(coyoteRequest.getMimeHeaders(), serverCookies);
     }
@@ -3246,6 +3301,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * Converts the parsed cookies (parsing the Cookie headers first if they
      * have not been parsed) into Cookie objects.
+     * 将请求头中 cookie 信息解析成 cookie 对象
      */
     protected void convertCookies() {
         if (cookiesConverted) {
@@ -3302,6 +3358,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
     /**
      * Parse request parameters.
+     * 解析req 参数
      */
     protected void parseParameters() {
 

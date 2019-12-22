@@ -29,6 +29,7 @@ import org.apache.tomcat.util.net.NioEndpoint;
  *
  * @author Remy Maucherat
  * @author Costin Manolache
+ * tomcat 默认使用的 protocolHandler是 NIO   而不是 NIO2   NIO2 是基于 jdk 异步io 实现的
  */
 public class Http11NioProtocol extends AbstractHttp11JsseProtocol<NioChannel> {
 

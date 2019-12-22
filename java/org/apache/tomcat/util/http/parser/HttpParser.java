@@ -380,6 +380,7 @@ public class HttpParser {
      * @return  the token if one was found, the empty string if no data was
      *          available to read or <code>null</code> if data other than a
      *          token was found
+     *          从 input中解析出 token
      */
     static String readToken(Reader input) throws IOException {
         StringBuilder result = new StringBuilder();

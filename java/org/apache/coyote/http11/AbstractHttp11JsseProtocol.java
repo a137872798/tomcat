@@ -19,6 +19,10 @@ package org.apache.coyote.http11;
 import org.apache.tomcat.util.net.AbstractJsseEndpoint;
 import org.apache.tomcat.util.net.openssl.OpenSSLImplementation;
 
+/**
+ * 这一层抽象层是 ssl 相关的 可以不看
+ * @param <S>
+ */
 public abstract class AbstractHttp11JsseProtocol<S>
         extends AbstractHttp11Protocol<S> {
 

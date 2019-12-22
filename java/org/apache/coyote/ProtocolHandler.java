@@ -37,7 +37,7 @@ public interface ProtocolHandler {
     /**
      * Return the adapter associated with the protocol handler.
      * @return the adapter
-     * 获取该处理器对应的适配器
+     * 获取该处理器对应的适配器   该适配器 负责根据 coyoteRequest 生成 connector.Request
      */
     public Adapter getAdapter();
 

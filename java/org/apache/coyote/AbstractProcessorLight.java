@@ -36,7 +36,7 @@ import org.apache.tomcat.util.net.SocketWrapperBase;
 public abstract class AbstractProcessorLight implements Processor {
 
     /**
-     * DispatchType 包含 非阻塞 读/写
+     * DispatchType 包含 非阻塞 读/写   该对象内部 维护了所有待处理的事件
      */
     private Set<DispatchType> dispatches = new CopyOnWriteArraySet<>();
 
@@ -57,6 +57,7 @@ public abstract class AbstractProcessorLight implements Processor {
         SocketState state = SocketState.CLOSED;
         Iterator<DispatchType> dispatches = null;
         do {
+            // dispatches  后面会变成
             if (dispatches != null) {
                 DispatchType nextDispatch = dispatches.next();
                 if (getLog().isDebugEnabled()) {

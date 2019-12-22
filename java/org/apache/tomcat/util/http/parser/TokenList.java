@@ -23,6 +23,9 @@ import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Locale;
 
+/**
+ * 将多个 token组合起来的list 对象
+ */
 public class TokenList {
 
     private TokenList() {
@@ -39,11 +42,13 @@ public class TokenList {
      *                   parsed tokens should be added
      *
      * @throws IOException If an I/O error occurs reading the header
+     * 将传入的一组input 数据 组合成tokenList
      */
     public static void parseTokenList(Enumeration<String> inputs, Collection<String> result) throws IOException {
         while (inputs.hasMoreElements()) {
             String nextHeaderValue = inputs.nextElement();
             if (nextHeaderValue != null) {
+                // 将结果处理后设置到 result 中
                 TokenList.parseTokenList(new StringReader(nextHeaderValue), result);
             }
         }
@@ -59,6 +64,7 @@ public class TokenList {
      *                   parsed tokens should be added
      *
      * @throws IOException If an I/O error occurs reading the header
+     * 将input 处理后设置到 result 中
      */
     public static void parseTokenList(Reader input, Collection<String> result) throws IOException {
         do {

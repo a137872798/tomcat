@@ -63,12 +63,16 @@ import org.apache.tomcat.util.security.Escape;
  *
  * @author Remy Maucherat
  * @author Craig R. McClanahan
+ * 该对象适配了 coyoteResponse  对象
  */
 public class Response implements HttpServletResponse {
 
     private static final Log log = LogFactory.getLog(Response.class);
     protected static final StringManager sm = StringManager.getManager(Response.class);
 
+    /**
+     * 多媒体类型缓存对象 应该是为了避免对象被反复创建
+     */
     private static final MediaTypeCache MEDIA_TYPE_CACHE = new MediaTypeCache(100);
 
     /**
@@ -103,6 +107,7 @@ public class Response implements HttpServletResponse {
      * Set the Connector through which this Request was received.
      *
      * @param connector The new connector
+     *                  为 res 设置connector 对象
      */
     public void setConnector(Connector connector) {
         if("AJP/1.3".equals(connector.getProtocol())) {
@@ -111,7 +116,9 @@ public class Response implements HttpServletResponse {
         } else {
             outputBuffer = new OutputBuffer();
         }
+        // 将buffer 包装成输出流 可以通过 stream 将数据写入到 buffer 中
         outputStream = new CoyoteOutputStream(outputBuffer);
+        // 初始化输出 字符流
         writer = new CoyoteWriter(outputBuffer);
     }
 
@@ -149,6 +156,7 @@ public class Response implements HttpServletResponse {
 
     /**
      * The associated output buffer.
+     * 连接到OS 的 输出缓冲区 resp 的发送数据实际上就是往 buffer 写入
      */
     protected OutputBuffer outputBuffer;
 
@@ -161,12 +169,14 @@ public class Response implements HttpServletResponse {
 
     /**
      * The associated writer.
+     * 以字符流的方式写出数据
      */
     protected CoyoteWriter writer;
 
 
     /**
      * The application commit flag.
+     * 代表已经将数据写出了  那么之后无法再尝试操作res
      */
     protected boolean appCommitted = false;
 
@@ -179,30 +189,35 @@ public class Response implements HttpServletResponse {
 
     /**
      * The characterEncoding flag
+     * 是否已经设置过字符集
      */
     private boolean isCharacterEncodingSet = false;
 
 
     /**
      * Using output stream flag.
+     * 使用字节流输出数据
      */
     protected boolean usingOutputStream = false;
 
 
     /**
      * Using writer flag.
+     * 使用字符流输出数据
      */
     protected boolean usingWriter = false;
 
 
     /**
      * URL encoder.
+     * url 编码器
      */
     protected final UEncoder urlEncoder = new UEncoder(SafeCharsSet.WITH_SLASH);
 
 
     /**
      * Recyclable buffer to hold the redirect URL.
+     * 内部维护了 char[] 存储数据
      */
     protected final CharChunk redirectURLCC = new CharChunk();
 
@@ -210,9 +225,13 @@ public class Response implements HttpServletResponse {
     /*
      * Not strictly required but it makes generating HTTP/2 push requests a lot
      * easier if these are retained until the response is recycled.
+     * 内部关联的 cookie 对象  存放了简单的键值对 以及 domain 属性
      */
     private final List<Cookie> cookies = new ArrayList<>();
 
+    /**
+     * 内部还维护了 servlet 规范的res
+     */
     private HttpServletResponse applicationResponse = null;
 
 
@@ -221,6 +240,7 @@ public class Response implements HttpServletResponse {
     /**
      * Release all object references, and initialize instance variables, in
      * preparation for reuse of this object.
+     * 使得对象可以被重复利用 不被GC 回收
      */
     public void recycle() {
 
@@ -264,6 +284,7 @@ public class Response implements HttpServletResponse {
      * @return the number of bytes the application has actually written to the
      * output stream. This excludes chunking, compression, etc. as well as
      * headers.
+     * 返回当前 已经写入的数据长度
      */
     public long getContentWritten() {
         return outputBuffer.getContentWritten();
@@ -273,11 +294,13 @@ public class Response implements HttpServletResponse {
     /**
      * @return the number of bytes the actually written to the socket. This
      * includes chunking, compression, etc. but excludes headers.
-     * @param flush if <code>true</code> will perform a buffer flush first
+     * @param flush if <code>true</code> will perform a buffer flush first   代表是否先将数据刷盘
+     *              获取 已经写入的长度
      */
     public long getBytesWritten(boolean flush) {
         if (flush) {
             try {
+                // flush 最后会委托给 processor
                 outputBuffer.flush();
             } catch (IOException ioe) {
                 // Ignore - the client has probably closed the connection
@@ -310,6 +333,7 @@ public class Response implements HttpServletResponse {
 
     /**
      * The request with which this response is associated.
+     * 该 res 是针对哪个req 对象做处理的
      */
     protected Request request = null;
 
@@ -332,6 +356,7 @@ public class Response implements HttpServletResponse {
 
     /**
      * The facade associated with this response.
+     * 实际上 facade 就是 本对象 不同通过 保护一些api 不对外暴露的方式  使得用户不能通过强转的方式 访问一些不安全的方法
      */
     protected ResponseFacade facade = null;
 
@@ -344,6 +369,7 @@ public class Response implements HttpServletResponse {
         if (facade == null) {
             facade = new ResponseFacade(this);
         }
+        // applicationResponse 就是 门面对象
         if (applicationResponse == null) {
             applicationResponse = facade;
         }
@@ -359,16 +385,19 @@ public class Response implements HttpServletResponse {
      *
      * @param applicationResponse The wrapped response to pass to the
      *        application
+     *                            设置响应结果
      */
     public void setResponse(HttpServletResponse applicationResponse) {
         // Check the wrapper wraps this request
         ServletResponse r = applicationResponse;
+        // 如果是包装对象 那么去包装化
         while (r instanceof HttpServletResponseWrapper) {
             r = ((HttpServletResponseWrapper) r).getResponse();
         }
         if (r != facade) {
             throw new IllegalArgumentException(sm.getString("response.illegalWrap"));
         }
+        // 将appResponse 变成传入的参数
         this.applicationResponse = applicationResponse;
     }
 
@@ -377,6 +406,7 @@ public class Response implements HttpServletResponse {
      * Set the suspended flag.
      *
      * @param suspended The new suspended flag value
+     *                  设置悬置状态
      */
     public void setSuspended(boolean suspended) {
         outputBuffer.setSuspended(suspended);
@@ -387,6 +417,7 @@ public class Response implements HttpServletResponse {
      * Suspended flag accessor.
      *
      * @return <code>true</code> if the response is suspended
+     * 判断当前是否悬置  悬置是 什么意思???
      */
     public boolean isSuspended() {
         return outputBuffer.isSuspended();
@@ -397,6 +428,7 @@ public class Response implements HttpServletResponse {
      * Closed flag accessor.
      *
      * @return <code>true</code> if the response has been closed
+     * 当前buffer 是否被关闭  内部有一个 flag 属性
      */
     public boolean isClosed() {
         return outputBuffer.isClosed();
@@ -407,6 +439,7 @@ public class Response implements HttpServletResponse {
      * Set the error flag.
      *
      * @return <code>false</code> if the error flag was already set
+     * 内部有一个errorState 这里就是通过cas 修改属性
      */
     public boolean setError() {
         return getCoyoteResponse().setError();
@@ -422,7 +455,10 @@ public class Response implements HttpServletResponse {
         return getCoyoteResponse().isError();
     }
 
-
+    /**
+     * 当 errorState == 1 时代表 reportRequired = true
+     * @return
+     */
     public boolean isErrorReportRequired() {
         return getCoyoteResponse().isErrorReportRequired();
     }
@@ -438,6 +474,7 @@ public class Response implements HttpServletResponse {
      * stream or writer, in a single operation.
      *
      * @exception IOException if an input/output error occurs
+     * 也是委托给 action
      */
     public void finishResponse() throws IOException {
         // Writing leftover bytes
@@ -447,6 +484,7 @@ public class Response implements HttpServletResponse {
 
     /**
      * @return the content length that was set or calculated for this Response.
+     * 获取当前已经写入的数据体长度
      */
     public int getContentLength() {
         return getCoyoteResponse().getContentLength();
@@ -476,7 +514,9 @@ public class Response implements HttpServletResponse {
      * @exception IOException if an input/output error occurs
      */
     public PrintWriter getReporter() throws IOException {
+        // isNew 就是判断 写入长度是否为0
         if (outputBuffer.isNew()) {
+            // 生成 converter 对象
             outputBuffer.checkConverter();
             if (writer == null) {
                 writer = new CoyoteWriter(outputBuffer);
@@ -513,6 +553,7 @@ public class Response implements HttpServletResponse {
 
     /**
      * @return the character encoding used for this Response.
+     * 获取响应体的字符集
      */
     @Override
     public String getCharacterEncoding() {
@@ -541,6 +582,7 @@ public class Response implements HttpServletResponse {
      * @exception IllegalStateException if <code>getWriter</code> has
      *  already been called for this response
      * @exception IOException if an input/output error occurs
+     * 获取 servlet 规范的标准输出流
      */
     @Override
     public ServletOutputStream getOutputStream()
@@ -601,6 +643,7 @@ public class Response implements HttpServletResponse {
             setCharacterEncoding(getCharacterEncoding());
         }
 
+        // 标识成使用 字符流
         usingWriter = true;
         outputBuffer.checkConverter();
         if (writer == null) {
@@ -664,6 +707,7 @@ public class Response implements HttpServletResponse {
      *
      * @exception IllegalStateException if the response has already
      *  been committed
+     *  是否需要重置 字符流
      */
     public void resetBuffer(boolean resetWriterStreamFlags) {
 
@@ -690,6 +734,7 @@ public class Response implements HttpServletResponse {
      *
      * @exception IllegalStateException if this method is called after
      *  output has been committed for this response
+     *  设置 输出缓冲区 的大小
      */
     @Override
     public void setBufferSize(int size) {
@@ -716,6 +761,13 @@ public class Response implements HttpServletResponse {
     }
 
 
+    /**
+     * 设置内容体的长度
+     * @param length
+     *            an integer specifying the length of the content being returned
+     *            to the client; sets the Content-Length header
+     *
+     */
     @Override
     public void setContentLengthLong(long length) {
         if (isCommitted()) {
@@ -735,6 +787,7 @@ public class Response implements HttpServletResponse {
      * Set the content type for this Response.
      *
      * @param type The new content type
+     *             指定响应体 类型
      */
     @Override
     public void setContentType(String type) {
@@ -868,6 +921,10 @@ public class Response implements HttpServletResponse {
     }
 
 
+    /**
+     * 从响应头中获取某个属性
+     * @return
+     */
     @Override
     public Collection<String> getHeaderNames() {
         MimeHeaders headers = getCoyoteResponse().getMimeHeaders();
@@ -881,6 +938,12 @@ public class Response implements HttpServletResponse {
     }
 
 
+    /**
+     * 通过  指定name 来获取对应的响应头
+     * @param name Header name to look up
+     *
+     * @return
+     */
     @Override
     public Collection<String> getHeaders(String name) {
         Enumeration<String> enumeration =
@@ -915,6 +978,7 @@ public class Response implements HttpServletResponse {
      * this Response.
      *
      * @param cookie Cookie to be added
+     *               将cookie 设置到 res 中
      */
     @Override
     public void addCookie(final Cookie cookie) {
@@ -926,6 +990,7 @@ public class Response implements HttpServletResponse {
 
         cookies.add(cookie);
 
+        // 将cookie 转换成 header 属性 并添加到响应头中
         String header = generateCookieString(cookie);
         //if we reached here, no exception, cookie is valid
         // the header name is Set-Cookie for both "old" and v.1 ( RFC2109 )
@@ -967,6 +1032,11 @@ public class Response implements HttpServletResponse {
 
     }
 
+    /**
+     * 将cookie 对象转换成string   这里使用了  cookieProcessor 对象
+     * @param cookie
+     * @return
+     */
     public String generateCookieString(final Cookie cookie) {
         // Web application code can receive a IllegalArgumentException
         // from the generateHeader() invocation
@@ -988,6 +1058,7 @@ public class Response implements HttpServletResponse {
      *
      * @param name Name of the header to set
      * @param value Date value to be set
+     *              设置日期请求头
      */
     @Override
     public void addDateHeader(String name, long value) {
@@ -996,6 +1067,7 @@ public class Response implements HttpServletResponse {
             return;
         }
 
+        // 如果 res 已经刷盘完成了 那么不允许对它继续操作了
         if (isCommitted()) {
             return;
         }
@@ -1005,6 +1077,7 @@ public class Response implements HttpServletResponse {
             return;
         }
 
+        // 将时间戳转换成字符串后设置到 header中
         addHeader(name, FastHttpDateFormat.formatDate(value));
     }
 
@@ -1054,6 +1127,7 @@ public class Response implements HttpServletResponse {
      *
      * Called from set/addHeader.
      * @return <code>true</code> if the header is special, no need to set the header.
+     * 判断设置的 响应头是否是  Content-Type 是的话 使用现存的方法设置属性
      */
     private boolean checkSpecialHeader(String name, String value) {
         if (name.equalsIgnoreCase("Content-Type")) {
@@ -1069,6 +1143,7 @@ public class Response implements HttpServletResponse {
      *
      * @param name Name of the header to set
      * @param value Integer value to be set
+     *              设置 int 类型的 响应头
      */
     @Override
     public void addIntHeader(String name, int value) {
@@ -1096,6 +1171,7 @@ public class Response implements HttpServletResponse {
      *
      * @param name Name of the header to check
      * @return <code>true</code> if the header has been set
+     * 判断是否包含某个响应头
      */
     @Override
     public boolean containsHeader(String name) {
@@ -1103,6 +1179,7 @@ public class Response implements HttpServletResponse {
         // special handling of these in coyoteResponse
         char cc=name.charAt(0);
         if(cc=='C' || cc=='c') {
+            // 如果是特殊的响应头 换成调用对应的方法
             if(name.equalsIgnoreCase("Content-Type")) {
                 // Will return null if this has not been set
                 return (getCoyoteResponse().getContentType() != null);
@@ -1123,6 +1200,7 @@ public class Response implements HttpServletResponse {
      *
      * @param url URL to be encoded
      * @return <code>true</code> if the URL was encoded
+     * 如果有需要 将sessionId 通过处理后连接到 url 上 这是什么意思???
      */
     @Override
     public String encodeRedirectURL(String url) {
@@ -1157,6 +1235,7 @@ public class Response implements HttpServletResponse {
      *
      * @param url URL to be encoded
      * @return <code>true</code> if the URL was encoded
+     * 加密 url
      */
     @Override
     public String encodeURL(String url) {
@@ -1169,6 +1248,8 @@ public class Response implements HttpServletResponse {
             return url;
         }
 
+        // 这里的是否加密 好像是是否有携带sessionId  有的话 且 设置了从url 获取sessionId 属性 才允许 应该就是将sessionId 加密后以某种方式
+        // 追加到url上
         if (isEncodeable(absolute)) {
             // W3c spec clearly said
             if (url.equalsIgnoreCase("")) {
@@ -1268,6 +1349,7 @@ public class Response implements HttpServletResponse {
         getCoyoteResponse().setMessage(message);
 
         // Clear any data content that has been buffered
+        // 当出现异常的时候 将buffer情况 实际上在wrapper 中 异常也被封装成一种结果返回了 所以 在 服务器层的异常设置很少用
         resetBuffer();
 
         // Cause the response to be finished (from the application perspective)
@@ -1298,6 +1380,7 @@ public class Response implements HttpServletResponse {
      * @param location Location URL to redirect to
      * @param status HTTP status code that will be sent
      * @throws IOException an IO exception occurred
+     * 设置 重定向 url 并设置指定的状态码   302
      */
     public void sendRedirect(String location, int status) throws IOException {
         if (isCommitted()) {
@@ -1590,6 +1673,7 @@ public class Response implements HttpServletResponse {
      *
      * @exception IllegalArgumentException if a MalformedURLException is
      *  thrown when converting the relative URL to an absolute one
+     *  将路径转换为 绝对路径
      */
     protected String toAbsolute(String location) {
 
@@ -1687,6 +1771,7 @@ public class Response implements HttpServletResponse {
      * Code borrowed heavily from CoyoteAdapter.normalize()
      *
      * @param cc the char chunk containing the chars to normalize
+     *           将 url 路径 普通化 也就是去除掉 奇怪的标识
      */
     private void normalize(CharChunk cc) {
         // Strip query string and/or fragment first as doing it this way makes

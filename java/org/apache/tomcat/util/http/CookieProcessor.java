@@ -20,6 +20,9 @@ import java.nio.charset.Charset;
 
 import javax.servlet.http.Cookie;
 
+/**
+ * cookie 相关的处理器
+ */
 public interface CookieProcessor {
 
     /**
@@ -28,6 +31,8 @@ public interface CookieProcessor {
      * @param headers       The HTTP headers to parse
      * @param serverCookies The server cookies object to populate with the
      *                      results of the parsing
+     *                      将请求头中的 cookie 属性解析出来 同时设置到传入的 serverCookies 中
+     *                      注意将 属性转换成tomcat 内部的 cookie 对象
      */
     void parseCookieHeader(MimeHeaders headers, ServerCookies serverCookies);
 
@@ -38,6 +43,7 @@ public interface CookieProcessor {
      *
      * @return The header value in a form that can be added directly to the
      *         response
+     *         将 cookie 对象转换成请求头中的属性   注意这里使用的是  javax.servlet 规范中的cookie
      */
     String generateHeader(Cookie cookie);
 
@@ -46,6 +52,7 @@ public interface CookieProcessor {
      * and characters when parsing and/or generating HTTP headers for cookies.
      *
      * @return The character set used for byte&lt;-&gt;character conversions
+     * 获取 编码采用的字符集
      */
     Charset getCharset();
 }
