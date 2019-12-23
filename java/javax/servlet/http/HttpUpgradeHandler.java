@@ -20,6 +20,7 @@ package javax.servlet.http;
  * Interface between the HTTP upgrade process and the new protocol.
  *
  * @since Servlet 3.1
+ * 将 http 处理功能进行升级
  */
 public interface HttpUpgradeHandler {
 
