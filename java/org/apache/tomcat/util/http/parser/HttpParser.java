@@ -562,6 +562,7 @@ public class HttpParser {
      *
      * @return  the sequence of LHEX (minus any surrounding quotes) if any was
      *          found, or <code>null</code> if data other LHEX was found
+     *          代表获取 0~9 a~z A~Z 的元素
      */
     static String readLhex(Reader input) throws IOException {
 
@@ -611,7 +612,15 @@ public class HttpParser {
         }
     }
 
+    /**
+     * 读取权重 ???
+     * @param input
+     * @param delimiter
+     * @return
+     * @throws IOException
+     */
     static double readWeight(Reader input, char delimiter) throws IOException {
+        // 跳过空格的部分
         skipLws(input);
         int c = input.read();
         if (c == -1 || c == delimiter) {
