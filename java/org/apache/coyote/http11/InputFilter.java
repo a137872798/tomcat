@@ -27,6 +27,7 @@ import org.apache.tomcat.util.buf.ByteChunk;
  * Input filter interface.
  *
  * @author Remy Maucherat
+ * 在接收数据时 通过 filter 做额外的逻辑
  */
 public interface InputFilter extends InputBuffer {
 
@@ -34,12 +35,14 @@ public interface InputFilter extends InputBuffer {
      * Some filters need additional parameters from the request.
      *
      * @param request The request to be associated with this filter
+     *                将 req 绑定到该 filter 上
      */
     public void setRequest(Request request);
 
 
     /**
      * Make the filter ready to process the next request.
+     * 复用该对象 避免被GC 回收
      */
     public void recycle();
 
@@ -50,6 +53,7 @@ public interface InputFilter extends InputBuffer {
      * @return The encoding name as a byte chunk to facilitate comparison with
      *         the value read from the HTTP headers which will also be a
      *         ByteChunk
+     *         获取该filter的编码方式
      */
     public ByteChunk getEncodingName();
 
@@ -58,6 +62,7 @@ public interface InputFilter extends InputBuffer {
      * Set the next buffer in the filter pipeline.
      *
      * @param buffer The next buffer
+     *               链表操作 因为每个 filter 实际上就是一个buffer
      */
     public void setBuffer(InputBuffer buffer);
 
@@ -71,6 +76,7 @@ public interface InputFilter extends InputBuffer {
      * an error happens, an IOException should be thrown instead).
      *
      * @throws IOException If an error happens
+     * 开始处理内部的req 对象
      */
     public long end() throws IOException;
 
@@ -79,6 +85,7 @@ public interface InputFilter extends InputBuffer {
      * Amount of bytes still available in a buffer.
      *
      * @return The number of bytes in the buffer
+     * 判断当前 buffer 是否还可用
      */
     public int available();
 
@@ -88,6 +95,7 @@ public interface InputFilter extends InputBuffer {
      *
      * @return {@code true} if the request body has been fully read, otherwise
      *         {@code false}
+     *         本次 req 中所有数据是否都已经被读取
      */
     public boolean isFinished();
 }

@@ -32,6 +32,7 @@ import org.apache.tomcat.util.res.StringManager;
  * Identity input filter.
  *
  * @author Remy Maucherat
+ * 该过滤器是用来验证唯一性的
  */
 public class IdentityInputFilter implements InputFilter, ApplicationBufferHandler {
 

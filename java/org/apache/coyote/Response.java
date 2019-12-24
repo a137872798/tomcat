@@ -86,7 +86,7 @@ public final class Response {
 
     /**
      * Associated output buffer.
-     * 该对象维护的一个输出流
+     * 负责与网络层交互
      */
     OutputBuffer outputBuffer;
 

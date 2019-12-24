@@ -322,11 +322,12 @@ public class MimeHeaders {
      * @param startN Offset
      * @param len Length
      * @return the message bytes container for the value
-     * 通过从 b 中指定起始偏移量 和 len 来截取name
+     * 将请求头中的属性 追加到 messageBytes
      */
     public MessageBytes addValue(byte b[], int startN, int len)
     {
         MimeHeaderField mhf=createHeader();
+        // headerField  中有一个 name 和 value 属性
         mhf.getName().setBytes(b, startN, len);
         return mhf.getValue();
     }

@@ -50,8 +50,17 @@ public enum ErrorState {
     CLOSE_CONNECTION_NOW(true, 3, false, false);
 
     private final boolean error;
+    /**
+     * 相当于是一个度量指标
+     */
     private final int severity;
+    /**
+     * 判断该异常 是否允许输出io
+     */
     private final boolean ioAllowed;
+    /**
+     * 是否允许 io 连接
+     */
     private final boolean connectionIoAllowed;
 
     private ErrorState(boolean error, int severity, boolean ioAllowed,
@@ -74,6 +83,7 @@ public enum ErrorState {
      *
      * @return The most severe error state from the the provided error state and
      *         this one
+     *         获取 最多severe(严重) 的 异常状态
      */
     public ErrorState getMostSevere(ErrorState input) {
         if (input.severity > this.severity) {

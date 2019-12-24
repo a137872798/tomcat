@@ -244,6 +244,7 @@ public class AsyncStateMachine {
         }
     }
 
+    // 进行异步操作
     public synchronized void asyncOperation() {
         if (state==AsyncState.STARTED) {
             state = AsyncState.READ_WRITE_OP;
