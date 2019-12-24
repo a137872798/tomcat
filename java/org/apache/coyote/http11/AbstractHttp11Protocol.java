@@ -44,25 +44,44 @@ import org.apache.tomcat.util.net.SSLHostConfig;
 import org.apache.tomcat.util.net.SocketWrapperBase;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * 基于 http请求的 protocol
+ * @param <S>
+ */
 public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
     protected static final StringManager sm =
             StringManager.getManager(AbstractHttp11Protocol.class);
 
+    /**
+     * 压缩相关的类
+     */
     private final CompressionConfig compressionConfig = new CompressionConfig();
 
 
+    /**
+     * 同样使用一个endpoint 进行初始化
+     * @param endpoint
+     */
     public AbstractHttp11Protocol(AbstractEndpoint<S> endpoint) {
         super(endpoint);
+        // 设置连接超时时间
         setConnectionTimeout(Constants.DEFAULT_CONNECTION_TIMEOUT);
+        // 初始化 connectionHandler 对象 该对象在 AbstractProtocol 中定义  该对象可以理解为一个代理对象  根据触发类型转发到不同对象中
         ConnectionHandler<S> cHandler = new ConnectionHandler<>(this);
         setHandler(cHandler);
+        // 为endpoint 也设置相同对象
         getEndpoint().setHandler(cHandler);
     }
 
 
+    /**
+     * 进行初始化
+     * @throws Exception
+     */
     @Override
     public void init() throws Exception {
+        // 找到内部 所有 upgradeProtocol   并进行配置
         for (UpgradeProtocol upgradeProtocol : upgradeProtocols) {
             configureUpgradeProtocol(upgradeProtocol);
         }
@@ -70,7 +89,10 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
         super.init();
     }
 
-
+    /**
+     * 这里返回固定的协议名 Http
+     * @return
+     */
     @Override
     protected String getProtocolName() {
         return "Http";
@@ -91,6 +113,9 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     // ------------------------------------------------ HTTP specific properties
     // ------------------------------------------ managed in the ProtocolHandler
 
+    /**
+     * 是否保留 responseHeader  什么意思???
+     */
     private boolean useKeepAliveResponseHeader = true;
     public boolean getUseKeepAliveResponseHeader() {
         return useKeepAliveResponseHeader;
@@ -100,6 +125,9 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
 
 
+    /**
+     * 放松 path ???
+     */
     private String relaxedPathChars = null;
     public String getRelaxedPathChars() {
         return relaxedPathChars;
@@ -118,6 +146,9 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
 
 
+    /**
+     * 允许 host 匹配失败 啥意思啊
+     */
     private boolean allowHostHeaderMismatch = true;
     /**
      * Will Tomcat accept an HTTP 1.1 request where the host header does not
@@ -141,6 +172,9 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
 
 
+    /**
+     * 拒绝非法请求头
+     */
     private boolean rejectIllegalHeaderName = false;
     /**
      * If an HTTP request is received that contains an illegal header name (i.e.
@@ -167,7 +201,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
     /**
      * Maximum size of the post which will be saved when processing certain
-     * requests, such as a POST.
+     * requests, such as a POST.   允许存储的数量
      */
     private int maxSavePostSize = 4 * 1024;
     public int getMaxSavePostSize() { return maxSavePostSize; }
@@ -175,7 +209,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
 
     /**
-     * Maximum size of the HTTP message header.
+     * Maximum size of the HTTP message header.    一个请求消息中请求头的最大长度
      */
     private int maxHttpHeaderSize = 8 * 1024;
     public int getMaxHttpHeaderSize() { return maxHttpHeaderSize; }
@@ -185,6 +219,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     /**
      * Specifies a different (usually  longer) connection timeout during data
      * upload.
+     * 当下载数据时 超过 该时间才算 超时
      */
     private int connectionUploadTimeout = 300000;
     public int getConnectionUploadTimeout() { return connectionUploadTimeout; }
@@ -196,6 +231,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     /**
      * If true, the connectionUploadTimeout will be ignored and the regular
      * socket timeout will be used for the full duration of the connection.
+     * 是否 忽略 下载时的连接超时
      */
     private boolean disableUploadTimeout = true;
     public boolean getDisableUploadTimeout() { return disableUploadTimeout; }
@@ -204,6 +240,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
 
 
+    // 获取当前压缩状态
     public String getCompression() {
         return compressionConfig.getCompression();
     }
@@ -246,6 +283,10 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
 
 
+    /**
+     * 获取压缩类型
+     * @return
+     */
     public String getCompressibleMimeType() {
         return compressionConfig.getCompressibleMimeType();
     }
@@ -283,6 +324,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
     /**
      * Server header.
+     * server 头是什么 ???
      */
     private String server;
     public String getServer() { return server; }
@@ -310,6 +352,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
     /**
      * Maximum size of extension information in chunked encoding
+     * 拓展大小???
      */
     private int maxExtensionSize = 8192;
     public int getMaxExtensionSize() { return maxExtensionSize; }
@@ -332,6 +375,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
      * This field indicates if the protocol is treated as if it is secure. This
      * normally means https is being used but can be used to fake https e.g
      * behind a reverse proxy.
+     * 是否使用 ssl 通道进行加密
      */
     private boolean secure;
     public boolean getSecure() { return secure; }
@@ -388,12 +432,18 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
     /**
      * The upgrade protocol instances configured.
+     * 获取当前所有的升级协议
      */
     private final List<UpgradeProtocol> upgradeProtocols = new ArrayList<>();
     @Override
     public void addUpgradeProtocol(UpgradeProtocol upgradeProtocol) {
         upgradeProtocols.add(upgradeProtocol);
     }
+
+    /**
+     * 将所有升级协议 以数组形式返回  升级协议的先不看 是 http2 相关的
+     * @return
+     */
     @Override
     public UpgradeProtocol[] findUpgradeProtocols() {
         return upgradeProtocols.toArray(new UpgradeProtocol[0]);
@@ -886,9 +936,15 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
         defaultSSLHostConfig.setTrustManagerClassName(trustManagerClassName);
     }
 
+    // 上面很多都是有关 ssl 的方法  可以忽略
+
 
     // ------------------------------------------------------------- Common code
 
+    /**
+     * 这里创建的 processor 的对象 已经明确是 Http11Processor了
+     * @return
+     */
     @Override
     protected Processor createProcessor() {
         Http11Processor processor = new Http11Processor(this, getEndpoint());

@@ -72,33 +72,54 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
      * 内部 携带端点对象  请求就是从这里生成的
      */
     protected final AbstractEndpoint<?> endpoint;
+    // coyote 内部的 req res 对象
     protected final Request request;
     protected final Response response;
+    /**
+     * 套接字包装对象
+     */
     protected volatile SocketWrapperBase<?> socketWrapper = null;
     protected volatile SSLSupport sslSupport;
 
 
     /**
      * Error state for the request/response currently being processed.
+     * 当前处理器异常状态
      */
     private ErrorState errorState = ErrorState.NONE;
 
+    /**
+     * 日志相关对象
+     */
     protected final UserDataHelper userDataHelper;
 
+    /**
+     * 抽象处理器对象    这里初始化了一个 req 对象和 res 对象
+     * @param endpoint
+     */
     public AbstractProcessor(AbstractEndpoint<?> endpoint) {
         this(endpoint, new Request(), new Response());
     }
 
 
+    /**
+     * 初始化 端点对象用于监听端口 以及 req res  应该就是封装 读取到的数据
+     * @param endpoint
+     * @param coyoteRequest
+     * @param coyoteResponse
+     */
     protected AbstractProcessor(AbstractEndpoint<?> endpoint, Request coyoteRequest,
             Response coyoteResponse) {
         this.endpoint = endpoint;
+        // 初始化 异步状态机对象
         asyncStateMachine = new AsyncStateMachine(this);
         request = coyoteRequest;
         response = coyoteResponse;
+        // 将自身作为钩子 设置进去 实际上后面req 的很多方法最终都是转发到hook上
         response.setHook(this);
         request.setResponse(response);
         request.setHook(this);
+        // 日志包装对象
         userDataHelper = new UserDataHelper(getLog());
     }
 
@@ -108,22 +129,30 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
      * state is more severe than the current error state.
      * @param errorState The error status details
      * @param t The error which occurred
+     *          设置异常状态
      */
     protected void setErrorState(ErrorState errorState, Throwable t) {
         // Use the return value to avoid processing more than one async error
         // in a single async cycle.
+        // 尝试通过cas 设置异常状态
         boolean setError = response.setError();
+        // 如果当前异常状态是  允许 io 的  而传入的参数是不允许 io 的 那么 代表需要阻塞io  如果2个 errorState.isIoAllowed 相同 那么 代表
+        // 不需要对当前状态改动(保持原样)
         boolean blockIo = this.errorState.isIoAllowed() && !errorState.isIoAllowed();
+        // 相当于一个 compare 函数 返回更严重的错误对象
         this.errorState = this.errorState.getMostSevere(errorState);
         // Don't change the status code for IOException since that is almost
         // certainly a client disconnect in which case it is preferable to keep
         // the original status code http://markmail.org/message/4cxpwmxhtgnrwh7n
+        // 这里将 异常code 设置成500
         if (response.getStatus() < 400 && !(t instanceof IOException)) {
             response.setStatus(500);
         }
         if (t != null) {
+            // 并将异常对象 设置到attr 中 记得在 req中好像有通过该属性尝试获取req 绑定的异常的动作
             request.setAttribute(RequestDispatcher.ERROR_EXCEPTION, t);
         }
+        // 如果io 发生了变化 且是异步的 且 本次cas 设置 error标识成功
         if (blockIo && isAsync() && setError) {
             if (asyncStateMachine.asyncError()) {
                 processSocketEvent(SocketEvent.ERROR, true);
@@ -193,6 +222,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
         return endpoint.getExecutor();
     }
 
+    // 异步相关状态的方法 实际上都是转发给 asyncStateMachine 实现的
 
     @Override
     public boolean isAsync() {
@@ -206,12 +236,22 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     }
 
 
+    /**
+     * 重写父类的 转发方法
+     * @param status The event to process
+     *
+     * @return
+     * @throws IOException
+     */
     @Override
     public final SocketState dispatch(SocketEvent status) throws IOException {
 
+        // 如果本次尝试的是写入操作 且写监听器不为空
         if (status == SocketEvent.OPEN_WRITE && response.getWriteListener() != null) {
+            // 进行异步操作
             asyncStateMachine.asyncOperation();
             try {
+                // 如果数据成功刷盘 返回一个 LONG 状态
                 if (flushBufferedWrite()) {
                     return SocketState.LONG;
                 }
@@ -219,35 +259,46 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
                 if (getLog().isDebugEnabled()) {
                     getLog().debug("Unable to write async data.", ioe);
                 }
+                // 代表处理过程中出现了异常 这里将异常设置到 req 上
                 status = SocketEvent.ERROR;
                 request.setAttribute(RequestDispatcher.ERROR_EXCEPTION, ioe);
             }
+            // 如果传入的是读事件  且 监听器不为空
         } else if (status == SocketEvent.OPEN_READ && request.getReadListener() != null) {
+            // 处理非阻塞读
             dispatchNonBlockingRead();
+            // 如果本次事件是异常
         } else if (status == SocketEvent.ERROR) {
             // An I/O error occurred on a non-container thread. This includes:
             // - read/write timeouts fired by the Poller (NIO & APR)
             // - completion handler failures in NIO2
 
+            // 如果异常还没有被设置
             if (request.getAttribute(RequestDispatcher.ERROR_EXCEPTION) == null) {
                 // Because the error did not occur on a container thread the
                 // request's error attribute has not been set. If an exception
                 // is available from the socketWrapper, use it to set the
                 // request's error attribute here so it is visible to the error
                 // handling.
+                // 这里才进行设置 也就是 之前的异常优先级会高一些
                 request.setAttribute(RequestDispatcher.ERROR_EXCEPTION, socketWrapper.getError());
             }
 
+            // 如果读写监听器不为空
             if (request.getReadListener() != null || response.getWriteListener() != null) {
                 // The error occurred during non-blocking I/O. Set the correct
                 // state else the error handling will trigger an ISE.
+                // 触发异步操作
                 asyncStateMachine.asyncOperation();
             }
         }
 
+        // 获取请求统计对象
         RequestInfo rp = request.getRequestProcessor();
         try {
+            // 设置当前处在准备调用service 的步骤
             rp.setStage(org.apache.coyote.Constants.STAGE_SERVICE);
+            // 如果异步分发失败了 设置errorState
             if (!getAdapter().asyncDispatch(request, response, status)) {
                 setErrorState(ErrorState.CLOSE_NOW, null);
             }
@@ -259,17 +310,23 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             getLog().error(sm.getString("http11processor.request.process"), t);
         }
 
+        // 代表本次处理结束了 也就是现在 tomcat 默认都是异步处理的???
         rp.setStage(org.apache.coyote.Constants.STAGE_ENDED);
 
         SocketState state;
 
+        // 如果当前出现异常 本次处理结束 将处理req的相关信息填充到requestInfo 中
         if (getErrorState().isError()) {
             request.updateCounters();
+            // 代表当前已经结束处理
             state = SocketState.CLOSED;
+            // 如果当前正在异步处理中 返回状态为 LONG  好像是长轮询的意思
         } else if (isAsync()) {
             state = SocketState.LONG;
         } else {
+            // 正常处理 统计req 信息 以及触发一个 endRequest
             request.updateCounters();
+            // 该方法子类实现
             state = dispatchEndRequest();
         }
 
@@ -283,11 +340,17 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     }
 
 
+    /**
+     * 解析 host 数据
+     * @param valueMB
+     */
     protected void parseHost(MessageBytes valueMB) {
         if (valueMB == null || valueMB.isNull()) {
+            // 如果参数为null 填充host  port
             populateHost();
             populatePort();
             return;
+            // 如果数据长度为0  这里设置 serverName 为 ""
         } else if (valueMB.getLength() == 0) {
             // Empty Host header so set sever name to empty string
             request.serverName().setString("");
@@ -295,28 +358,33 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             return;
         }
 
+        // 将数据 以 byte[] 的形式 获取
         ByteChunk valueBC = valueMB.getByteChunk();
         byte[] valueB = valueBC.getBytes();
         int valueL = valueBC.getLength();
         int valueS = valueBC.getStart();
+        // 如果host 数组太小 进行扩容
         if (hostNameC.length < valueL) {
             hostNameC = new char[valueL];
         }
 
         try {
-            // Validates the host name
+            // Validates the host name  解析 host 信息
             int colonPos = Host.parse(valueMB);
 
             // Extract the port information first, if any
+            // 精确的获取 port 信息
             if (colonPos != -1) {
                 int port = 0;
                 for (int i = colonPos + 1; i < valueL; i++) {
                     char c = (char) valueB[i + valueS];
+                    // 端口不能是 数字外的其他字符
                     if (c < '0' || c > '9') {
                         response.setStatus(400);
                         setErrorState(ErrorState.CLOSE_CLEAN, null);
                         return;
                     }
+                    // 相当于 正向 读取 越先读取到的数字 就是后一位的10倍
                     port = port * 10 + c - '0';
                 }
                 request.setServerPort(port);
@@ -325,12 +393,14 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
                 valueL = colonPos;
             }
 
-            // Extract the host name
+            // Extract the host name  将host 信息转换成 char 并设置到 hostNameC中
             for (int i = 0; i < valueL; i++) {
                 hostNameC[i] = (char) valueB[i + valueS];
             }
+            // 设置 serverName 也就是 serverName 默认 等同于host
             request.serverName().setChars(hostNameC, 0, valueL);
 
+            // 当出现异常时 打印日志 并设置异常状态为400
         } catch (IllegalArgumentException e) {
             // IllegalArgumentException indicates that the host name is invalid
             UserDataHelper.Mode logMode = userDataHelper.getNextMode();
@@ -378,14 +448,23 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     }
 
 
+    /**
+     * 实现了 ActionHook 接口  能够处理req res 中的一些方法
+     * @param actionCode Type of the action   代表本次各种事件
+     * @param param Action parameter  触发动作时使用的参数
+     */
     @Override
     public final void action(ActionCode actionCode, Object param) {
         switch (actionCode) {
         // 'Normal' servlet support
+        // 如果本次是提交事件  注意这里没有使用 param
         case COMMIT: {
+            // 首先确保 res 还没有提交过 否则就不需要重复处理了
             if (!response.isCommitted()) {
                 try {
                     // Validate and write response headers
+                    // 准备res 对象  该方法由子类实现 也就是由 对应的 connector 来做  (不同connector 使用的协议也不同)
+                    // 此时res 对象还没有写入到  OS 的 网络io 中
                     prepareResponse();
                 } catch (IOException e) {
                     setErrorState(ErrorState.CLOSE_CONNECTION_NOW, e);
@@ -393,10 +472,14 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             }
             break;
         }
+        // 如果是关闭事件 实际上也是触发了commit 事件
         case CLOSE: {
+            // 当内部 方法执行完后 已经准备好res 对象
             action(ActionCode.COMMIT, null);
             try {
+                // 开始真正发送数据体并准备关闭本次连接
                 finishResponse();
+                // 出现异常时设置 errorState 状态
             } catch (CloseNowException cne) {
                 setErrorState(ErrorState.CLOSE_NOW, cne);
             } catch (IOException e) {
@@ -404,13 +487,16 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             }
             break;
         }
+        // 代表触发了一个确认动作
         case ACK: {
             ack();
             break;
         }
+        // 将结果写入到网络IO 中
         case CLIENT_FLUSH: {
             action(ActionCode.COMMIT, null);
             try {
+                // 由子类实现
                 flush();
             } catch (IOException e) {
                 setErrorState(ErrorState.CLOSE_CONNECTION_NOW, e);
@@ -418,28 +504,34 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             }
             break;
         }
+        // 将请求变成可用状态 什么是可用??? 可用意味着什么
         case AVAILABLE: {
             request.setAvailable(available(Boolean.TRUE.equals(param)));
             break;
         }
+        // 设置 请求体body  就是将参数转换成 body
         case REQ_SET_BODY_REPLAY: {
             ByteChunk body = (ByteChunk) param;
             setRequestBody(body);
             break;
         }
 
-        // Error handling
+        // Error handling  尝试判断当前是否已经产生了异常
         case IS_ERROR: {
             ((AtomicBoolean) param).set(getErrorState().isError());
             break;
         }
+        // 是否允许网络io
         case IS_IO_ALLOWED: {
+            // 通过 errorState 来判断是否允许网络io
             ((AtomicBoolean) param).set(getErrorState().isIoAllowed());
             break;
         }
+        // 立即关闭 不会转发到 action(COMMIT)
         case CLOSE_NOW: {
-            // Prevent further writes to the response
+            // Prevent further writes to the response   应该是设置成不允许写入res   因为本次请求已经被完全关闭了
             setSwallowResponse();
+            // 设置当前异常状态 为 CLOSE_NOW
             if (param instanceof Throwable) {
                 setErrorState(ErrorState.CLOSE_NOW, (Throwable) param);
             } else {
@@ -447,32 +539,38 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             }
             break;
         }
+
+        // 无法输入
         case DISABLE_SWALLOW_INPUT: {
             // Aborted upload or similar.
             // No point reading the remainder of the request.
+            // 设置成 无法输入
             disableSwallowRequest();
             // This is an error state. Make sure it is marked as such.
             setErrorState(ErrorState.CLOSE_CLEAN, null);
             break;
         }
 
-        // Request attribute support
+        // Request attribute support   本事件 代表往 req 上设置 远端地址
         case REQ_HOST_ADDR_ATTRIBUTE: {
             if (getPopulateRequestAttributesFromSocket() && socketWrapper != null) {
                 request.remoteAddr().setString(socketWrapper.getRemoteAddr());
             }
             break;
         }
+        // 往 req 中设置 host 属性
         case REQ_HOST_ATTRIBUTE: {
             populateRequestAttributeRemoteHost();
             break;
         }
+        // 往 req 中设置 localPort 属性
         case REQ_LOCALPORT_ATTRIBUTE: {
             if (getPopulateRequestAttributesFromSocket() && socketWrapper != null) {
                 request.setLocalPort(socketWrapper.getLocalPort());
             }
             break;
         }
+        // 设置本地地址
         case REQ_LOCAL_ADDR_ATTRIBUTE: {
             if (getPopulateRequestAttributesFromSocket() && socketWrapper != null) {
                 request.localAddr().setString(socketWrapper.getLocalAddr());
@@ -642,18 +740,26 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
      * Sub-classes of this base class represent a single request/response pair.
      * The timeout to be processed is, therefore, the Servlet asynchronous
      * processing timeout.
+     * 判断是否超时  注意 在protocolHandler 中有个定时任务 就是定期扫描所有的processor 并调用该方法
      */
     @Override
     public void timeoutAsync(long now) {
+        // 如果传入 的时间戳为负数 直接触发超时事件
         if (now < 0) {
+            // 通过socketWrapper 处理一个超时事件
             doTimeoutAsync();
         } else {
+            // 获取设置的异步超时时间
             long asyncTimeout = getAsyncTimeout();
             if (asyncTimeout > 0) {
+                // 获取上一个触发的异步任务
                 long asyncStart = asyncStateMachine.getLastAsyncStart();
+                // 代表直到此时 异步任务已经超时了
                 if ((now - asyncStart) > asyncTimeout) {
+                    // 就是用 socketWrapper 触发一个超时事件
                     doTimeoutAsync();
                 }
+                // 这里代表 超时时间为 负数 或者为 0   那么需要判断 状态机当前是否不可用 如果不可用的情况  也要触发超时
             } else if (!asyncStateMachine.isAvailable()) {
                 // Timeout the async process if the associated web application
                 // is no longer running.
@@ -665,12 +771,20 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
     private void doTimeoutAsync() {
         // Avoid multiple timeouts
+        // 代表本次调用已经超时了吧
         setAsyncTimeout(-1);
+        // 获取 当前异步状态机的 序号 TODO  好像每开始一个新的异步任务就会加1
         asyncTimeoutGeneration = asyncStateMachine.getCurrentGeneration();
+        // 处理超时事件
         processSocketEvent(SocketEvent.TIMEOUT, true);
     }
 
 
+    /**
+     * 判断是否发生过超时  也就是 当前asyncTimeoutGeneration 是否更新成 跟异步状态机内部的 generation 一致
+     * 这一步会在 doTimeoutAsync() 中触发
+     * @return
+     */
     @Override
     public boolean checkAsyncTimeoutGeneration() {
         return asyncTimeoutGeneration == asyncStateMachine.getCurrentGeneration();
@@ -687,6 +801,9 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     }
 
 
+    /**
+     * 将对象进行回收 方便重用
+     */
     @Override
     public void recycle() {
         errorState = ErrorState.NONE;
@@ -733,6 +850,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     /**
      * Populate the remote host request attribute. Processors (e.g. AJP) that
      * populate this from an alternative source should override this method.
+     * 填充远端地址 就是从 socketWrapper 中抽取对应属性
      */
     protected void populateRequestAttributeRemoteHost() {
         if (getPopulateRequestAttributesFromSocket() && socketWrapper != null) {
@@ -791,6 +909,11 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     }
 
 
+    /**
+     * 通过socketWrapper 处理 事件
+     * @param event
+     * @param dispatch
+     */
     protected void processSocketEvent(SocketEvent event, boolean dispatch) {
         SocketWrapperBase<?> socketWrapper = getSocketWrapper();
         if (socketWrapper != null) {
@@ -799,11 +922,17 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     }
 
 
+    /**
+     * 当前是否已经准备好读事件
+     * @return
+     */
     protected boolean isReadyForRead() {
+        // 如果能读取数据 返回 true
         if (available(true) > 0) {
             return true;
         }
 
+        // 如果 请求体还没有填满readBuffer 那么将读事件注册到selector 上
         if (!isRequestBodyFullyRead()) {
             registerReadInterest();
         }
@@ -821,8 +950,13 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     protected abstract boolean isReadyForWrite();
 
 
+    /**
+     * 执行分发任务
+     */
     protected void executeDispatches() {
+        // 首先获取 socket包装对象
         SocketWrapperBase<?> socketWrapper = getSocketWrapper();
+        // 获取 当前所有待处理的 DispatchType
         Iterator<DispatchType> dispatches = getIteratorAndClearDispatches();
         if (socketWrapper != null) {
             synchronized (socketWrapper) {
@@ -846,6 +980,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
                  */
                 while (dispatches != null && dispatches.hasNext()) {
                     DispatchType dispatchType = dispatches.next();
+                    // 待分发的对象都是交由 socketWrapper来处理的  这里传入的 dispatch 为false
                     socketWrapper.processSocket(dispatchType.getSocketStatus(), false);
                 }
             }

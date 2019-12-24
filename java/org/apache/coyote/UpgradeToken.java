@@ -24,11 +24,21 @@ import org.apache.tomcat.InstanceManager;
 
 /**
  * Token used during the upgrade process.
+ * 升级token 对象
  */
 public final class UpgradeToken {
 
+    /**
+     * 该对象是用来切换当前类加载器的
+     */
     private final ContextBind contextBind;
+    /**
+     * 升级处理器
+     */
     private final HttpUpgradeHandler httpUpgradeHandler;
+    /**
+     * 实例管理器
+     */
     private final InstanceManager instanceManager;
 
     public UpgradeToken(HttpUpgradeHandler httpUpgradeHandler,

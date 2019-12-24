@@ -141,17 +141,21 @@ public class B2CConverter {
      * @param endOfInput    Is this all of the available data
      *
      * @throws IOException If the conversion can not be completed
+     * 将 byte[] 内的数据通过 charset 对象转换成char[]
      */
     public void convert(ByteChunk bc, CharChunk cc, boolean endOfInput)
             throws IOException {
         if ((bb == null) || (bb.array() != bc.getBuffer())) {
             // Create a new byte buffer if anything changed
+            // cong  byteChar 中拷贝一份数据
             bb = ByteBuffer.wrap(bc.getBuffer(), bc.getStart(), bc.getLength());
         } else {
             // Initialize the byte buffer
+            // 如果bytebuffer 对象已经被创建了 那么 将2个buffer 调整到一致的状态
             bb.limit(bc.getEnd());
             bb.position(bc.getStart());
         }
+        // 开始分配 char的 buffer 对象
         if ((cb == null) || (cb.array() != cc.getBuffer())) {
             // Create a new char buffer if anything changed
             cb = CharBuffer.wrap(cc.getBuffer(), cc.getEnd(),
@@ -167,6 +171,7 @@ public class B2CConverter {
             int pos = cb.position();
             // Loop until one char is decoded or there is a decoder error
             do {
+                // 将数据通过指定字符集解码后 设置到 cb 中
                 leftovers.put(bc.substractB());
                 leftovers.flip();
                 result = decoder.decode(leftovers, cb, endOfInput);

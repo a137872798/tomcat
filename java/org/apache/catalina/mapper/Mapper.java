@@ -58,12 +58,12 @@ public final class Mapper {
     /**
      * Array containing the virtual hosts definitions.
      */
-    // Package private to facilitate testing
+    // Package private to facilitate testing   该映射器能够处理 会转发到下面所有host 的请求
     volatile MappedHost[] hosts = new MappedHost[0];
 
 
     /**
-     * Default host name.
+     * Default host name.  默认转发的host 名称
      */
     private String defaultHostName = null;
     private volatile MappedHost defaultHost = null;
@@ -687,6 +687,7 @@ public final class Mapper {
      *                    operation
      * @throws IOException if the buffers are too small to hold the results of
      *                     the mapping.
+     *                     根据 url 和版本号 进行映射
      */
     public void map(MessageBytes host, MessageBytes uri, String version,
                     MappingData mappingData) throws IOException {
@@ -696,6 +697,7 @@ public final class Mapper {
         }
         host.toChars();
         uri.toChars();
+        // 在内部进行映射
         internalMap(host.getCharChunk(), uri.getCharChunk(), version,
                 mappingData);
     }
@@ -728,11 +730,13 @@ public final class Mapper {
 
     /**
      * Map the specified URI.
+     * 根据 url 和host 进行映射
      * @throws IOException
      */
     private final void internalMap(CharChunk host, CharChunk uri,
             String version, MappingData mappingData) throws IOException {
 
+        // 代表已经完成映射 了
         if (mappingData.host != null) {
             // The legacy code (dating down at least to Tomcat 4.1) just
             // skipped all mapping work in this case. That behaviour has a risk
@@ -743,7 +747,9 @@ public final class Mapper {
 
         // Virtual host mapping
         MappedHost[] hosts = this.hosts;
+        // 开始寻找匹配的 host  这里不细看了
         MappedHost mappedHost = exactFindIgnoreCase(hosts, host);
+        // 如果没有精确的匹配到
         if (mappedHost == null) {
             // Note: Internally, the Mapper does not use the leading * on a
             //       wildcard host. This is to allow this shortcut.
@@ -752,12 +758,14 @@ public final class Mapper {
                 int offset = host.getOffset();
                 try {
                     host.setOffset(firstDot + offset);
+                    // 代表尝试从 第一个 "." 后开始匹配
                     mappedHost = exactFindIgnoreCase(hosts, host);
                 } finally {
-                    // Make absolutely sure this gets reset
+                    // Make absolutely sure this gets reset  恢复成传入前的样子
                     host.setOffset(offset);
                 }
             }
+            // 还是没有匹配到的话 就使用默认的 host
             if (mappedHost == null) {
                 mappedHost = defaultHost;
                 if (mappedHost == null) {
@@ -765,6 +773,7 @@ public final class Mapper {
                 }
             }
         }
+        // 开始赋值
         mappingData.host = mappedHost.object;
 
         if (uri.isNull()) {
@@ -774,7 +783,7 @@ public final class Mapper {
 
         uri.setLimit(-1);
 
-        // Context mapping
+        // Context mapping   开始映射 context
         ContextList contextList = mappedHost.contextList;
         MappedContext[] contexts = contextList.contexts;
         int pos = find(contexts, uri);
@@ -820,8 +829,10 @@ public final class Mapper {
             return;
         }
 
+        // 这里设置context
         mappingData.contextPath.setString(context.name);
 
+        // 开始匹配contextVersion 并进行设置
         ContextVersion contextVersion = null;
         ContextVersion[] contextVersions = context.versions;
         final int versionCount = contextVersions.length;
@@ -840,10 +851,11 @@ public final class Mapper {
             // The versions array is known to contain at least one element
             contextVersion = contextVersions[versionCount - 1];
         }
+        // 设置context 以及斜线数量
         mappingData.context = contextVersion.object;
         mappingData.contextSlashCount = contextVersion.slashCount;
 
-        // Wrapper mapping
+        // Wrapper mapping  开始从url 中匹配 wrapper
         if (!contextVersion.isPaused()) {
             internalMapWrapper(contextVersion, uri, mappingData);
         }
@@ -1187,6 +1199,7 @@ public final class Mapper {
      * Find a map element given its name in a sorted array of map elements.
      * This will return the index for the closest inferior or equal item in the
      * given array.
+     * 开始寻找匹配的context
      */
     private static final <T> int find(MapElement<T>[] map, CharChunk name) {
         return find(map, name, name.getStart(), name.getEnd());
@@ -1197,6 +1210,7 @@ public final class Mapper {
      * Find a map element given its name in a sorted array of map elements.
      * This will return the index for the closest inferior or equal item in the
      * given array.
+     * 开始尝试匹配
      */
     private static final <T> int find(MapElement<T>[] map, CharChunk name,
                                   int start, int end) {
@@ -1382,6 +1396,7 @@ public final class Mapper {
      * will return the element that you were searching for. Otherwise it will
      * return <code>null</code>.
      * @see #findIgnoreCase(MapElement[], CharChunk)
+     * 开始精确匹配 host
      */
     private static final <T, E extends MapElement<T>> E exactFindIgnoreCase(
             E[] map, CharChunk name) {

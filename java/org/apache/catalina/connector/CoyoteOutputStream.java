@@ -29,6 +29,7 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @author Costin Manolache
  * @author Remy Maucherat
+ * 输出流对象
  */
 public class CoyoteOutputStream extends ServletOutputStream {
 
@@ -37,6 +38,9 @@ public class CoyoteOutputStream extends ServletOutputStream {
 
     // ----------------------------------------------------- Instance Variables
 
+    /**
+     * 数据将会写往该容器
+     */
     protected OutputBuffer ob;
 
 
@@ -74,11 +78,18 @@ public class CoyoteOutputStream extends ServletOutputStream {
     // --------------------------------------------------- OutputStream Methods
 
 
+    /**
+     * 将数据以非阻塞方式写入到 buff 中
+     * @param i
+     * @throws IOException
+     */
     @Override
     public void write(int i) throws IOException {
         boolean nonBlocking = checkNonBlockingWrite();
+        // 该方法应该会阻塞直到写入完成
         ob.writeByte(i);
         if (nonBlocking) {
+            // 检查是否注册 该 方法会转发给 hook 来处理
             checkRegisterForWrite();
         }
     }
@@ -90,6 +101,13 @@ public class CoyoteOutputStream extends ServletOutputStream {
     }
 
 
+    /**
+     * 将数组中的数据写入到 buffer 中
+     * @param b
+     * @param off
+     * @param len
+     * @throws IOException
+     */
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
         boolean nonBlocking = checkNonBlockingWrite();
@@ -100,6 +118,11 @@ public class CoyoteOutputStream extends ServletOutputStream {
     }
 
 
+    /**
+     * 将 buffer 中的数据写入到 ob 中
+     * @param from
+     * @throws IOException
+     */
     public void write(ByteBuffer from) throws IOException {
         boolean nonBlocking = checkNonBlockingWrite();
         ob.write(from);
@@ -129,9 +152,11 @@ public class CoyoteOutputStream extends ServletOutputStream {
      *
      * @return <code>true</code> if this OutputStream is currently in
      *         non-blocking mode.
+     *         尝试以非阻塞方式写入
      */
     private boolean checkNonBlockingWrite() {
         boolean nonBlocking = !ob.isBlocking();
+        // 如果是非阻塞方式 且输出流没有准备好会抛出异常
         if (nonBlocking && !ob.isReady()) {
             throw new IllegalStateException(sm.getString("coyoteOutputStream.nbNotready"));
         }

@@ -30,11 +30,14 @@ public class SessionConfig {
      * context.
      * @param context The context
      * @return the cookie name for the context
+     * 如果 sessionId 是携带在 cookie 中的 那么这里尝试获取 sessionId 对应的 key 值
      */
     public static String getSessionCookieName(Context context) {
 
+        // 获取设置在config中的 sessionId - cookieName
         String result = getConfiguredSessionCookieName(context);
 
+        // 使用默认的name  JSESSIONID
         if (result == null) {
             result = DEFAULT_SESSION_COOKIE_NAME;
         }
@@ -60,6 +63,11 @@ public class SessionConfig {
     }
 
 
+    /**
+     * 从 context 中获取 sessionId 在cookie 中配置的名字
+     * @param context
+     * @return
+     */
     private static String getConfiguredSessionCookieName(Context context) {
 
         // Priority is:
@@ -67,11 +75,13 @@ public class SessionConfig {
         // 2. Cookie name configured for app
         // 3. Default defined by spec
         if (context != null) {
+            // 从context 中获取 如果存在直接返回
             String cookieName = context.getSessionCookieName();
             if (cookieName != null && cookieName.length() > 0) {
                 return cookieName;
             }
 
+            // 尝试从 servletContext.sessionCookieConfig 中获取 如果存在直接返回
             SessionCookieConfig scc =
                 context.getServletContext().getSessionCookieConfig();
             cookieName = scc.getName();
@@ -80,6 +90,7 @@ public class SessionConfig {
             }
         }
 
+        // 代表没有在config中指定
         return null;
     }
 

@@ -120,6 +120,10 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
     }
 
 
+    /**
+     * 判断异步请求是否发生了超时
+     * @return
+     */
     public boolean timeout() {
         AtomicBoolean result = new AtomicBoolean();
         request.getCoyoteRequest().action(ActionCode.ASYNC_TIMEOUT, result);

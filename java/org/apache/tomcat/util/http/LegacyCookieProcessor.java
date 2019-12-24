@@ -39,6 +39,7 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @author Costin Manolache
  * @author kevin seguin
+ * 非法 cookie 处理器
  */
 public final class LegacyCookieProcessor extends CookieProcessorBase {
 
@@ -49,6 +50,7 @@ public final class LegacyCookieProcessor extends CookieProcessorBase {
     private static final StringManager sm =
             StringManager.getManager("org.apache.tomcat.util.http");
 
+    // 这里存放了分隔符 以及位图对象
     private static final char[] V0_SEPARATORS = {',', ';', ' ', '\t'};
     private static final BitSet V0_SEPARATOR_FLAGS = new BitSet(128);
 
@@ -80,6 +82,9 @@ public final class LegacyCookieProcessor extends CookieProcessorBase {
     private final BitSet allowedWithoutQuotes = new BitSet(128);
 
 
+    /**
+     * 初始化 非法cookie 处理器
+     */
     public LegacyCookieProcessor() {
         // BitSet elements will default to false
         for (char c : HTTP_SEPARATORS) {

@@ -32,6 +32,7 @@ import org.apache.tomcat.util.res.StringManager;
  * before they have been committed) and the link to the Socket for writing the
  * headers (once committed) and the response body. Note that buffering of the
  * response body happens at a higher level.
+ * 该对象用于将 http响应头 写入 到socket中 那么body 由谁来写入呢
  */
 public class Http11OutputBuffer implements HttpOutputBuffer {
 
@@ -47,24 +48,29 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
 
     /**
      * Associated Coyote response.
+     * 内部关联一个 coyoteResponse  也就是在 tomcat内部 数据都是转换成 coyote 的
+     * 而到了与 mvc 框架交互的时候 做了适配 变成了 HttpServletRequest HttpServletResponse
      */
     protected Response response;
 
 
     /**
      * Finished flag.
+     * 代表该 res 是否已经处理完成
      */
     protected boolean responseFinished;
 
 
     /**
      * The buffer used for header composition.
+     * 用于装载响应头的buffer
      */
     protected final ByteBuffer headerBuffer;
 
 
     /**
      * Filter library for processing the response body.
+     * 一组输出流过滤器   设计上和 InputFilter 一致
      */
     protected OutputFilter[] filterLibrary;
 
@@ -83,18 +89,21 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
 
     /**
      * Underlying output buffer.
+     * 内部用于输出数据的buffer  为什么在tomcat 中有这么多的 数据拷贝呢
      */
     protected HttpOutputBuffer outputStreamOutputBuffer;
 
 
     /**
      * Wrapper for socket where data will be written to.
+     * 将数据往该socket包装对象中输出
      */
     protected SocketWrapperBase<?> socketWrapper;
 
 
     /**
      * Bytes written to client for the current request
+     * 记录当前已经写回到client 的byte 数量
      */
     protected long byteCount = 0;
 
@@ -103,6 +112,12 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
     private boolean sendReasonPhrase = false;
 
 
+    /**
+     * 通过指定的长度 和 待写入的res 来初始化
+     * @param response
+     * @param headerBufferSize
+     * @param sendReasonPhrase
+     */
     protected Http11OutputBuffer(Response response, int headerBufferSize, boolean sendReasonPhrase) {
 
         this.response = response;
@@ -132,6 +147,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
      * resets the currently active filters to none.
      *
      * @param filter The filter to add
+     *               添加某个过滤器
      */
     public void addFilter(OutputFilter filter) {
 
@@ -209,9 +225,17 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
     }
 
 
+    /**
+     * 将数据写入到 ByteBuffer 中
+     * @param chunk data to write
+     *
+     * @return
+     * @throws IOException
+     */
     @Override
     public int doWrite(ByteBuffer chunk) throws IOException {
 
+        // 触发commit 事件 同时这里还没有真正提交数据
         if (!response.isCommitted()) {
             // Send the connector a request for commit. The connector should
             // then validate the headers, send them (using sendHeaders) and
@@ -219,6 +243,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
             response.action(ActionCode.COMMIT, null);
         }
 
+        // 通过 buffer 做真正的写入
         if (lastActiveFilter == -1) {
             return outputStreamOutputBuffer.doWrite(chunk);
         } else {
@@ -227,6 +252,10 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
     }
 
 
+    /**
+     * 获取当前已经写入的长度
+     * @return
+     */
     @Override
     public long getBytesWritten() {
         if (lastActiveFilter == -1) {
@@ -243,6 +272,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
      * Flush the response.
      *
      * @throws IOException an underlying I/O error occurred
+     * 将数据 flush
      */
     @Override
     public void flush() throws IOException {
@@ -296,6 +326,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
      * Note: All bytes of the current request should have been already
      * consumed. This method only resets all the pointers so that we are ready
      * to parse the next HTTP request.
+     * 开始处理下一个请求 也就是对当前对象做一些清理工作 便于复用
      */
     public void nextRequest() {
         // Recycle filters
@@ -312,19 +343,29 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
     }
 
 
+    /**
+     * 通过 wrapper 对该对象进行初始化
+     * @param socketWrapper
+     */
     public void init(SocketWrapperBase<?> socketWrapper) {
         this.socketWrapper = socketWrapper;
     }
 
 
+    /**
+     * 发送ack 消息
+     * @throws IOException
+     */
     @SuppressWarnings("deprecation")
     public void sendAck() throws IOException {
+        // 必须确保当前还没有提交
         if (!response.isCommitted()) {
             if (sendReasonPhrase) {
                 socketWrapper.write(isBlocking(), Constants.ACK_BYTES_REASON, 0, Constants.ACK_BYTES_REASON.length);
             } else {
                 socketWrapper.write(isBlocking(), Constants.ACK_BYTES, 0, Constants.ACK_BYTES.length);
             }
+            // 对内部数据进行 flush  在阻塞模式下是不会返回true的 这里只是做了保险
             if (flushBuffer(true)) {
                 throw new IOException(sm.getString("iob.failedwrite.ack"));
             }
@@ -354,6 +395,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
 
     /**
      * Send the response status line.
+     * 将状态信息写入到响应头中
      */
     @SuppressWarnings("deprecation")
     public void sendStatus() {
@@ -461,6 +503,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
      * write the response header.
      *
      * @param bc data to be written
+     *           实际上内部的写操作 都是将数据追加到 headerBuffer 中
      */
     private void write(ByteChunk bc) {
         // Writing the byte chunk to the output buffer

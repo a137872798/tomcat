@@ -86,26 +86,27 @@ public final class Response {
 
     /**
      * Associated output buffer.
+     * 负责与网络层交互
      */
     OutputBuffer outputBuffer;
 
 
     /**
-     * Notes.
+     * Notes.  存放的笔记对象
      */
     final Object notes[] = new Object[Constants.MAX_NOTES];
 
 
     /**
      * Committed flag.
-     * 是否已经将数据提交到OS了
+     * 是否已经将数据提交到OS了  在已经提交的情况下 是不能再创建session 的
      */
     volatile boolean committed = false;
 
 
     /**
      * Action hook.
-     * 钩子对象
+     * 钩子对象  实现类是各种 processor 对象
      */
     volatile ActionHook hook;
 
@@ -793,13 +794,19 @@ public final class Response {
         return ready.get();
     }
 
+    /**
+     * 当 adapter 接收到 一个 写事件时 会触发该方法
+     * @throws IOException
+     */
     public void onWritePossible() throws IOException {
         // Any buffered data left over from a previous non-blocking write is
         // written in the Processor so if this point is reached the app is able
         // to write data.
         boolean fire = false;
         synchronized (nonBlockingStateLock) {
+            // 一旦写事件准备好后 就取消了注册状态
             registeredForWrite = false;
+            // 代表需要触发监听器 ???
             if (fireListener) {
                 fireListener = false;
                 fire = true;

@@ -182,6 +182,7 @@ public class Connector extends LifecycleMBeanBase  {
     /**
      * The request scheme that will be set on all requests received
      * through this connector.
+     * 通过 该connector 接收到的所有请求都会被设置上http 作为 采用的协议
      */
     protected String scheme = "http";
 
@@ -530,25 +531,34 @@ public class Connector extends LifecycleMBeanBase  {
      * parsing. This defaults to <code>POST</code>.
      *
      * @param methods Comma separated list of HTTP method names
+     *                设置 解析 body 使用的方法 默认是 POST
      */
     public void setParseBodyMethods(String methods) {
 
         HashSet<String> methodSet = new HashSet<>();
 
         if (null != methods) {
+            // methods 以某种指定的方法进行拼接 这里 拆分后 设置到 set 中
             methodSet.addAll(Arrays.asList(methods.split("\\s*,\\s*")));
         }
 
+        // 不允许 包含 trace 方法
         if (methodSet.contains("TRACE")) {
             throw new IllegalArgumentException(sm.getString("coyoteConnector.parseBodyMethodNoTrace"));
         }
 
+        // 将属性通过反射设置到 protocolHandler 中
         this.parseBodyMethods = methods;
         this.parseBodyMethodsSet = methodSet;
         setProperty("parseBodyMethods", methods);
     }
 
 
+    /**
+     * 判断 set 中是否有某个方法
+     * @param method
+     * @return
+     */
     protected boolean isParseBodyMethod(String method) {
         return parseBodyMethodsSet.contains(method);
     }
@@ -579,6 +589,7 @@ public class Connector extends LifecycleMBeanBase  {
      * @return the port number on which this connector is listening to requests.
      * If the special value for {@link #getPort} of zero is used then this method
      * will report the actual port bound.
+     * 获取本机 端口
      */
     public int getLocalPort() {
         return ((Integer) getProperty("localPort")).intValue();
@@ -587,6 +598,7 @@ public class Connector extends LifecycleMBeanBase  {
 
     /**
      * @return the Coyote protocol handler in use.
+     * 获取 使用的协议  就是根据 protocolHandlerClassName 来判断的
      */
     public String getProtocol() {
         if (("org.apache.coyote.http11.Http11NioProtocol".equals(getProtocolHandlerClassName()) &&
@@ -684,6 +696,7 @@ public class Connector extends LifecycleMBeanBase  {
      * Set the proxy server name for this Connector.
      *
      * @param proxyName The new proxy server name
+     *                  设置代理名 同时通过反射将属性注入到  protocolHandler 中
      */
     public void setProxyName(String proxyName) {
 
@@ -719,6 +732,7 @@ public class Connector extends LifecycleMBeanBase  {
      * @return the port number to which a request should be redirected if
      * it comes in on a non-SSL port and is subject to a security constraint
      * with a transport guarantee that requires SSL.
+     * 获取 重定向的 端口
      */
     public int getRedirectPort() {
         return this.redirectPort;
@@ -924,6 +938,7 @@ public class Connector extends LifecycleMBeanBase  {
      * specifying the contents of a Request to the responsible Container.
      *
      * @return a new Servlet request object
+     * connector 对象 负责创建 req 对象  同时 该req 是封装了 coyoteRequest 的那个对象
      */
     public Request createRequest() {
 
@@ -939,6 +954,7 @@ public class Connector extends LifecycleMBeanBase  {
      * receiving the contents of a Response from the responsible Container.
      *
      * @return a new Servlet response object
+     * 通过 connector 来创建res 对象
      */
     public Response createResponse() {
 
@@ -949,10 +965,17 @@ public class Connector extends LifecycleMBeanBase  {
     }
 
 
+    /**
+     * 这里好像在构建一个特殊的字符串
+     * @param type
+     * @return
+     */
     protected String createObjectNameKeyProperties(String type) {
 
+        // 从 protocolHandler 中 获取address 属性
         Object addressObj = getProperty("address");
 
+        // 这里开始拼接字符串
         StringBuilder sb = new StringBuilder("type=");
         sb.append(type);
         sb.append(",port=");
@@ -960,6 +983,7 @@ public class Connector extends LifecycleMBeanBase  {
         if (port > 0) {
             sb.append(port);
         } else {
+            // 如果 port 为 负数 代表需要自己生成  那么拼接的字符串就变成 port=auto-${nameIndex}
             sb.append("auto-");
             sb.append(getProperty("nameIndex"));
         }
@@ -969,6 +993,7 @@ public class Connector extends LifecycleMBeanBase  {
         } else if (addressObj != null) {
             address = addressObj.toString();
         }
+        // 最后拼接上 address 属性
         if (address.length() > 0) {
             sb.append(",address=");
             sb.append(ObjectName.quote(address));
@@ -979,6 +1004,7 @@ public class Connector extends LifecycleMBeanBase  {
 
     /**
      * Pause the connector.
+     * 暂停连接器  该对象应该就是不断的 接收请求并通过connector 将数据 发送到service 上
      */
     public void pause() {
         try {
@@ -991,6 +1017,7 @@ public class Connector extends LifecycleMBeanBase  {
 
     /**
      * Resume the connector.
+     * 恢复暂停状态
      */
     public void resume() {
         try {
@@ -1003,7 +1030,7 @@ public class Connector extends LifecycleMBeanBase  {
 
     /**
      * 当连接器 初始化时触发  这里想一下 connector的职能是什么? 接收 遵循某种协议的数据流 并转换成 req res 对象 之后转发给container进行处理
-     * 在tomcat 中 engine 就属于一种container   标准引擎跟service 是同级的
+     * 在tomcat 中 engine 就属于一种container
      * @throws LifecycleException
      */
     @Override
@@ -1020,6 +1047,7 @@ public class Connector extends LifecycleMBeanBase  {
             setParseBodyMethods(getParseBodyMethods());
         }
 
+        // 校验参数是否合法
         if (protocolHandler.isAprRequired() && !AprLifecycleListener.isAprAvailable()) {
             throw new LifecycleException(sm.getString("coyoteConnector.protocolHandlerNoApr",
                     getProtocolHandlerClassName()));
@@ -1036,6 +1064,7 @@ public class Connector extends LifecycleMBeanBase  {
         }
 
         try {
+            // 开始初始化 protocolHandler
             protocolHandler.init();
         } catch (Exception e) {
             throw new LifecycleException(

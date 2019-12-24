@@ -20,8 +20,23 @@ import java.lang.reflect.InvocationTargetException;
 
 import javax.naming.NamingException;
 
+/**
+ * 实例管理器
+ */
 public interface InstanceManager {
 
+    /**
+     * 应该是通过反射创建某个对象
+     * @param clazz
+     * @return
+     * @throws IllegalAccessException
+     * @throws InvocationTargetException
+     * @throws NamingException
+     * @throws InstantiationException
+     * @throws IllegalArgumentException
+     * @throws NoSuchMethodException
+     * @throws SecurityException
+     */
     Object newInstance(Class<?> clazz) throws IllegalAccessException, InvocationTargetException,
             NamingException, InstantiationException, IllegalArgumentException,
             NoSuchMethodException, SecurityException;

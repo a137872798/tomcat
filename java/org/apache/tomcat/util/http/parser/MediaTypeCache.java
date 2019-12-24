@@ -23,9 +23,13 @@ import org.apache.tomcat.util.collections.ConcurrentCache;
 
 /**
  * Caches the results of parsing content-type headers.
+ * 多媒体对象缓存
  */
 public class MediaTypeCache {
 
+    /**
+     * 缓存容器   string[] 内部包含2个元素 一个是 stringNoCharset  一个是 stringCharset
+     */
     private final ConcurrentCache<String,String[]> cache;
 
     public MediaTypeCache(int size) {
@@ -41,6 +45,7 @@ public class MediaTypeCache {
      * @return      The results are provided as a two element String array. The
      *                  first element is the media type less the charset and
      *                  the second element is the charset
+     *                  通过 参数查询维护的value  如果 不存在则尝试创建
      */
     public String[] parse(String input) {
         String[] result = cache.get(input);
@@ -51,6 +56,7 @@ public class MediaTypeCache {
 
         MediaType m = null;
         try {
+            // 将 input 转换成 多媒体类型
             m = MediaType.parseMediaType(new StringReader(input));
         } catch (IOException e) {
             // Ignore - return null

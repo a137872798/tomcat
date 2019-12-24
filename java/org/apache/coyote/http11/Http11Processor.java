@@ -64,6 +64,10 @@ import org.apache.tomcat.util.net.SendfileState;
 import org.apache.tomcat.util.net.SocketWrapperBase;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * http11 processor req 中很多方法 最后都会触发一个hook 对象 而该类就是 hook 的实现类
+ * http2 和 ajp 相关的都先不看
+ */
 public class Http11Processor extends AbstractProcessor {
 
     private static final Log log = LogFactory.getLog(Http11Processor.class);
@@ -74,21 +78,29 @@ public class Http11Processor extends AbstractProcessor {
     private static final StringManager sm = StringManager.getManager(Http11Processor.class);
 
 
+    /**
+     * 内部关联一个 协议对象
+     */
     private final AbstractHttp11Protocol<?> protocol;
 
 
     /**
      * Input.
+     * 该对象负责与 socketWrapper 交互 读取数据流并抽象成  Request 对象
      */
     protected final Http11InputBuffer inputBuffer;
 
 
     /**
      * Output.
+     * 该对象负责将res 转换成 数据流写入 到网络中
      */
     protected final Http11OutputBuffer outputBuffer;
 
 
+    /**
+     * 该对象负责检测 字符流中数据 的类型  算是解析的辅助类
+     */
     private final HttpParser httpParser;
 
 
@@ -101,6 +113,7 @@ public class Http11Processor extends AbstractProcessor {
 
     /**
      * Keep-alive.
+     * 是否开始 失活检测  这个属性使用 volatile 来修饰  代表会被并发访问
      */
     protected volatile boolean keepAlive = true;
 
@@ -108,17 +121,20 @@ public class Http11Processor extends AbstractProcessor {
     /**
      * Flag used to indicate that the socket should be kept open (e.g. for keep
      * alive or send file.
+     * 是否应当保持 socket 的开启状态
      */
     protected boolean openSocket = false;
 
 
     /**
      * Flag that indicates if the request headers have been completely read.
+     * 是否请求头中的数据都已经被读取完毕
      */
     protected boolean readComplete = true;
 
     /**
      * HTTP/1.1 flag.
+     * 代表使用的协议类型
      */
     protected boolean http11 = true;
 
@@ -132,18 +148,21 @@ public class Http11Processor extends AbstractProcessor {
     /**
      * Content delimiter for the request (if false, the connection will
      * be closed at the end of the request).
+     * 是否开启内容分隔符
      */
     protected boolean contentDelimitation = true;
 
 
     /**
      * Regular expression that defines the restricted user agents.
+     * 用于严格定义 用户代理 先不管
      */
     protected Pattern restrictedUserAgents = null;
 
 
     /**
      * Maximum number of Keep-Alive requests to honor.
+     * 允许 保留的最大请求数量
      */
     protected int maxKeepAliveRequests = -1;
 
@@ -162,6 +181,7 @@ public class Http11Processor extends AbstractProcessor {
 
     /**
      * Max saved post size.
+     * 关于post 请求体中允许携带的最大大小
      */
     protected int maxSavePostSize = 4 * 1024;
 
@@ -169,6 +189,7 @@ public class Http11Processor extends AbstractProcessor {
     /**
      * Instance of the new protocol to use after the HTTP connection has been
      * upgraded.
+     * 升级使用的token
      */
     protected UpgradeToken upgradeToken = null;
 
@@ -179,13 +200,21 @@ public class Http11Processor extends AbstractProcessor {
     protected SendfileDataBase sendfileData = null;
 
 
+    /**
+     * 初始化 http11 的处理器
+     * @param protocol
+     * @param endpoint  该对象封装了 套接字(与底层网络通信) 的细节
+     */
     @SuppressWarnings("deprecation")
     public Http11Processor(AbstractHttp11Protocol<?> protocol, AbstractEndpoint<?> endpoint) {
         super(endpoint);
         this.protocol = protocol;
 
+        // 通过 设置宽松策略 来 放宽对 request 请求头/行的校验
         httpParser = new HttpParser(protocol.getRelaxedPathChars(),
                 protocol.getRelaxedQueryChars());
+
+        // 通过合适的参数来初始化与socket 交互的2个buffer 对象
 
         inputBuffer = new Http11InputBuffer(request, protocol.getMaxHttpHeaderSize(),
                 protocol.getRejectIllegalHeaderName(), httpParser);
@@ -195,7 +224,7 @@ public class Http11Processor extends AbstractProcessor {
                 protocol.getSendReasonPhrase());
         response.setOutputBuffer(outputBuffer);
 
-        // Create and add the identity filters.
+        // Create and add the identity filters.  这里将过滤器添加到 filterLibrary 中  过滤器要起作用还必须要 设置到 activeFilter 中
         inputBuffer.addFilter(new IdentityInputFilter(protocol.getMaxSwallowSize()));
         outputBuffer.addFilter(new IdentityOutputFilter());
 

@@ -22,10 +22,19 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
+/**
+ * cookieProcessor 基类
+ */
 public abstract class CookieProcessorBase implements CookieProcessor {
 
+    /**
+     * cookie 采用的时间格式
+     */
     private static final String COOKIE_DATE_PATTERN = "EEE, dd-MMM-yyyy HH:mm:ss z";
 
+    /**
+     * 这里是 维护在哪个线程呢  为什么不使用常量的方式保存呢
+     */
     protected static final ThreadLocal<DateFormat> COOKIE_DATE_FORMAT =
         new ThreadLocal<DateFormat>() {
         @Override
@@ -37,12 +46,18 @@ public abstract class CookieProcessorBase implements CookieProcessor {
         }
     };
 
+    /***
+     * "古代"日期
+     */
     protected static final String ANCIENT_DATE;
 
     static {
         ANCIENT_DATE = COOKIE_DATE_FORMAT.get().format(new Date(10000));
     }
 
+    /**
+     * 默认情况下 每个cookie 没有设置 SameSiteCookie 属性
+     */
     private SameSiteCookies sameSiteCookies = SameSiteCookies.UNSET;
 
     public SameSiteCookies getSameSiteCookies() {

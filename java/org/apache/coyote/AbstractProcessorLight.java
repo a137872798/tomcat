@@ -36,7 +36,7 @@ import org.apache.tomcat.util.net.SocketWrapperBase;
 public abstract class AbstractProcessorLight implements Processor {
 
     /**
-     * DispatchType 包含 非阻塞 读/写
+     * DispatchType 包含 非阻塞 读/写   该对象内部 维护了所有待处理的事件
      */
     private Set<DispatchType> dispatches = new CopyOnWriteArraySet<>();
 
@@ -57,22 +57,26 @@ public abstract class AbstractProcessorLight implements Processor {
         SocketState state = SocketState.CLOSED;
         Iterator<DispatchType> dispatches = null;
         do {
+            // dispatches  后面会变成 成员变量.dispatches
             if (dispatches != null) {
                 DispatchType nextDispatch = dispatches.next();
                 if (getLog().isDebugEnabled()) {
                     getLog().debug("Processing dispatch type: [" + nextDispatch + "]");
                 }
+                // 根据类型分发事件  由子类实现  这里返回处理完的状态
                 state = dispatch(nextDispatch.getSocketStatus());
                 if (!dispatches.hasNext()) {
+                    // 这里在检查 管道的状态 只有state 为 open 才会往下处理
                     state = checkForPipelinedData(state, socketWrapper);
                 }
+                // 如果本次事件是断开连接  不做处理
             } else if (status == SocketEvent.DISCONNECT) {
                 // Do nothing here, just wait for it to get recycled
                 // 如果是 异步 或者是升级
             } else if (isAsync() || isUpgrade() || state == SocketState.ASYNC_END) {
                 state = dispatch(status);
                 state = checkForPipelinedData(state, socketWrapper);
-                // 如果传入的事件 是 写事件
+                // 如果传入的事件 是 写事件  将状态改为 long
             } else if (status == SocketEvent.OPEN_WRITE) {
                 // Extra write event likely after async, ignore
                 state = SocketState.LONG;
@@ -115,6 +119,13 @@ public abstract class AbstractProcessorLight implements Processor {
     }
 
 
+    /**
+     * 检查 pipeline 的数据 实际上就是调用 service(socketWrapper)
+     * @param inState
+     * @param socketWrapper
+     * @return
+     * @throws IOException
+     */
     private SocketState checkForPipelinedData(SocketState inState, SocketWrapperBase<?> socketWrapper)
             throws IOException {
         if (inState == SocketState.OPEN) {

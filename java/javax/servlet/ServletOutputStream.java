@@ -32,6 +32,7 @@ import java.util.ResourceBundle;
  * method.
  *
  * @see ServletResponse
+ * response 对象内部 有一个 coyoteOutputStream  实现了 servlet规范的输出流
  */
 public abstract class ServletOutputStream extends OutputStream {
 

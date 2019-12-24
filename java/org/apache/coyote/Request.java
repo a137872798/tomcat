@@ -122,7 +122,8 @@ public final class Request {
 
 
     /**
-     * Associated input buffer.   该接口意味着能从 buf 和 数组中读取数据
+     * Associated input buffer.
+     * 这个变量是用来与套接字交互的
      */
     private InputBuffer inputBuffer = null;
 

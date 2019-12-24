@@ -34,7 +34,7 @@ import org.apache.tomcat.util.res.StringManager;
  * It provides tolerant (where safe to do so) parsing of HTTP header values
  * assuming that wrapped header lines have already been unwrapped. (The Tomcat
  * header processing code does the unwrapping.)
- *
+ * http解析器 应该就是将数据流转换成 req 对象的
  */
 public class HttpParser {
 
@@ -44,6 +44,8 @@ public class HttpParser {
 
     private static final int ARRAY_SIZE = 128;
 
+    // 创建一系列的 长度为 128的 boolean[]  这里是为了做映射 使用这么多等大的数组是为了设置方便
+    // 这样当遍历128 的元素时 内部逻辑不会复杂 直接设置到数组对应的位置就可以了
     private static final boolean[] IS_CONTROL = new boolean[ARRAY_SIZE];
     private static final boolean[] IS_SEPARATOR = new boolean[ARRAY_SIZE];
     private static final boolean[] IS_TOKEN = new boolean[ARRAY_SIZE];
@@ -57,17 +59,21 @@ public class HttpParser {
     private static final boolean[] IS_USERINFO = new boolean[ARRAY_SIZE];
     private static final boolean[] IS_RELAXABLE = new boolean[ARRAY_SIZE];
 
+    /**
+     * 单例模式
+     */
     private static final HttpParser DEFAULT;
 
 
+    // 就是对上面这些数组的初始化
     static {
         for (int i = 0; i < ARRAY_SIZE; i++) {
-            // Control> 0-31, 127
+            // Control> 0-31, 127    确保i 在 32 ~126 之间
             if (i < 32 || i == 127) {
                 IS_CONTROL[i] = true;
             }
 
-            // Separator
+            // Separator  如果是分隔符 那么在对应的下标填充
             if (    i == '(' || i == ')' || i == '<' || i == '>'  || i == '@'  ||
                     i == ',' || i == ';' || i == ':' || i == '\\' || i == '\"' ||
                     i == '/' || i == '[' || i == ']' || i == '?'  || i == '='  ||
@@ -76,6 +82,7 @@ public class HttpParser {
             }
 
             // Token: Anything 0-127 that is not a control and not a separator
+            // 0~127 内的 其他 非 control char 都是token
             if (!IS_CONTROL[i] && !IS_SEPARATOR[i] && i < 128) {
                 IS_TOKEN[i] = true;
             }
@@ -122,6 +129,7 @@ public class HttpParser {
             }
         }
 
+        // 代表在 数据体中 哪些特殊的字符是可以被接受的
         String prop = System.getProperty("tomcat.util.http.parser.HttpParser.requestTargetAllow");
         if (prop != null) {
             for (int i = 0; i < prop.length(); i++) {
@@ -152,6 +160,7 @@ public class HttpParser {
             if (IS_CONTROL[i] ||
                     i == ' ' || i == '\"' || i == '#' || i == '<' || i == '>' || i == '\\' ||
                     i == '^' || i == '`'  || i == '{' || i == '|' || i == '}') {
+                // 这里大体的意思是 如果不被允许 那么 在 isNotRequestTarget 中 标记
                 if (!REQUEST_TARGET_ALLOW[i]) {
                     IS_NOT_REQUEST_TARGET[i] = true;
                 }
@@ -163,6 +172,7 @@ public class HttpParser {
              * pchar          = unreserved / pct-encoded / sub-delims / ":" / "@"
              *
              * Note pchar allows everything userinfo allows plus "@"
+             * 如果携带了 用户标识 就代表本路径是一个绝对路径
              */
             if (IS_USERINFO[i] || i == '@' || i == '/' || REQUEST_TARGET_ALLOW[i]) {
                 IS_ABSOLUTEPATH_RELAXED[i] = true;
@@ -172,17 +182,24 @@ public class HttpParser {
              * query          = *( pchar / "/" / "?" )
              *
              * Note query allows everything absolute-path allows plus "?"
+             * 记录本char 是否是查询信息
              */
             if (IS_ABSOLUTEPATH_RELAXED[i] || i == '?' || REQUEST_TARGET_ALLOW[i]) {
                 IS_QUERY_RELAXED[i] = true;
             }
         }
 
+        // 这里好像是 追加一些自定义规则  (放宽限制)
         relax(IS_ABSOLUTEPATH_RELAXED, relaxedPathChars);
         relax(IS_QUERY_RELAXED, relaxedQueryChars);
     }
 
 
+    /**
+     * 判断该 char 是否不被允许
+     * @param c
+     * @return
+     */
     public boolean isNotRequestTargetRelaxed(int c) {
         // Fast for valid request target characters, slower for some incorrect
         // ones
@@ -216,6 +233,11 @@ public class HttpParser {
     }
 
 
+    /**
+     * 去除引号
+     * @param input
+     * @return
+     */
     public static String unquote(String input) {
         if (input == null || input.length() < 2) {
             return input;
@@ -342,9 +364,11 @@ public class HttpParser {
     // some cases.
     static int skipLws(Reader input) throws IOException {
 
+        // 标记到自己的后面一位
         input.mark(1);
         int c = input.read();
 
+        // (char) 32/9/10/13  通过 system 输出后 发现都是空格 实际上这里是要跳过空格的部分
         while (c == 32 || c == 9 || c == 10 || c == 13) {
             input.mark(1);
             c = input.read();
@@ -354,25 +378,40 @@ public class HttpParser {
         return c;
     }
 
+    /**
+     * SkipResult  包含3种状态 FOUND  NOT_FOUND  EOF
+     * 这里尝试从 reader 中读取的数据跳过某个常量字符串
+     * @param input
+     * @param constant
+     * @return
+     * @throws IOException
+     */
     static SkipResult skipConstant(Reader input, String constant) throws IOException {
         int len = constant.length();
 
+        // 首先跳过 " "
         skipLws(input);
+        // 定位到 constant长度的位置
         input.mark(len);
         int c = input.read();
 
         for (int i = 0; i < len; i++) {
+            // 如果input的长度 跟constant 一致 那么读取到末尾了
             if (i == 0 && c == -1) {
                 return SkipResult.EOF;
             }
+            // 一旦发现某个字符不匹配  返回 not_found
             if (c != constant.charAt(i)) {
+                // 这里会跳过 constant 的长度
                 input.reset();
                 return SkipResult.NOT_FOUND;
             }
+            // 继续往下读取数据
             if (i != (len - 1)) {
                 c = input.read();
             }
         }
+        // 能够进入到这里 代表所有char匹配成功 返回found
         return SkipResult.FOUND;
     }
 
@@ -380,14 +419,17 @@ public class HttpParser {
      * @return  the token if one was found, the empty string if no data was
      *          available to read or <code>null</code> if data other than a
      *          token was found
+     *          从 input中解析出 token
      */
     static String readToken(Reader input) throws IOException {
         StringBuilder result = new StringBuilder();
 
+        // 首先跳过所有空格的部分
         skipLws(input);
         input.mark(1);
         int c = input.read();
 
+        // 不断往前读取 只要是token 的都追加到 result 中
         while (c != -1 && isToken(c)) {
             result.append((char) c);
             input.mark(1);
@@ -395,11 +437,14 @@ public class HttpParser {
         }
         // Use mark(1)/reset() rather than skip(-1) since skip() is a NOP
         // once the end of the String has been reached.
+        // 这里代表跳过 所有的token 并且此时 token 已经转移到 stringBuilder中了
         input.reset();
 
+        // 代表一个 token 都没有读取到
         if (c != -1 && result.length() == 0) {
             return null;
         } else {
+            // 将stringBuilder 返回
             return result.toString();
         }
     }
@@ -407,6 +452,7 @@ public class HttpParser {
     /**
      * @return  the digits if any were found, the empty string if no data was
      *          found or if data other than digits was found
+     *          类似的用于读取数字的方法
      */
     static String readDigits(Reader input) throws IOException {
         StringBuilder result = new StringBuilder();
@@ -430,6 +476,7 @@ public class HttpParser {
     /**
      * @return  the number if digits were found, -1 if no data was found
      *          or if data other than digits was found
+     *          读取一个数字 并转换成 long  类型
      */
     static long readLong(Reader input) throws IOException {
         String digits = readDigits(input);
@@ -445,25 +492,30 @@ public class HttpParser {
      * @return the quoted string if one was found, null if data other than a
      *         quoted string was found or null if the end of data was reached
      *         before the quoted string was terminated
+     *         读取引号内部的字符串
      */
     static String readQuotedString(Reader input, boolean returnQuoted) throws IOException {
 
         skipLws(input);
         int c = input.read();
 
+        // 如果没有发现引号 直接返回
         if (c != '"') {
             return null;
         }
 
         StringBuilder result = new StringBuilder();
+        // 代表找到引号引用的内容后 返回时是否要携带 ""  如果是需要连同引号一起返回的
         if (returnQuoted) {
             result.append('\"');
         }
         c = input.read();
 
         while (c != '"') {
+            // 代表没有找到 右引号
             if (c == -1) {
                 return null;
+                // 这里的意思是 如果发现了 \\ 那么 下一个 即使是 " 也不作数 而选择加入到 result 中
             } else if (c == '\\') {
                 c = input.read();
                 if (returnQuoted) {
@@ -475,6 +527,7 @@ public class HttpParser {
             }
             c = input.read();
         }
+        // 如果返回字符串需要携带 "
         if (returnQuoted) {
             result.append('\"');
         }
@@ -482,10 +535,18 @@ public class HttpParser {
         return result.toString();
     }
 
+    /**
+     * 读取token 或者 引号内部的字符串
+     * @param input
+     * @param returnQuoted
+     * @return
+     * @throws IOException
+     */
     static String readTokenOrQuotedString(Reader input, boolean returnQuoted)
             throws IOException {
 
         // Peek at next character to enable correct method to be called
+        // 这个对象有点像 lexer  每次尝试从内部解析某个 字符的时候 都需要先去掉空格
         int c = skipLws(input);
 
         if (c == '"') {
@@ -506,12 +567,14 @@ public class HttpParser {
      * @return the token if one was found, null if data other than a token or
      *         quoted token was found or null if the end of data was reached
      *         before a quoted token was terminated
+     *         读取引号中token的内容   这里的token 实际上就是指有效的字符
      */
     static String readQuotedToken(Reader input) throws IOException {
 
         StringBuilder result = new StringBuilder();
         boolean quoted = false;
 
+        // 首先跳过空格的部分
         skipLws(input);
         input.mark(1);
         int c = input.read();
@@ -914,12 +977,19 @@ public class HttpParser {
     }
 
 
+    /**
+     * 追加自定义规则
+     * @param flags
+     * @param relaxedChars
+     */
     private void relax(boolean[] flags, String relaxedChars) {
         if (relaxedChars != null && relaxedChars.length() > 0) {
             char[] chars = relaxedChars.toCharArray();
             for (char c : chars) {
+                // 是否可以放宽要求
                 if (isRelaxable(c)) {
                     flags[c] = true;
+                    // 同时从 拒绝的数组中移除
                     IS_NOT_REQUEST_TARGET[c] = false;
                 }
             }

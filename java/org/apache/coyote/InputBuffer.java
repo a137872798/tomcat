@@ -43,7 +43,7 @@ public interface InputBuffer {
      *
      * @deprecated Unused. Will be removed in Tomcat 9. Use
      *             {@link #doRead(ApplicationBufferHandler)}
-     *             从给与的chunk 对象中读取数据
+     *             从给予的chunk 对象中读取数据
      */
     @Deprecated
     public int doRead(ByteChunk chunk) throws IOException;
