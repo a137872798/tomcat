@@ -2272,6 +2272,7 @@ public class StandardContext extends ContainerBase
 
     /**
      * @return the servlet context for which this Context is a facade.
+     * 在context 级别  tomcat 适配了 servlet 规范的 servletContext 用于维护 一些特殊属性比如 从哪里获取sessionId
      */
     @Override
     public ServletContext getServletContext() {

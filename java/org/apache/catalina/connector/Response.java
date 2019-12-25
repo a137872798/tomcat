@@ -406,7 +406,8 @@ public class Response implements HttpServletResponse {
      * Set the suspended flag.
      *
      * @param suspended The new suspended flag value
-     *                  设置悬置状态
+     *                  设置悬置状态 这样就无法往 buffer 中写入数据了  比如 当处理一个请求时  中途发现了问题 那么就将 buffer内
+     *                  数据清空 并且设置成悬挂状态  这样也无法继续往里面填充数据了
      */
     public void setSuspended(boolean suspended) {
         outputBuffer.setSuspended(suspended);
@@ -417,7 +418,6 @@ public class Response implements HttpServletResponse {
      * Suspended flag accessor.
      *
      * @return <code>true</code> if the response is suspended
-     * 判断当前是否悬置  悬置是 什么意思???
      */
     public boolean isSuspended() {
         return outputBuffer.isSuspended();
@@ -1349,10 +1349,11 @@ public class Response implements HttpServletResponse {
         getCoyoteResponse().setMessage(message);
 
         // Clear any data content that has been buffered
-        // 当出现异常的时候 将buffer情况 实际上在wrapper 中 异常也被封装成一种结果返回了 所以 在 服务器层的异常设置很少用
+        // 当出现异常时 就要重置 当前 buffer 中写入的数据
         resetBuffer();
 
         // Cause the response to be finished (from the application perspective)
+        // 当发现异常时  将 res 状态设置为悬挂
         setSuspended(true);
     }
 

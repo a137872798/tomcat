@@ -717,7 +717,8 @@ public class CoyoteAdapter implements Adapter {
         MessageBytes undecodedURI = req.requestURI();
 
         // Check for ping OPTIONS * request
-        // 获取本次请求的 url 如果是 *
+        // 如果本次请求的url 是 * 且请求方式是 OPTIONS 在响应头中设置  所有请求方法代表 本url 支持 所有的请求方式
+        // 好像 * 是 client 用来探测 服务器支持的请求方式
         if (undecodedURI.equals("*")) {
             if (req.method().equalsIgnoreCase("OPTIONS")) {
                 StringBuilder allow = new StringBuilder();
@@ -726,9 +727,10 @@ public class CoyoteAdapter implements Adapter {
                 if (connector.getAllowTrace()) {
                     allow.append(", TRACE");
                 }
-                // 这里设置的 allow 属性是什么意思
+                // 该信息 client 读取到后就知道 服务器支持所有的请求方式
                 res.setHeader("Allow", allow.toString());
                 // Access log entry as processing won't reach AccessLogValve
+                // 打印日志  此时相当于没有请求体 那么就返回false  代表解析失败
                 connector.getService().getContainer().logAccess(request, response, 0, true);
                 return false;
             } else {
@@ -737,25 +739,25 @@ public class CoyoteAdapter implements Adapter {
             }
         }
 
-        // 获取已经解码后的url  req 在被 adapter处理前就解码了 那么就是在 protocolHandler 做的处理
+        // 获取 buffer 在下面完成解析后 会填充数据
         MessageBytes decodedURI = req.decodedURI();
 
         // 代表解析成了 byte[]
         if (undecodedURI.getType() == MessageBytes.T_BYTES) {
             // Copy the raw URI to the decodedURI
-            // 将 解析后的 url 设置到 req.requestURI() 中
+            // 拷贝一份未解析的数据
             decodedURI.duplicate(undecodedURI);
 
             // Parse the path parameters. This will:
             //   - strip out the path parameters
             //   - convert the decodedURI to bytes
-            // 准备解析参数
+            // 解析 path 上 通过 ";" 携带的参数  先忽略
             parsePathParameters(req, request);
 
             // URI decoding
             // %xx decoding of the URL
             try {
-                // 将 decodedURL 转换 这里是在做什么 ???
+                // 解析 url 并覆盖到decodedURI  这里也是比较冷门的处理规则  忽略
                 req.getURLDecoder().convert(decodedURI, false);
             } catch (IOException ioe) {
                 // 解析失败时 以异常方式返回给 client
@@ -763,16 +765,18 @@ public class CoyoteAdapter implements Adapter {
             }
             // Normalization  将 decodedURL 做一般化处理  实际上就是 将 反斜杠 双斜杠之类的还原
             if (normalize(req.decodedURI())) {
-                // Character decoding   转换decodedURL
+                // Character decoding
+                // 将 byte[] 变成 char[]  因为从网络io 读取到的数据 一开始都是 byte
                 convertURI(decodedURI, request);
-                // Check that the URI is still normalized  如果校验失败则抛出异常
+                // Check that the URI is still normalized
+                // 校验双斜杠之类 忽略
                 if (!checkNormalize(req.decodedURI())) {
                     response.sendError(400, "Invalid URI");
                 }
             } else {
                 response.sendError(400, "Invalid URI");
             }
-            // 代表 url 不是被解析成 byte[]
+            // url 已经解析完成 这种情况不考虑
         } else {
             /* The URI is chars or String, and has been sent using an in-memory
              * protocol handler. The following assumptions are made:
@@ -780,24 +784,21 @@ public class CoyoteAdapter implements Adapter {
              *   non-normalized URI
              * - req.decodedURI() has been set to the decoded, normalized form
              *   of req.requestURI()
-             *   尝试转换成 char  能进入到这里代表解析成 char[] 或者 str  这2者都是可以转换成 char[] 的
              */
             decodedURI.toChars();
             // Remove all path parameters; any needed path parameter should be set
             // using the request object rather than passing it in the URL
             // 因为在 toChars() 中已经将数据以 char[] 的形式填充到 charChunk 了 这里尝试将数据取出来
             CharChunk uriCC = decodedURI.getCharChunk();
-            // 如果 数据中存在 ;
             int semicolon = uriCC.indexOf(';');
             if (semicolon > 0) {
-                // 截取掉 后面的部分   分号后面是什么东西 为什么可以被截取
                 decodedURI.setChars(uriCC.getBuffer(), uriCC.getStart(), semicolon);
             }
         }
 
         // Request mapping.
         MessageBytes serverName;
-        // 判断是否使用虚拟host
+        // 判断是否使用虚拟host  忽略
         if (connector.getUseIPVHosts()) {
             serverName = req.localName();
             if (serverName.isNull()) {
@@ -806,17 +807,17 @@ public class CoyoteAdapter implements Adapter {
                 res.action(ActionCode.REQ_LOCAL_NAME_ATTRIBUTE, null);
             }
         } else {
-            // 否则从 req对象中获取serverName
+            // serverName  就是 域名
             serverName = req.serverName();
         }
 
         // Version for the second mapping loop and
-        // Context that we expect to get for that version
+        // Context that we expect to get for that version  默认版本号为null
         String version = null;
         Context versionContext = null;
         boolean mapRequired = true;
 
-        // 如果res 已经出现了异常那么 就不需要继续处理下去了
+        // 如果res 已经出现了异常 回收 decodedUrl
         if (response.isError()) {
             // An error this early means the URI is invalid. Ensure invalid data
             // is not passed to the mapper. Note we still want the mapper to
@@ -826,8 +827,7 @@ public class CoyoteAdapter implements Adapter {
 
         while (mapRequired) {
             // This will map the the latest version by default
-            // 通过映射器来找到 本次url 应该由哪个 对象来处理  此时 req.getMappingData 应该还是一个空对象
-            // 这里传入的 serverName 会作为 map 方法的 host   该方法内部会填充 mappingData 属性
+            // mapper 的 职责就是 通过 url 和 serverName(host) 找到 对应的  context host
             connector.getService().getMapper().map(serverName, decodedURI,
                     version, request.getMappingData());
 
@@ -835,6 +835,8 @@ public class CoyoteAdapter implements Adapter {
             // because no ROOT context has been deployed or the URI was invalid
             // so no context could be mapped.
             // 代表没有匹配到合适的context
+            // TODO 这里要关注下 因为 context 可以不配置在server.xml 中 那么这里又是怎么设置context的值的呢 难道是有默认值吗
+            // TODO 如果没有设置context 在这里是会抛出异常的
             if (request.getContext() == null) {
                 // Don't overwrite an existing error
                 // 返回notFoound
@@ -850,9 +852,9 @@ public class CoyoteAdapter implements Adapter {
             // Now we have the context, we can parse the session ID from the URL
             // (if any). Need to do this before we redirect in case we need to
             // include the session id in the redirect
-            // 此时已经通过mapper 对象解析出了 url 对应的context 对象 这里就根据url 获取sessionId  前提是 在servletContext 中指定了 本次的 sessionId
-            // 是携带在url 上的
+            // 这时开始解析 session了
             String sessionID;
+            // 关于 从url 上获取sessionId 的情况先不考虑 一般都是从 cookie 中获取的
             if (request.getServletContext().getEffectiveSessionTrackingModes()
                     .contains(SessionTrackingMode.URL)) {
 
@@ -1039,6 +1041,7 @@ public class CoyoteAdapter implements Adapter {
      *
      * @param req The Coyote request object
      * @param request The Servlet request object
+     *                解析路径上携带的参数
      */
     protected void parsePathParameters(org.apache.coyote.Request req,
             Request request) {
@@ -1047,6 +1050,7 @@ public class CoyoteAdapter implements Adapter {
         req.decodedURI().toBytes();
 
         ByteChunk uriBC = req.decodedURI().getByteChunk();
+        // TODO 这个参数是 ; 拼接的 也是比较冷门的用法 先忽略
         int semicolon = uriBC.indexOf(';', 0);
         // Performance optimisation. Return as soon as it is known there are no
         // path parameters;
@@ -1170,6 +1174,7 @@ public class CoyoteAdapter implements Adapter {
         }
 
         // Parse session id from cookies   首先查看req 是否携带了 cookie 对象
+        // 这里有一个 惰性解析的过程  请求头中可能有多个 cookie 标签 而每个 name 对应的value 可能又有多个 键值对 通过 ; 分割
         ServerCookies serverCookies = request.getServerCookies();
         // 如果没有携带cookie 对象 那么直接返回
         int count = serverCookies.getCookieCount();
@@ -1178,6 +1183,7 @@ public class CoyoteAdapter implements Adapter {
         }
 
         // 从context 获取 sessionId在 cookie 中的名字  默认情况下是 JSESSIONID
+        // TODO 很多地方都是用COOKIE_SESSION 这里要注意是在什么时候设置的
         String sessionCookieName = SessionConfig.getSessionCookieName(context);
 
         // 遍历获取所有的 cookie
@@ -1232,7 +1238,7 @@ public class CoyoteAdapter implements Adapter {
         CharChunk cc = uri.getCharChunk();
         cc.allocate(length, -1);
 
-        // 获取字符集对象
+        // 获取字符集对象  默认 UTF_8
         Charset charset = connector.getURICharset();
 
         // 获取转换器
@@ -1241,7 +1247,7 @@ public class CoyoteAdapter implements Adapter {
             conv = new B2CConverter(charset, true);
             request.setURIConverter(conv);
         } else {
-            // 如果转换器还存在 那么先重置属性
+            // 如果转换器还存在 那么重置属性
             conv.recycle();
         }
 
@@ -1253,6 +1259,7 @@ public class CoyoteAdapter implements Adapter {
         } catch (IOException ioe) {
             // Should never happen as B2CConverter should replace
             // problematic characters
+            // 设置异常信息
             request.getResponse().sendError(HttpServletResponse.SC_BAD_REQUEST);
         }
     }

@@ -42,7 +42,7 @@ import org.apache.tomcat.util.res.StringManager;
  * Mapper, which implements the servlet API mapping rules (which are derived
  * from the HTTP rules).
  *
- * 用于 映射 http请求
+ * 该对象 用于将 域名映射到对应的 context
  * @author Remy Maucherat
  */
 public final class Mapper {
@@ -684,7 +684,7 @@ public final class Mapper {
      * @param uri URI
      * @param version The version, if any, included in the request to be mapped
      * @param mappingData This structure will contain the result of the mapping
-     *                    operation
+     *                    operation   传入的 mappingData 是用来存放映射结果的
      * @throws IOException if the buffers are too small to hold the results of
      *                     the mapping.
      *                     根据 url 和版本号 进行映射
@@ -697,7 +697,6 @@ public final class Mapper {
         }
         host.toChars();
         uri.toChars();
-        // 在内部进行映射
         internalMap(host.getCharChunk(), uri.getCharChunk(), version,
                 mappingData);
     }
@@ -736,7 +735,7 @@ public final class Mapper {
     private final void internalMap(CharChunk host, CharChunk uri,
             String version, MappingData mappingData) throws IOException {
 
-        // 代表已经完成映射 了
+        // 确保传入的 mappingData 还是空的 此时才要开始根据 url 和 host 进行映射
         if (mappingData.host != null) {
             // The legacy code (dating down at least to Tomcat 4.1) just
             // skipped all mapping work in this case. That behaviour has a risk
@@ -746,8 +745,9 @@ public final class Mapper {
         }
 
         // Virtual host mapping
+        // hosts 是一开始 解析到 service 中的
         MappedHost[] hosts = this.hosts;
-        // 开始寻找匹配的 host  这里不细看了
+        // 开始寻找匹配的 host  比如 www.baidu.com  这时 匹配不到
         MappedHost mappedHost = exactFindIgnoreCase(hosts, host);
         // 如果没有精确的匹配到
         if (mappedHost == null) {
@@ -757,6 +757,7 @@ public final class Mapper {
             if (firstDot > -1) {
                 int offset = host.getOffset();
                 try {
+                    // 开始从 baidu.com 开始匹配
                     host.setOffset(firstDot + offset);
                     // 代表尝试从 第一个 "." 后开始匹配
                     mappedHost = exactFindIgnoreCase(hosts, host);
@@ -773,7 +774,7 @@ public final class Mapper {
                 }
             }
         }
-        // 开始赋值
+        // 为结果赋值
         mappingData.host = mappedHost.object;
 
         if (uri.isNull()) {
@@ -781,11 +782,18 @@ public final class Mapper {
             return;
         }
 
+        // 比如  www.baidu.com  对应 host
+        // /home/msg/data/personalcontent 对应url
+        // 合起来是 www.baidu.com/home/msg/data/personalcontent
+        // 前面的部分对应到 host(container)  后面对应 context(container)
+
+        // 代表开始匹配 context 以及 wrapper 了
         uri.setLimit(-1);
 
-        // Context mapping   开始映射 context
+        // 取出 host 下指定的一组 context
         ContextList contextList = mappedHost.contextList;
         MappedContext[] contexts = contextList.contexts;
+        // 找到与 uri 匹配的 context
         int pos = find(contexts, uri);
         if (pos == -1) {
             return;
@@ -798,6 +806,7 @@ public final class Mapper {
         MappedContext context = null;
         while (pos >= 0) {
             context = contexts[pos];
+            // 匹配 前面指定长度的部分是否相同
             if (uri.startsWith(context.name)) {
                 length = context.name.length();
                 if (uri.getLength() == length) {
@@ -818,6 +827,7 @@ public final class Mapper {
         }
         uri.setEnd(uriEnd);
 
+        // 如果没有找到对应的context 的话 代表没有匹配的 context  context 甚至可以选择不配置 一般对应到host 之后就可以通过 mvc框架进行匹配了
         if (!found) {
             if (contexts[0].name.equals("")) {
                 context = contexts[0];
@@ -1586,9 +1596,6 @@ public final class Mapper {
          * 元素对应的名称
          */
         public final String name;
-        /**
-         * 元素对象本身
-         */
         public final T object;
 
         public MapElement(String name, T object) {

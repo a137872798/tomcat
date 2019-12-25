@@ -184,7 +184,7 @@ public class OutputBuffer extends Writer {
 
     /**
      * Set the suspended flag.
-     *
+     * 设置成悬挂状态
      * @param suspended New suspended flag value
      */
     public void setSuspended(boolean suspended) {
@@ -683,6 +683,10 @@ public class OutputBuffer extends Writer {
         reset(false);
     }
 
+    /**
+     * 重置 buffer 中的数据
+     * @param resetWriterStreamFlags
+     */
     public void reset(boolean resetWriterStreamFlags) {
         clear(bb);
         clear(cb);

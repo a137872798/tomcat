@@ -59,6 +59,13 @@ public class Rfc6265CookieProcessor extends CookieProcessorBase {
     }
 
 
+    /**
+     * 开始寻找cookie 相关的请求头 并设置到serverCookies 中
+     * @param headers       The HTTP headers to parse
+     * @param serverCookies The server cookies object to populate with the
+     *                      results of the parsing
+     *                      将请求头中的 cookie 属性解析出来 同时设置到传入的 serverCookies 中
+     */
     @Override
     public void parseCookieHeader(MimeHeaders headers,
             ServerCookies serverCookies) {
@@ -87,11 +94,13 @@ public class Rfc6265CookieProcessor extends CookieProcessorBase {
                 }
                 ByteChunk bc = cookieValue.getByteChunk();
 
+                // 开始将 bytes 解析成 cookie
                 Cookie.parseCookie(bc.getBytes(), bc.getOffset(), bc.getLength(),
                         serverCookies);
             }
 
             // search from the next position
+            // 看来一个请求头中可以携带很多 cookie
             pos = headers.findHeader("Cookie", ++pos);
         }
     }

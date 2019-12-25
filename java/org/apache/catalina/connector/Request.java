@@ -2396,6 +2396,8 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * @return the server cookies
      */
     public ServerCookies getServerCookies() {
+        // 惰性解析 cookie 之前从网络io 读取数据时 已经将 请求头 按照键值对的形式保存到coyoteRequest中了 这里只是找到
+        // key 为 cookie 的属性 设置到 serverCookie 中
         parseCookies();
         return coyoteRequest.getCookies();
     }
@@ -3292,6 +3294,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     /**
      * Parse cookies. This only parses the cookies into the memory efficient
      * ServerCookies structure. It does not populate the Cookie objects.
+     * 查看当前 request 中是否包含cookie
      */
     protected void parseCookies() {
         if (cookiesParsed) {
@@ -3300,8 +3303,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
 
         cookiesParsed = true;
 
+        // 现在才开始解析 cookie
         ServerCookies serverCookies = coyoteRequest.getCookies();
         serverCookies.setLimit(connector.getMaxCookieCount());
+        // 获取 cookie 解析器 用于从 mimeHeaders 中找出 cookie
         CookieProcessor cookieProcessor = getContext().getCookieProcessor();
         cookieProcessor.parseCookieHeader(coyoteRequest.getMimeHeaders(), serverCookies);
     }

@@ -100,6 +100,13 @@ public class Cookie {
     }
 
 
+    /**
+     * 从 byte[] 的指定位置开始 读取数据 并解析成 cookie 对象
+     * @param bytes
+     * @param offset
+     * @param len
+     * @param serverCookies
+     */
     public static void parseCookie(byte[] bytes, int offset, int len,
             ServerCookies serverCookies) {
 
@@ -110,18 +117,22 @@ public class Cookie {
         // Using RFC6265 parsing rules, check to see if the header starts with a
         // version marker. An RFC2109 version marker may be read using RFC6265
         // parsing rules. If version 1, use RFC2109. Else use RFC6265.
-
+        // 跳过 空格 和 制表符号
         skipLWS(bb);
 
         // Record position in case we need to return.
         int mark = bb.position();
 
+        // 从 cookie 的value 值中先尝试查找 $Version
         SkipResult skipResult = skipBytes(bb, VERSION_BYTES);
         if (skipResult != SkipResult.FOUND) {
             // No need to reset position since skipConstant() will have done it
+            // 继续解析 cookie
             parseCookieRfc6265(bb, serverCookies);
             return;
         }
+
+        // 这里实际上也不用细看 主要就是 将  value 从 byte[] 变成char[] 并设置到 serverCookies 中
 
         skipLWS(bb);
 
@@ -193,6 +204,11 @@ public class Cookie {
     }
 
 
+    /**
+     * 解析 cookie    一个cookie 本身可以包含多个键值对 通过 ; 分割
+     * @param bb
+     * @param serverCookies
+     */
     private static void parseCookieRfc6265(ByteBuffer bb, ServerCookies serverCookies) {
 
         boolean moreToProcess = true;
@@ -205,6 +221,7 @@ public class Cookie {
 
             skipLWS(bb);
 
+            // 寻找等号
             SkipResult skipResult = skipByte(bb, EQUALS_BYTE);
             if (skipResult == SkipResult.FOUND) {
                 skipLWS(bb);

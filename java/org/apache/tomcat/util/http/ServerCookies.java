@@ -91,7 +91,7 @@ public class ServerCookies {
 
     public void setLimit(int limit) {
         this.limit = limit;
-        // 确保 cookieCount 小于 limit 才进行 拷贝 否则会造成数据丢失
+        // 这里是考虑到 内部有数据 且容器本身缩容的情况  如果未初始化 或者 本身容器大小足够 就不需要做处理
         if (limit > -1 && serverCookies.length > limit && cookieCount <= limit) {
             // shrink cookie list array
             ServerCookie scookiesTmp[] = new ServerCookie[limit];
