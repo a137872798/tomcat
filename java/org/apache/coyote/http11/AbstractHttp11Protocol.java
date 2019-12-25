@@ -363,6 +363,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
     /**
      * Maximum amount of request body to swallow.
+     * 一个请求体允许的最大大小
      */
     private int maxSwallowSize = 2 * 1024 * 1024;
     public int getMaxSwallowSize() { return maxSwallowSize; }

@@ -162,7 +162,7 @@ public class Http11Processor extends AbstractProcessor {
 
     /**
      * Maximum number of Keep-Alive requests to honor.
-     * 允许 保留的最大请求数量
+     * 一个长连接允许处理的最大请求数 默认是不做限制的
      */
     protected int maxKeepAliveRequests = -1;
 
@@ -461,6 +461,7 @@ public class Http11Processor extends AbstractProcessor {
     /**
      * Determine if we must drop the connection because of the HTTP status
      * code.  Use the same list of codes as Apache/httpd.
+     * 如果遇到这些错误码 代表需要抛弃连接
      */
     private static boolean statusDropsConnection(int status) {
         return status == 400 /* SC_BAD_REQUEST */ ||
@@ -477,18 +478,20 @@ public class Http11Processor extends AbstractProcessor {
     /**
      * Add an input filter to the current request. If the encoding is not
      * supported, a 501 response will be returned to the client.
+     * @param encodingName 从library 中抽取出想要的过滤器 并添加到 activeFilter 中
      */
     private void addInputFilter(InputFilter[] inputFilters, String encodingName) {
 
         // Parsing trims and converts to lower case.
 
         if (encodingName.equals("identity")) {
-            // Skip
+            // Skip  将chunkedFilter 添加到待处理的filter 中
         } else if (encodingName.equals("chunked")) {
             inputBuffer.addActiveFilter
                 (inputFilters[Constants.CHUNKED_FILTER]);
             contentDelimitation = true;
         } else {
+            // 找到对应的过滤器并添加到 activeFilter 中
             for (int i = pluggableFilterIndex; i < inputFilters.length; i++) {
                 if (inputFilters[i].getEncodingName().toString().equals(encodingName)) {
                     inputBuffer.addActiveFilter(inputFilters[i]);
@@ -496,7 +499,7 @@ public class Http11Processor extends AbstractProcessor {
                 }
             }
             // Unsupported transfer encoding
-            // 501 - Unimplemented
+            // 501 - Unimplemented  这里代表尝试添加错误的 过滤器 本次请求需要被 drop
             response.setStatus(501);
             setErrorState(ErrorState.CLOSE_CLEAN, null);
             if (log.isDebugEnabled()) {
@@ -507,18 +510,27 @@ public class Http11Processor extends AbstractProcessor {
     }
 
 
+    /**
+     * 应该是将套接字内部的数据流处理成 req res 并交由container 处理
+     * @param socketWrapper The connection to process
+     *
+     * @return
+     * @throws IOException
+     */
     @Override
     public SocketState service(SocketWrapperBase<?> socketWrapper)
         throws IOException {
+        // 获取该请求对应的统计对象 此时该对象应该还没有关联到 RequestGroupInfo 上
         RequestInfo rp = request.getRequestProcessor();
+        // 代表开始准备处理req
         rp.setStage(org.apache.coyote.Constants.STAGE_PARSE);
 
-        // Setting up the I/O
+        // Setting up the I/O  将socket 设置到 buffer 中
         setSocketWrapper(socketWrapper);
 
         // Flags
         keepAlive = true;
-        openSocket = false;
+        openSocket = false;   // 此时套接字还处在关闭状态
         readComplete = true;
         boolean keptAlive = false;
         SendfileState sendfileState = SendfileState.DONE;
@@ -528,14 +540,18 @@ public class Http11Processor extends AbstractProcessor {
 
             // Parsing the request header
             try {
+                // 尝试从socket 中开始解析请求行
                 if (!inputBuffer.parseRequestLine(keptAlive)) {
+                    // 这里返回 -1 TODO 代表解析到了 HTTP/2.0 的东西 这里先跳过
                     if (inputBuffer.getParsingRequestLinePhase() == -1) {
                         return SocketState.UPGRADING;
+                    // 代表还需要读取更多的数据 则退出循环
                     } else if (handleIncompleteRequestLineRead()) {
                         break;
                     }
                 }
 
+                // 这里代表成功解析了请求行 之后尝试解析 请求头  如果发现 endpoint 停止工作了 拒绝处理本次请求
                 if (endpoint.isPaused()) {
                     // 503 - Service unavailable
                     response.setStatus(503);
@@ -544,6 +560,7 @@ public class Http11Processor extends AbstractProcessor {
                     keptAlive = true;
                     // Set this every time in case limit has been changed via JMX
                     request.getMimeHeaders().setLimit(endpoint.getMaxHeaderCount());
+                    // 尝试解析请求头  同样解析失败时 代表还需要更多的数据 这时就需要从 socket 中继续读取数据
                     if (!inputBuffer.parseHeaders()) {
                         // We've read part of the request, don't recycle it
                         // instead associate it with the socket
@@ -577,12 +594,12 @@ public class Http11Processor extends AbstractProcessor {
                             log.debug(message, t);
                     }
                 }
-                // 400 - Bad Request
+                // 400 - Bad Request  出现其他预期外的异常 返回400 错误码
                 response.setStatus(400);
                 setErrorState(ErrorState.CLOSE_CLEAN, t);
             }
 
-            // Has an upgrade been requested?
+            // Has an upgrade been requested?  TODO 升级相关先不看
             if (isConnectionToken(request.getMimeHeaders(), "upgrade")) {
                 // Check the protocol
                 String requestedProtocol = request.getHeader("Upgrade");
@@ -608,8 +625,10 @@ public class Http11Processor extends AbstractProcessor {
                 }
             }
 
+            // 如果此时还是允许读取数据的 那么使用数据流构建 request 对象
             if (getErrorState().isIoAllowed()) {
                 // Setting up filters, and parse some request headers
+                // 将当前标记为准备阶段  主要是读取请求头的某些字段， 做一些校验  以及添加对应的 filter
                 rp.setStage(org.apache.coyote.Constants.STAGE_PREPARE);
                 try {
                     prepareRequest();
@@ -624,17 +643,22 @@ public class Http11Processor extends AbstractProcessor {
                 }
             }
 
+            // 如果每个长连接只允许处理一个请求 那么标记成 短连接状态
             if (maxKeepAliveRequests == 1) {
                 keepAlive = false;
             } else if (maxKeepAliveRequests > 0 &&
+                    // TODO 暂时不知道干嘛的
                     socketWrapper.decrementKeepAlive() <= 0) {
                 keepAlive = false;
             }
 
             // Process the request in the adapter
+            // 判断当前是否已经出现了 禁止io 的异常 比如 CLOSE_NOW / CLOSE_CONNECTION_NOW
             if (getErrorState().isIoAllowed()) {
                 try {
+                    // 进入 container 的处理阶段了
                     rp.setStage(org.apache.coyote.Constants.STAGE_SERVICE);
+                    // 这里将请求转发给 adapter  也就是适配器的作用是 连接 processor 和 connector 的桥梁
                     getAdapter().service(request, response);
                     // Handle when the response was committed before a serious
                     // error occurred.  Throwing a ServletException should both
@@ -733,6 +757,10 @@ public class Http11Processor extends AbstractProcessor {
     }
 
 
+    /**
+     * 这里将 套接字对象设置到 2个 跟网络缓冲区直接交互的 buffer 中 用于读取数据流并解析请求头/请求行
+     * @param socketWrapper The socket wrapper
+     */
     @Override
     protected final void setSocketWrapper(SocketWrapperBase<?> socketWrapper) {
         super.setSocketWrapper(socketWrapper);
@@ -756,20 +784,25 @@ public class Http11Processor extends AbstractProcessor {
         return dest;
 
     }
+
+    /**
+     * 当尝试将数据流解析到 inputBuffer 中时 发现数据不够 这里还需要继续往 网络层套接字 中读取数据
+     * @return
+     */
     private boolean handleIncompleteRequestLineRead() {
         // Haven't finished reading the request so keep the socket
-        // open
+        // open   此时需要打开套接字
         openSocket = true;
-        // Check to see if we have read any of the request line yet
+        // Check to see if we have read any of the request line yet 代表已经开始解析数据了 如果刚好开始读取一个新的请求 那么 parsingRequestLinePhase 为 1
         if (inputBuffer.getParsingRequestLinePhase() > 1) {
-            // Started to read request line.
+            // Started to read request line.  如果当前端点已经停止工作了 那么要抛出异常 提示本次请求终止处理
             if (endpoint.isPaused()) {
                 // Partially processed the request so need to respond
                 response.setStatus(503);
                 setErrorState(ErrorState.CLOSE_CLEAN, null);
                 return false;
             } else {
-                // Need to keep processor associated with socket
+                // Need to keep processor associated with socket  代表还需要继续处理数据
                 readComplete = false;
             }
         }
@@ -794,6 +827,7 @@ public class Http11Processor extends AbstractProcessor {
 
     /**
      * After reading the request headers, we have to setup the request filters.
+     * 开始构建req 对象
      */
     private void prepareRequest() throws IOException {
 
@@ -804,6 +838,7 @@ public class Http11Processor extends AbstractProcessor {
         if (endpoint.isSSLEnabled()) {
             request.scheme().setString("https");
         }
+        // 根据 从 inputBuffer 中读取出来的数据 设置 协议属性
         MessageBytes protocolMB = request.protocol();
         if (protocolMB.equals(Constants.HTTP_11)) {
             http11 = true;
@@ -818,7 +853,7 @@ public class Http11Processor extends AbstractProcessor {
             http11 = false;
             keepAlive = false;
         } else {
-            // Unsupported protocol
+            // Unsupported protocol  不支持 除了 1.1 和 1.0 之外的其他协议
             http11 = false;
             // Send 505; Unsupported HTTP version
             response.setStatus(505);
@@ -832,10 +867,13 @@ public class Http11Processor extends AbstractProcessor {
         MimeHeaders headers = request.getMimeHeaders();
 
         // Check connection header
+        // 尝试获取 Connection 对应的请求头信息   比如 Connection: keep-alive
         MessageBytes connectionValueMB = headers.getValue(Constants.CONNECTION);
         if (connectionValueMB != null && !connectionValueMB.isNull()) {
             Set<String> tokens = new HashSet<>();
+            // 将数据解析后设置到 tokens 中
             TokenList.parseTokenList(headers.values(Constants.CONNECTION), tokens);
+            // 如果包含了 close 代表本次 http请求是短连接
             if (tokens.contains(Constants.CLOSE)) {
                 keepAlive = false;
             } else if (tokens.contains(Constants.KEEP_ALIVE_HEADER_VALUE_TOKEN)) {
@@ -843,7 +881,9 @@ public class Http11Processor extends AbstractProcessor {
             }
         }
 
+        // 如果是 HTTP 1.1
         if (http11) {
+            // expect 属性先忽略
             MessageBytes expectMB = headers.getValue("expect");
             if (expectMB != null && !expectMB.isNull()) {
                 if (expectMB.toString().trim().equalsIgnoreCase("100-continue")) {
@@ -857,6 +897,8 @@ public class Http11Processor extends AbstractProcessor {
         }
 
         // Check user-agent header
+        // User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36
+        // restrictedUserAgents一般不设置 先不看
         if (restrictedUserAgents != null && (http11 || keepAlive)) {
             MessageBytes userAgentValueMB = headers.getValue("user-agent");
             // Check in the restricted list, and adjust the http11
@@ -873,34 +915,42 @@ public class Http11Processor extends AbstractProcessor {
 
 
         // Check host header
+        // 比如 Host: news.baidu.com
         MessageBytes hostValueMB = null;
         try {
             hostValueMB = headers.getUniqueValue("host");
+            // 如果包含多个 host 则抛出异常
         } catch (IllegalArgumentException iae) {
             // Multiple Host headers are not permitted
             badRequest("http11processor.request.multipleHosts");
         }
+        // 如果指定是 http1.1 且没有设置 host 属性 则抛出异常
         if (http11 && hostValueMB == null) {
             badRequest("http11processor.request.noHostHeader");
         }
 
         // Check for an absolute-URI less the query string which has already
         // been removed during the parsing of the request line
+        // 在 InputBuffer 中 解析顺序依次是   RequestMethod URL PROTOCOL
         ByteChunk uriBC = request.requestURI().getByteChunk();
         byte[] uriB = uriBC.getBytes();
+        // 这里相当于是在校验 url 的正确性 在 Http11InputBuffer 中 只是 将 url 按照 ? 前后进行了拆分
         if (uriBC.startsWithIgnoreCase("http", 0)) {
             int pos = 4;
             // Check for https
+
             if (uriBC.startsWithIgnoreCase("s", pos)) {
                 pos++;
             }
-            // Next 3 characters must be "://"
+            // Next 3 characters must be "://"  这里必须为 ://
             if (uriBC.startsWith("://", pos)) {
                 pos += 3;
                 int uriBCStart = uriBC.getStart();
 
+                // TODO 冷门规范 忽略
                 // '/' does not appear in the authority so use the first
                 // instance to split the authority and the path segments
+                // @ 必须要在 / 前 才代表 携带用户信息
                 int slashPos = uriBC.indexOf('/', pos);
                 // '@' in the authority delimits the userinfo
                 int atPos = uriBC.indexOf('@', pos);
@@ -942,19 +992,23 @@ public class Http11Processor extends AbstractProcessor {
                     if (hostValueMB != null) {
                         // Any host in the request line must be consistent with
                         // the Host header
+                        // 这里 请求头中的 HOST 与 url 中的部分 必须相同
                         if (!hostValueMB.getByteChunk().equals(
                                 uriB, uriBCStart + pos, slashPos - pos)) {
+                            // 判断是否允许 host 不满足规范
                             if (protocol.getAllowHostHeaderMismatch()) {
                                 // The requirements of RFC 2616 are being
                                 // applied. If the host header and the request
                                 // line do not agree, the request line takes
                                 // precedence
+                                // 这里将 HOST 更改成 url 中的 而不是请求头携带的
                                 hostValueMB = headers.setValue("host");
                                 hostValueMB.setBytes(uriB, uriBCStart + pos, slashPos - pos);
                             } else {
                                 // The requirements of RFC 7230 are being
                                 // applied. If the host header and the request
                                 // line do not agree, trigger a 400 response.
+                                // 否则 抛出 400 异常
                                 badRequest("http11processor.request.inconsistentHosts");
                             }
                         }
@@ -981,6 +1035,7 @@ public class Http11Processor extends AbstractProcessor {
         // Validate the characters in the URI. %nn decoding will be checked at
         // the point of decoding.
         for (int i = uriBC.getStart(); i < uriBC.getEnd(); i++) {
+            // 必须满足路径规范
             if (!httpParser.isAbsolutePathRelaxed(uriB[i])) {
                 badRequest("http11processor.request.invalidUri");
                 break;
@@ -991,6 +1046,7 @@ public class Http11Processor extends AbstractProcessor {
         InputFilter[] inputFilters = inputBuffer.getFilters();
 
         // Parse transfer-encoding header
+        // TODO 根据这个属性在处理 req 的过程中添加具备额外功能的过滤器
         if (http11) {
             MessageBytes transferEncodingValueMB = headers.getValue("transfer-encoding");
             if (transferEncodingValueMB != null) {
@@ -1003,7 +1059,7 @@ public class Http11Processor extends AbstractProcessor {
             }
         }
 
-        // Parse content-length header
+        // Parse content-length header  开始解析 请求头中的 content-length
         long contentLength = -1;
         try {
             contentLength = request.getContentLengthLong();
@@ -1012,6 +1068,7 @@ public class Http11Processor extends AbstractProcessor {
         } catch (IllegalArgumentException e) {
             badRequest("http11processor.request.multipleContentLength");
         }
+        // 如果设置了 chunked 的话 这个属性会被设置成 ture 这里先忽略具体作用吧
         if (contentLength >= 0) {
             if (contentDelimitation) {
                 // contentDelimitation being true at this point indicates that
@@ -1028,6 +1085,7 @@ public class Http11Processor extends AbstractProcessor {
         }
 
         // Validate host name and extract port if present
+        // 如果host 中携带端口号 在 hostNameC 中保存 ip的部分 否则将整个url 保存到 hostNameC 中 应该就是通过 它来匹配 使用哪个Host （Tomcat的 container ）
         parseHost(hostValueMB);
 
         if (!contentDelimitation) {
@@ -1278,6 +1336,7 @@ public class Http11Processor extends AbstractProcessor {
      * {@inheritDoc}
      * <p>
      * This implementation provides the server port from the local port.
+     * 为 req 对象 填充服务器端口  作为tomcat 本身很容易知道自己的端口
      */
     @Override
     protected void populatePort() {

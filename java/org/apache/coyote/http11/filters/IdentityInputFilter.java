@@ -32,7 +32,8 @@ import org.apache.tomcat.util.res.StringManager;
  * Identity input filter.
  *
  * @author Remy Maucherat
- * 该过滤器是用来验证唯一性的
+ * 当请求头中携带 content-length 会添加该过滤器
+ * 相当于 携带 该请求头的数据流 可以判断是否读取到末尾
  */
 public class IdentityInputFilter implements InputFilter, ApplicationBufferHandler {
 
@@ -51,6 +52,7 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
 
 
     static {
+        // 指定编码模式为 ISO-8859-1
         ENCODING.setBytes(ENCODING_NAME.getBytes(StandardCharsets.ISO_8859_1),
                 0, ENCODING_NAME.length());
     }
@@ -67,6 +69,7 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
 
     /**
      * Remaining bytes.
+     * 判断是否还有剩余数据未读取
      */
     protected long remaining = 0;
 
@@ -137,17 +140,21 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
         int result = -1;
 
         if (contentLength >= 0) {
+            // 代表还有部分数据未读取
             if (remaining > 0) {
                 int nRead = buffer.doRead(handler);
                 if (nRead > remaining) {
                     // The chunk is longer than the number of bytes remaining
                     // in the body; changing the chunk length to the number
                     // of bytes remaining
+                    // 如果读取的长度超过了 remaining 就强制返回这个大小
                     handler.getByteBuffer().limit(handler.getByteBuffer().position() + (int) remaining);
                     result = (int) remaining;
                 } else {
+                    // 如果数据还不足 那么直接返回即可
                     result = nRead;
                 }
+                // 更新 remaining 的值
                 if (nRead > 0) {
                     remaining = remaining - nRead;
                 }
@@ -171,6 +178,7 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
 
     /**
      * Read the content length from the request.
+     * 从req中获取相关信息来填充该过滤器
      */
     @Override
     public void setRequest(Request request) {
@@ -179,15 +187,22 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
     }
 
 
+    /**
+     * 判断是否读取到末尾了
+     * @return
+     * @throws IOException
+     */
     @Override
     public long end() throws IOException {
 
+        // 判断读取的数据长度是否超过了一个请求头的大小
         final boolean maxSwallowSizeExceeded = (maxSwallowSize > -1 && remaining > maxSwallowSize);
         long swallowed = 0;
 
         // Consume extra bytes.
         while (remaining > 0) {
 
+            // 将数据拷贝到buffer 中
             int nread = buffer.doRead(this);
             tempRead = null;
             if (nread > 0 ) {

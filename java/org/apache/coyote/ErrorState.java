@@ -55,11 +55,11 @@ public enum ErrorState {
      */
     private final int severity;
     /**
-     * 判断该异常 是否允许输出io
+     * 当出现了该异常后是否还能进行正常的io 操作 比如 继续读取关于某个req 的数据流
      */
     private final boolean ioAllowed;
     /**
-     * 是否允许 io 连接
+     * ???
      */
     private final boolean connectionIoAllowed;
 

@@ -46,7 +46,8 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
     private static final StringManager sm = StringManager.getManager(AbstractProcessor.class);
 
-    // Used to avoid useless B2C conversion on the host name.   使用 char[] 的方式保存  host
+    // Used to avoid useless B2C conversion on the host name.
+    // 这里额外保存了一份 hostChar 数组
     protected char[] hostNameC = new char[0];
 
     /**
@@ -129,7 +130,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
      * state is more severe than the current error state.
      * @param errorState The error status details
      * @param t The error which occurred
-     *          设置异常状态
+     *          在处理过程中 如果出现了异常  需要将信息设置到 res中 便于返回给client
      */
     protected void setErrorState(ErrorState errorState, Throwable t) {
         // Use the return value to avoid processing more than one async error
@@ -346,7 +347,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
      */
     protected void parseHost(MessageBytes valueMB) {
         if (valueMB == null || valueMB.isNull()) {
-            // 如果参数为null 填充host  port
+            // 如果参数为null 填充host  port  只有 AJP 有默认实现
             populateHost();
             populatePort();
             return;
@@ -357,6 +358,8 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             populatePort();
             return;
         }
+
+        // 默认情况下 host 已经从socket中的数据流读取出来了 不过此时是byte[] 数组 这里要转换成 char数组
 
         // 将数据 以 byte[] 的形式 获取
         ByteChunk valueBC = valueMB.getByteChunk();
@@ -369,11 +372,12 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
         }
 
         try {
-            // Validates the host name  解析 host 信息
+            // Validates the host name
+            // 找到 host 中 ： 的位置
             int colonPos = Host.parse(valueMB);
 
             // Extract the port information first, if any
-            // 精确的获取 port 信息
+            // 代表找到了 : 那么 左边对应ip 右边对应端口号
             if (colonPos != -1) {
                 int port = 0;
                 for (int i = colonPos + 1; i < valueL; i++) {
@@ -390,10 +394,12 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
                 request.setServerPort(port);
 
                 // Only need to copy the host name up to the :
+                // 针对存在 : 的情况 这里只要获取 左边的ip 就可以了
                 valueL = colonPos;
             }
 
-            // Extract the host name  将host 信息转换成 char 并设置到 hostNameC中
+            // Extract the host name
+            // 如果存在端口 只要获取ip的部分 否则将host 对应的整个字符串 设置到 host 中
             for (int i = 0; i < valueL; i++) {
                 hostNameC[i] = (char) valueB[i + valueS];
             }

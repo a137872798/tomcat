@@ -40,8 +40,17 @@ public final class Constants {
 
     // Request states
     public static final int STAGE_NEW = 0;
+    /**
+     * 代表当前处于 解析阶段 也就是从 socket 中读取足够的数据 (一个完整的请求行 + 请求头)
+     */
     public static final int STAGE_PARSE = 1;
+    /**
+     * 代表当前处于准备阶段 就是将 数据流变成 req 对象
+     */
     public static final int STAGE_PREPARE = 2;
+    /**
+     * 代表开始处理 req 对象
+     */
     public static final int STAGE_SERVICE = 3;
     public static final int STAGE_ENDINPUT = 4;
     public static final int STAGE_ENDOUTPUT = 5;

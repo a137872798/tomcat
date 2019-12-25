@@ -350,7 +350,7 @@ public class CoyoteAdapter implements Adapter {
 
 
     /**
-     * 处理req res
+     * 处理req res  进入到该方法时 已经是processor 解析完socket 读取到的 req 对象 并进行基本的校验后了
      * @param req The request object
      * @param res The response object
      *
@@ -380,7 +380,7 @@ public class CoyoteAdapter implements Adapter {
             res.setNote(ADAPTER_NOTES, response);
 
             // Set query string encoding
-            // 设置字符集
+            // 设置解析 查询语句的 字符集  默认是 UTF-8
             req.getParameters().setQueryStringCharset(connector.getURICharset());
         }
 
@@ -674,7 +674,7 @@ public class CoyoteAdapter implements Adapter {
      *                     processing headers
      * @throws ServletException If the supported methods of the target servlet
      *                          cannot be determined
-     *                          从参数中解析 post 相关的body (数据体)
+     *                          从参数中解析 post 相关的body (数据体)   请求头 和 请求行 在 Http11InputBuffer 中已经完成处理了
      */
     protected boolean postParseRequest(org.apache.coyote.Request req, Request request,
             org.apache.coyote.Response res, Response response) throws IOException, ServletException {
@@ -703,7 +703,7 @@ public class CoyoteAdapter implements Adapter {
             req.setServerPort(proxyPort);
         } else if (req.getServerPort() == -1) {
             // Not explicitly set. Use default ports based on the scheme
-            // 这里规定了默认的端口号
+            // 这里规定了默认的端口号  一般情况下 tomcat Http11Processor 是使用 socket.localPort 作为 端口号的  ajp协议可能不会设置端口号
             if (req.scheme().equals("https")) {
                 req.setServerPort(443);
             } else {

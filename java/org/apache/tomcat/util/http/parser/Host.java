@@ -57,15 +57,25 @@ public class Host {
     }
 
 
+    /**
+     * 从数据流中解析出端口  一般来说 host 都是 完整的域名 不会直接暴露出 端口 比如  www.baidu.com
+     * @param reader
+     * @return
+     */
     private static int parse(Reader reader) {
         try {
+            // 首先尝试读取一个字节 并进行回退
             reader.mark(1);
             int first = reader.read();
             reader.reset();
+            // 判断是否是字母
             if (HttpParser.isAlpha(first)) {
+                // 读取域名  这里是 找到 : 所在的下标  如果是 www.baidu.com 这种 会返回-1
                 return HttpParser.readHostDomainName(reader);
+                // 如果是数字 读取端口
             } else if (HttpParser.isNumeric(first)) {
                 return HttpParser.readHostIPv4(reader, false);
+                // 忽略
             } else if ('[' == first) {
                 return HttpParser.readHostIPv6(reader);
             } else {

@@ -53,9 +53,7 @@ public abstract class SocketWrapperBase<E> {
     private volatile long readTimeout = -1;
     private volatile long writeTimeout = -1;
 
-    /**
-     * socket 存活时间
-     */
+
     private volatile int keepAliveLeft = 100;
     /**
      * 是否升级
