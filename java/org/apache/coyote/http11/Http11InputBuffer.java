@@ -727,11 +727,12 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
      * End request (consumes leftover bytes).
      *
      * @throws IOException an underlying I/O error occurred
+     * 代表某个请求的数据已经被完全处理完了
      */
     void endRequest() throws IOException {
 
         if (swallowInput && (lastActiveFilter != -1)) {
-            // 消费掉 buffer 内部的数据
+            // 消费掉 buffer 内部的数据  这里有可能返回负数 应该是代表 还需要从byteBuffer  中读取更多数据才是一个完整的req 吧
             int extraBytes = (int) activeFilters[lastActiveFilter].end();
             byteBuffer.position(byteBuffer.position() - extraBytes);
         }
@@ -1256,7 +1257,7 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
         }
 
         /**
-         * 将 byteBuffer 的数据副本 传入到handler 中 看来 requestBody 可能是这里交给外部handler 进行处理的
+         * 装饰器链的 终点  装饰器的末尾 通过调用doRead 经过各个环节最后到达这里
          * @param handler ApplicationBufferHandler that provides the buffer to read
          *                data into.
          *

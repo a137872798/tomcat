@@ -629,7 +629,7 @@ public final class Response {
     /**
      * Write a chunk of bytes.
      *
-     * @param chunk The ByteBuffer to write
+     * @param chunk The ByteBuffer to write   携带了需要写入到 网络io层的数据
      * @throws IOException If an I/O error occurs during the write
      * 写入逻辑委托给 outputBuffer
      */

@@ -443,6 +443,7 @@ public class CoyoteAdapter implements Adapter {
                 }
             } else {
                 // 同步处理的情况 直接触发2个finish (此时 req 和res 已经被 pipeline处理过了 所以可以结束本次请求了)
+                // 针对 req 触发 finish 方法 会判断该req 是否还有未读取的数据流  TODO 需要注意什么时候会出现这种情况
                 request.finishRequest();
                 response.finishResponse();
             }

@@ -284,6 +284,10 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
     }
 
 
+    /**
+     * 触发一系列的 过滤器 最终到达 socketOutputBuffer 将数据写到网络层
+     * @throws IOException
+     */
     @Override
     public void end() throws IOException {
         if (responseFinished) {

@@ -142,6 +142,10 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
         if (contentLength >= 0) {
             // 代表还有部分数据未读取
             if (remaining > 0) {
+                /**
+                 * 相当于通过装饰器模式 构建一个调用链 实际上 handler 就是 过滤链的尾节点 从后往前不断调用
+                 * 最终到达 SocketInputBuffer 与 读取socket数据的buffer 交互
+                 */
                 int nRead = buffer.doRead(handler);
                 if (nRead > remaining) {
                     // The chunk is longer than the number of bytes remaining
@@ -202,12 +206,14 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
         // Consume extra bytes.
         while (remaining > 0) {
 
-            // 将数据拷贝到buffer 中
+            // 将数据拷贝到buffer 中  将数据往下传播
             int nread = buffer.doRead(this);
             tempRead = null;
+            // 代表底层 socket 还有未读取完的数据
             if (nread > 0 ) {
                 swallowed += nread;
                 remaining = remaining - nread;
+                // 读取的值超过了 一次吞吐的量
                 if (maxSwallowSizeExceeded && swallowed > maxSwallowSize) {
                     // Note: We do not fail early so the client has a chance to
                     // read the response before the connection is closed. See:
@@ -215,6 +221,7 @@ public class IdentityInputFilter implements InputFilter, ApplicationBufferHandle
                     throw new IOException(sm.getString("inputFilter.maxSwallow"));
                 }
             } else { // errors are handled higher up.
+                // 否则将 remaining 标记为 0 ???
                 remaining = 0;
             }
         }

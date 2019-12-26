@@ -244,12 +244,14 @@ public class OutputBuffer extends Writer {
         if (closed) {
             return;
         }
+        // 暂停状态 代表本次 请求在处理过程中遇到了异常 这里就不再进行处理了
         if (suspended) {
             return;
         }
 
         // If there are chars, flush all of them to the byte buffer now as bytes are used to
         // calculate the content-length (if everything fits into the byte buffer, of course).
+        // 如果此时还携带 数据 那么将数据写入到 网络IO 层 也就是将 res 中数据返回给client
         if (cb.remaining() > 0) {
             flushCharBuffer();
         }
@@ -343,12 +345,14 @@ public class OutputBuffer extends Writer {
      * @param buf the ByteBuffer to be written to the response
      *
      * @throws IOException An underlying IOException occurred
+     * 将 byteBuffer 写入到 网络层
      */
     public void realWriteBytes(ByteBuffer buf) throws IOException {
 
         if (closed) {
             return;
         }
+        // 通过 coyoteResponse 的 api 进行刷盘的 如果该引用为空 就不需要写入了
         if (coyoteResponse == null) {
             return;
         }
@@ -357,6 +361,7 @@ public class OutputBuffer extends Writer {
         if (buf.remaining() > 0) {
             // real write to the adapter
             try {
+                // 通过 coyoteRes 写入数据
                 coyoteResponse.doWrite(buf);
             } catch (CloseNowException e) {
                 // Catch this sub-class as it requires specific handling.
@@ -459,15 +464,19 @@ public class OutputBuffer extends Writer {
      * @param from Char buffer to be written to the response
      *
      * @throws IOException An underlying IOException occurred
+     * 将数据通过网络io 写入到client
      */
     public void realWriteChars(CharBuffer from) throws IOException {
 
+        // 此时charBuffer 中还有数据 需要转换成 byteBuffer之后再写入
         while (from.remaining() > 0) {
             conv.convert(from, bb);
+            // 只要 bb 中还有数据没有写入到 网络io 就不断loop
             if (bb.remaining() == 0) {
                 // Break out of the loop if more chars are needed to produce any output
                 break;
             }
+            // 如果 from 还有数据 那么很可能是 bb 写满了 就先将 bb的数据 刷盘
             if (from.remaining() > 0) {
                 flushByteBuffer();
             } else if (conv.isUndeflow() && bb.limit() > bb.capacity() - 4) {

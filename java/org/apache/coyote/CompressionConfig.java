@@ -49,7 +49,7 @@ public class CompressionConfig {
     private int compressionLevel = 0;
     private Pattern noCompressionUserAgents = null;
     /**
-     * 被压缩的多媒体类型
+     * 支持压缩的多媒体类型
      */
     private String compressibleMimeType = "text/html,text/xml,text/plain,text/css," +
             "text/javascript,application/javascript,application/json,application/xml";
@@ -214,7 +214,7 @@ public class CompressionConfig {
      *
      * @return {@code true} if compression was enabled for the given response,
      *         otherwise {@code false}
-     *         将req res 使用压缩处理
+     *         校验是否满足压缩的资格 也就是 判断请求头 中 content-encoding 是否包含 gzip  并往响应头中设置 content-encoding
      */
     public boolean useCompression(Request request, Response response) {
         // Check if compression is enabled
@@ -228,6 +228,7 @@ public class CompressionConfig {
 
         // Check if content is not already compressed   获取 content-encoding 属性
         MessageBytes contentEncodingMB = responseHeaders.getValue("Content-Encoding");
+        // 如果已经存在 content-encoding 那么判断 是否是gzip 如果是的话 可能已经触发过该方法了  因为在最后才为res 设置 content-encoding 属性
         if (contentEncodingMB != null) {
             // Content-Encoding values are ordered but order is not important
             // for this check so use a Set rather than a List
@@ -259,7 +260,7 @@ public class CompressionConfig {
             }
 
             // Check for compatible MIME-TYPE
-            // 获取压缩类型
+            // 获取支持的压缩类型
             String[] compressibleMimeTypes = getCompressibleMimeTypes();
             if (compressibleMimeTypes != null &&
                     // 如果指定的 压缩方式没有包含在内部 则无法压缩
@@ -270,12 +271,13 @@ public class CompressionConfig {
 
         // If processing reaches this far, the response might be compressed.
         // Therefore, set the Vary header to keep proxies happy
-        // 如果进入到这一步 可能 已经被压缩过了 啥 happy???   这里是指定使用的 压缩方式
+        // 上面过滤掉不合适(以及不支持)的压缩方式
         ResponseUtil.addVaryFieldName(responseHeaders, "accept-encoding");
 
         // Check if user-agent supports gzip encoding
         // Only interested in whether gzip encoding is supported. Other
         // encodings and weights can be ignored.
+        // 从请求头中获取 支持的压缩方式
         Enumeration<String> headerValues = request.getMimeHeaders().values("accept-encoding");
         boolean foundGzip = false;
         while (!foundGzip && headerValues.hasMoreElements()) {
@@ -296,7 +298,7 @@ public class CompressionConfig {
             }
         }
 
-        // 没有找到 gzip 代表无法压缩 那么上面是在干嘛???
+        // 必须在 请求头上解析到 gzip 才能进行压缩
         if (!foundGzip) {
             return false;
         }

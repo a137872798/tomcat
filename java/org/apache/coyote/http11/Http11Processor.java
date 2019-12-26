@@ -810,7 +810,11 @@ public class Http11Processor extends AbstractProcessor {
     }
 
 
+    /**
+     * 检查预期获取的 resStatus
+     */
     private void checkExpectationAndResponseStatus() {
+        // 如果expectation 代表结果码 2xx 也就是会成功
         if (request.hasExpectation() &&
                 (response.getStatus() < 200 || response.getStatus() > 299)) {
             // Client sent Expect: 100-continue but received a
@@ -819,6 +823,7 @@ public class Http11Processor extends AbstractProcessor {
             // still send the body, some may send the next request.
             // No way to differentiate, so close the connection to
             // force the client to send the next request.
+            // 此时失败的话 设置 不允许继续读取数据
             inputBuffer.setSwallowInput(false);
             keepAlive = false;
         }
@@ -1114,6 +1119,7 @@ public class Http11Processor extends AbstractProcessor {
     /**
      * When committing the response, we have to validate the set of headers, as
      * well as setup the response filters.
+     * 当准备将结果写到client 时 要将 res 的数据 转换成 数据流
      */
     @Override
     protected final void prepareResponse() throws IOException {
@@ -1130,7 +1136,9 @@ public class Http11Processor extends AbstractProcessor {
             return;
         }
 
+        // 首先获取 res 的状态码
         int statusCode = response.getStatus();
+        // 这些状态码 都是没有响应体的
         if (statusCode < 200 || statusCode == 204 || statusCode == 205 ||
                 statusCode == 304) {
             // No entity body
@@ -1138,6 +1146,7 @@ public class Http11Processor extends AbstractProcessor {
                 (outputFilters[Constants.VOID_FILTER]);
             entityBody = false;
             contentDelimitation = true;
+            // 如果是错误码 205 强制要求写入 contentLength  也是冷门知识 先忽略
             if (statusCode == 205) {
                 // RFC 7231 requires the server to explicitly signal an empty
                 // response in this case
@@ -1147,6 +1156,7 @@ public class Http11Processor extends AbstractProcessor {
             }
         }
 
+        // 获取请求方法
         MessageBytes methodMB = request.method();
         if (methodMB.equals("HEAD")) {
             // No entity body
@@ -1156,19 +1166,23 @@ public class Http11Processor extends AbstractProcessor {
         }
 
         // Sendfile support
+        // 如果支持发送文件 TODO 这个也先忽略
         if (endpoint.getUseSendfile()) {
             prepareSendfile(outputFilters);
         }
 
         // Check for compression
         boolean useCompression = false;
+        // 有响应体且 不是 sendfile时 判断是否要使用 压缩
         if (entityBody && sendfileData == null) {
+            // 此时还没有压缩 只是判断是否满足条件
             useCompression = protocol.useCompression(request, response);
         }
 
         MimeHeaders headers = response.getMimeHeaders();
         // A SC_NO_CONTENT response may include entity headers
         if (entityBody || statusCode == HttpServletResponse.SC_NO_CONTENT) {
+            // 将res 的 数据转移到响应头中
             String contentType = response.getContentType();
             if (contentType != null) {
                 headers.setValue("Content-Type").setString(contentType);
@@ -1181,29 +1195,36 @@ public class Http11Processor extends AbstractProcessor {
         }
 
         long contentLength = response.getContentLengthLong();
+        // 判断是短连接还是长连接  connection: close代表本次处理完后要关闭连接
+        // 这不是解析请求数据流读取出来的属性吗  为什么能从 res 中读取到 是 某个地方做了数据拷贝 还是res的数据是从另一个地方解析过来的???
         boolean connectionClosePresent = isConnectionToken(headers, Constants.CLOSE);
         if (contentLength != -1) {
             headers.setValue("Content-Length").setLong(contentLength);
+            // 设置长度相关的过滤器
             outputBuffer.addActiveFilter(outputFilters[Constants.IDENTITY_FILTER]);
             contentDelimitation = true;
         } else {
             // If the response code supports an entity body and we're on
             // HTTP 1.1 then we chunk unless we have a Connection: close header
+            // 如果使用短链接  添加chunk过滤器 (用来断开连接?)
             if (http11 && entityBody && !connectionClosePresent) {
                 outputBuffer.addActiveFilter(outputFilters[Constants.CHUNKED_FILTER]);
                 contentDelimitation = true;
+                // 在响应头中增加 transferen-coding
                 headers.addValue(Constants.TRANSFERENCODING).setString(Constants.CHUNKED);
             } else {
                 outputBuffer.addActiveFilter(outputFilters[Constants.IDENTITY_FILTER]);
             }
         }
 
+        // 添加压缩用的过滤器 原来压缩是用这种责任链方式实现的
         if (useCompression) {
             outputBuffer.addActiveFilter(outputFilters[Constants.GZIP_FILTER]);
         }
 
         // Add date header unless application has already set one (e.g. in a
         // Caching Filter)
+        // 设置属性属性
         if (headers.getValue("Date") == null) {
             headers.addValue("Date").setString(
                     FastHttpDateFormat.getCurrentDate());
@@ -1211,6 +1232,7 @@ public class Http11Processor extends AbstractProcessor {
 
         // FIXME: Add transfer encoding header
 
+        // contentDelimitation 是干嘛的???
         if ((entityBody) && (!contentDelimitation)) {
             // Mark as close the connection after the request, and add the
             // connection: close header
@@ -1403,12 +1425,15 @@ public class Http11Processor extends AbstractProcessor {
             // Need to check this again here in case the response was
             // committed before the error that requires the connection
             // to be closed occurred.
+            // 如果 结果码 不是 2xx 设置 keepalive = false  SwallowInput = false
             checkExpectationAndResponseStatus();
         }
 
         // Finish the handling of the request
+        // 如果允许输出结果
         if (getErrorState().isIoAllowed()) {
             try {
+                // 尝试获取剩余的数据 如果 本次req 的数据已经读取完整 那么就不做处理了
                 inputBuffer.endRequest();
             } catch (IOException e) {
                 setErrorState(ErrorState.CLOSE_CONNECTION_NOW, e);
@@ -1422,9 +1447,11 @@ public class Http11Processor extends AbstractProcessor {
                 log.error(sm.getString("http11processor.request.finish"), t);
             }
         }
+        // 如果该异常允许返回数据到 client 触发 commit 动作
         if (getErrorState().isIoAllowed()) {
             try {
                 action(ActionCode.COMMIT, null);
+                // 将数据 写到client
                 outputBuffer.end();
             } catch (IOException e) {
                 setErrorState(ErrorState.CLOSE_CONNECTION_NOW, e);
