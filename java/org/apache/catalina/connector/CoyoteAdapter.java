@@ -399,7 +399,7 @@ public class CoyoteAdapter implements Adapter {
         try {
             // Parse and set Catalina and configuration specific
             // request parameters
-            // 处理post请求  应该就是解析 body
+            // 这里 根据 req 中携带的 host url 映射对应的 host context wrapper  以及查找session 和验证用户等功能
             postParseSuccess = postParseRequest(req, request, res, response);
             // 当解析成功的时候
             if (postParseSuccess) {
@@ -407,14 +407,14 @@ public class CoyoteAdapter implements Adapter {
                 //记得 各个级别的 valve standard实现 都是支持异步处理的
                 request.setAsyncSupported(
                         connector.getService().getContainer().getPipeline().isAsyncSupported());
-                // Calling the container  使用 管道处理请求
+                // Calling the container  使用 管道处理请求 会不断往下传递 直到 servlet 处理完req res
                 connector.getService().getContainer().getPipeline().getFirst().invoke(
                         request, response);
             }
             // 如果请求是异步的
             if (request.isAsync()) {
                 async = true;
-                // 同样的套路 切换classLoader 同时触发监听器 之后再还原classLoader
+                // 同样的套路 切换classLoader 同时触发监听器 之后再还原classLoader  在tomcat内部没有默认实现
                 ReadListener readListener = req.getReadListener();
                 if (readListener != null && request.isFinished()) {
                     // Possible the all data may have been read during service()
@@ -430,18 +430,19 @@ public class CoyoteAdapter implements Adapter {
                     }
                 }
 
-                // 如果 req 对象上携带了 异常 那么就是在 pipeline 处理中产生了异常 这里就要根据是否是异步处理来设置 errorState
+                // 在之前的解析过程中 或者在 pipeline 中 处理时遇到了异常 会将异常设置到该属性上
                 Throwable throwable =
                         (Throwable) request.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
 
                 // If an async request was started, is not going to end once
                 // this container thread finishes and an error occurred, trigger
                 // the async error process
+                // 使用异步方式处理req 时 会通过一个 asyncStateMachine 来管理异步状态 这里设置异常
                 if (!request.isAsyncCompleting() && throwable != null) {
                     request.getAsyncContextInternal().setErrorState(throwable, true);
                 }
             } else {
-                // 同步处理的情况 直接触发2个finish
+                // 同步处理的情况 直接触发2个finish (此时 req 和res 已经被 pipeline处理过了 所以可以结束本次请求了)
                 request.finishRequest();
                 response.finishResponse();
             }
@@ -532,7 +533,7 @@ public class CoyoteAdapter implements Adapter {
         Request request = (Request) req.getNote(ADAPTER_NOTES);
         Response response = (Response) res.getNote(ADAPTER_NOTES);
 
-        // 准备阶段就是 解析 post 携带的  body
+        // 准备阶段 根据 host url 找到 req 对应的 engine context wrapper 等
         return postParseRequest(req, request, res, response);
     }
 
@@ -674,7 +675,7 @@ public class CoyoteAdapter implements Adapter {
      *                     processing headers
      * @throws ServletException If the supported methods of the target servlet
      *                          cannot be determined
-     *                          从参数中解析 post 相关的body (数据体)   请求头 和 请求行 在 Http11InputBuffer 中已经完成处理了
+     *                          核心逻辑就是 通过host 和 url 找到 req 对应的 host context wrapper 并做一些校验 以及获取sessionId 等 如果出现了异常 那么会设置错误码和错误信息
      */
     protected boolean postParseRequest(org.apache.coyote.Request req, Request request,
             org.apache.coyote.Response res, Response response) throws IOException, ServletException {
@@ -827,7 +828,7 @@ public class CoyoteAdapter implements Adapter {
 
         while (mapRequired) {
             // This will map the the latest version by default
-            // mapper 的 职责就是 通过 url 和 serverName(host) 找到 对应的  context host
+            // mapper 的 职责就是 通过 url 和 serverName(host) 找到 对应的  context host wrapper 以及将相关数据设置到mapper中 方便下面的逻辑直接处理数据
             connector.getService().getMapper().map(serverName, decodedURI,
                     version, request.getMappingData());
 
@@ -835,8 +836,7 @@ public class CoyoteAdapter implements Adapter {
             // because no ROOT context has been deployed or the URI was invalid
             // so no context could be mapped.
             // 代表没有匹配到合适的context
-            // TODO 这里要关注下 因为 context 可以不配置在server.xml 中 那么这里又是怎么设置context的值的呢 难道是有默认值吗
-            // TODO 如果没有设置context 在这里是会抛出异常的
+            // 一般情况下 context的 path 会指定成 "/" 将请求的映射完全交给 mvc 层
             if (request.getContext() == null) {
                 // Don't overwrite an existing error
                 // 返回notFoound
@@ -881,6 +881,7 @@ public class CoyoteAdapter implements Adapter {
                 }
                 return true;
             }
+            // ssl 层先忽略
             parseSessionSslId(request);
 
             sessionID = request.getRequestedSessionId();
@@ -889,19 +890,24 @@ public class CoyoteAdapter implements Adapter {
             if (version != null && request.getContext() == versionContext) {
                 // We got the version that we asked for. That is it.
             } else {
+                // 这里是 解析完 url host 并解析出 sessionId 之后
+
                 version = null;
                 versionContext = null;
 
+                // 这里是在找所有绑定在该host之下的上下文  并通过sessionId 查找对应的session 对象 也就是session 本身是长时间存放在context中的 可能是 基于内存 或者做了持久化
                 Context[] contexts = request.getMappingData().contexts;
                 // Single contextVersion means no need to remap
                 // No session ID means no possibility of remap
                 if (contexts != null && sessionID != null) {
                     // Find the context associated with the session
                     for (int i = contexts.length; i > 0; i--) {
+                        // session 本身是以context为单位的
                         Context ctxt = contexts[i - 1];
                         if (ctxt.getManager().findSession(sessionID) != null) {
                             // We found a context. Is it the one that has
                             // already been mapped?
+                            // 如果发现了 该session不是存在于当前context 而是其他context  这种情况 先忽略
                             if (!ctxt.equals(request.getMappingData().context)) {
                                 // Set version so second time through mapping
                                 // the correct context is found
@@ -922,6 +928,7 @@ public class CoyoteAdapter implements Adapter {
                 }
             }
 
+            // 此时正常获取到session  而context 正因为 重加载等 处于暂停阶段  此时不会选择处理该请求 因为下面的wrapper 可能还没有注册上去
             if (!mapRequired && request.getContext().getPaused()) {
                 // Found a matching context but it is paused. Mapping data will
                 // be wrong since some Wrappers may not be registered at this
@@ -931,13 +938,14 @@ public class CoyoteAdapter implements Adapter {
                 } catch (InterruptedException e) {
                     // Should never happen
                 }
-                // Reset mapping
+                // Reset mapping  那么就将本次的映射数据回收掉
                 request.getMappingData().recycle();
                 mapRequired = true;
             }
         }
 
         // Possible redirect
+        // redirect 是配置在 <Wrapper> 层的 一般可以忽略
         MessageBytes redirectPathMB = request.getMappingData().redirectPath;
         if (!redirectPathMB.isNull()) {
             String redirectPath = URLEncoder.DEFAULT.encode(
@@ -962,6 +970,7 @@ public class CoyoteAdapter implements Adapter {
         }
 
         // Filter trace method
+        // 如果本服务器不支持 TRACE 这里如果 req 中设置了wrapper 那么将servlet 支持的所有方法 返回给 客户端 同时返回错误码 405
         if (!connector.getAllowTrace()
                 && req.method().equalsIgnoreCase("TRACE")) {
             Wrapper wrapper = request.getWrapper();
@@ -989,13 +998,18 @@ public class CoyoteAdapter implements Adapter {
             request.getContext().logAccess(request, response, 0, true);
             return false;
         }
-
+        // 进行权限认证
         doConnectorAuthenticationAuthorization(req, request);
 
         return true;
     }
 
 
+    /**
+     * 针对本次请求进行权限认证  TODO 这里先不看
+     * @param req
+     * @param request
+     */
     private void doConnectorAuthenticationAuthorization(org.apache.coyote.Request req, Request request) {
         // Set the remote principal
         String username = req.getRemoteUser().toString();

@@ -870,10 +870,10 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
      * stream or reader, in a single operation.
      *
      * @exception IOException if an input/output error occurs
-     * 结束本次请求 ???
+     * 当 req 被处理完之后 需要调用该方法
      */
     public void finishRequest() throws IOException {
-        // 如果 res的状态为 reqEntity too large
+        // 如果 res的状态为 reqEntity too large  代表本次读取的数据流 不足 此时需要检查是否还能读取数据
         if (response.getStatus() == HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE) {
             // 检查吞吐
             checkSwallowInput();

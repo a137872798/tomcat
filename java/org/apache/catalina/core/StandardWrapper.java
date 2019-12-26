@@ -543,6 +543,11 @@ public class StandardWrapper extends ContainerBase
     }
 
 
+    /**
+     * 获取 支持的所有 请求方法
+     * @return
+     * @throws ServletException
+     */
     @Override
     public String[] getServletMethods() throws ServletException {
 
@@ -1018,10 +1023,12 @@ public class StandardWrapper extends ContainerBase
      * at server startup time.
      * @return the loaded Servlet instance
      * @throws ServletException for a Servlet load error
+     * 构建一个 servlet
      */
     public synchronized Servlet loadServlet() throws ServletException {
 
         // Nothing to do if we already have an instance or an instance pool
+        // 如果开启单例模式 那么直接返回servlet 实例
         if (!singleThreadModel && (instance != null))
             return instance;
 

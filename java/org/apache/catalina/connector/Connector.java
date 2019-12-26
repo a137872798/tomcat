@@ -119,7 +119,7 @@ public class Connector extends LifecycleMBeanBase  {
 
     /**
      * Do we allow TRACE ?
-     * 是否记录轨迹
+     * 是否允许 处理 ReqestMethod 为 TRACE 的请求
      */
     protected boolean allowTrace = false;
 

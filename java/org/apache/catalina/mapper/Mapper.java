@@ -877,6 +877,7 @@ public final class Mapper {
      * Wrapper mapping.
      * @throws IOException if the buffers are too small to hold the results of
      *                     the mapping.
+     *                     开始匹配 wrapper 级别的数据 并设置到 req中
      */
     private final void internalMapWrapper(ContextVersion contextVersion,
                                           CharChunk path,
