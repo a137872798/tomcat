@@ -68,17 +68,38 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
      */
     private final Object asyncContextLock = new Object();
 
+    // 本次异步请求 关联的req res
     private volatile ServletRequest servletRequest = null;
     private volatile ServletResponse servletResponse = null;
+    /**
+     * 一组 关联的监听器   异步上下文监听器是由 mvc 层实现的 用于拓展功能  在tomcat 没有默认实现
+     *
+     */
     private final List<AsyncListenerWrapper> listeners = new ArrayList<>();
+    /**
+     * 判断是否有原始请求
+     */
     private boolean hasOriginalRequestAndResponse = true;
     private volatile Runnable dispatch = null;
+    /**
+     * 本次 req/res 是绑定在哪个上下文的
+     */
     private Context context = null;
     // Default of 30000 (30s) is set by the connector
     private long timeout = -1;
+    /**
+     * 该对象是用于触发listener  的实体 作为内部属性推测是为了避免对象被重复创建
+     */
     private AsyncEvent event = null;
+    /**
+     * 这个req 跟上面的有什么不同吗 应该都是 connector.req 吧
+     */
     private volatile Request request;
 
+    /**
+     * 通过指定 req 的方式进行初始化
+     * @param request
+     */
     public AsyncContextImpl(Request request) {
         if (log.isDebugEnabled()) {
             logDebug("Constructor");
@@ -86,23 +107,33 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
         this.request = request;
     }
 
+    /**
+     * 代表本次异步请求处理完毕
+     */
     @Override
     public void complete() {
         if (log.isDebugEnabled()) {
             logDebug("complete   ");
         }
+        // 确保request != null
         check();
+        // 触发异步完成的动作
         request.getCoyoteRequest().action(ActionCode.ASYNC_COMPLETE, null);
     }
 
+    /**
+     * 触发完成
+     */
     @Override
     public void fireOnComplete() {
         if (log.isDebugEnabled()) {
             log.debug(sm.getString("asyncContextImpl.fireOnComplete"));
         }
+        // 通过写时拷贝来处理并发问题
         List<AsyncListenerWrapper> listenersCopy = new ArrayList<>();
         listenersCopy.addAll(listeners);
 
+        // 在切换类加载器后 触发 监听器的方法
         ClassLoader oldCL = context.bind(Globals.IS_SECURITY_ENABLED, null);
         try {
             for (AsyncListenerWrapper listener : listenersCopy) {
@@ -116,7 +147,9 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
             }
         } finally {
             context.fireRequestDestroyEvent(request.getRequest());
+            // 处理本次相关的req/res
             clearServletRequestResponse();
+            // 减少正在处理的异步请求数量
             this.context.decrementInProgressAsyncCount();
             context.unbind(Globals.IS_SECURITY_ENABLED, oldCL);
         }
@@ -124,7 +157,7 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
 
 
     /**
-     * 判断异步请求是否发生了超时
+     * 首先触发异步超时动作 之后 触发监听器
      * @return
      */
     public boolean timeout() {
@@ -159,11 +192,16 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
         return !result.get();
     }
 
+    /**
+     * 开始分发请求
+     */
     @Override
     public void dispatch() {
+        // 首先确保 req 不为null
         check();
         String path;
         String cpath;
+        // 确保 servletRequest 不为null 并返回
         ServletRequest servletRequest = getRequest();
         if (servletRequest instanceof HttpServletRequest) {
             HttpServletRequest sr = (HttpServletRequest) servletRequest;
@@ -179,6 +217,7 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
         if (!context.getDispatchersUseEncodedPaths()) {
             path = UDecoder.URLDecode(path, StandardCharsets.UTF_8);
         }
+        // 根据路径分发请求
         dispatch(path);
     }
 
@@ -188,17 +227,26 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
         dispatch(getRequest().getServletContext(), path);
     }
 
+    /**
+     * 根据路径和上下文对象 分发请求
+     * @param servletContext
+     * @param path The path to which the request/response should be dispatched
+     *             relative to the specified {@link ServletContext}.
+     */
     @Override
     public void dispatch(ServletContext servletContext, String path) {
+        // 避免该对象被并发访问
         synchronized (asyncContextLock) {
             if (log.isDebugEnabled()) {
                 logDebug("dispatch   ");
             }
             check();
+            // 此时不能初始化 dispatch 必须要在下面根据相关参数 初始化对象
             if (dispatch != null) {
                 throw new IllegalStateException(
                         sm.getString("asyncContextImpl.dispatchingStarted"));
             }
+            // 开始设置 异步请求相关的属性
             if (request.getAttribute(ASYNC_REQUEST_URI)==null) {
                 request.setAttribute(ASYNC_REQUEST_URI, request.getRequestURI());
                 request.setAttribute(ASYNC_CONTEXT_PATH, request.getContextPath());
@@ -206,6 +254,7 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
                 request.setAttribute(ASYNC_PATH_INFO, request.getPathInfo());
                 request.setAttribute(ASYNC_QUERY_STRING, request.getQueryString());
             }
+            // 根据路径获取请求分发对象
             final RequestDispatcher requestDispatcher = servletContext.getRequestDispatcher(path);
             if (!(requestDispatcher instanceof AsyncDispatcher)) {
                 throw new UnsupportedOperationException(
@@ -222,6 +271,7 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
             final Context context = this.context;
             this.dispatch = new AsyncRunnable(
                     request, applicationDispatcher, servletRequest, servletResponse);
+            // 开始分发请求
             this.request.getCoyoteRequest().action(ActionCode.ASYNC_DISPATCH, null);
             clearServletRequestResponse();
             context.decrementInProgressAsyncCount();

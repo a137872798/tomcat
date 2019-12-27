@@ -87,6 +87,8 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @author Craig R. McClanahan
  * @author Remy Maucherat
+ * 该对象是用来适配 servlet 规范的 servletContext 的
+ * 在 Context 接口中 包含了获取 servletContext 对象的api
  */
 @SuppressWarnings("deprecation")
 public class ApplicationContext implements org.apache.catalina.servlet4preview.ServletContext {
@@ -392,6 +394,12 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
     }
 
 
+    /**
+     * 根据路径获取请求分发对象
+     * @param path
+     *            a <code>String</code> specifying the pathname to the resource
+     * @return
+     */
     @Override
     public RequestDispatcher getRequestDispatcher(final String path) {
 
@@ -406,6 +414,7 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
 
         // Same processing order as InputBuffer / CoyoteAdapter
         // First remove query string
+        // 将 ? 后面的部分去掉
         String uri;
         String queryString;
         int pos = path.indexOf('?');
@@ -427,7 +436,7 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
         }
 
         // Mapping is against the normalized uri
-
+        // 如果路径加密过 那么需要进行揭秘
         if (getContext().getDispatchersUseEncodedPaths()) {
             // Decode
             String decodedUri = UDecoder.URLDecode(normalizedUri);
@@ -442,6 +451,7 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
             }
 
             // URI needs to include the context path
+            // 拼接上上下文路径
             uri = URLEncoder.DEFAULT.encode(getContextPath(), StandardCharsets.UTF_8) + uri;
         } else {
             // uri is passed to the constructor for ApplicationDispatcher and is
@@ -452,6 +462,7 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
         }
 
         // Use the thread local URI and mapping data
+        // 获取本线程绑定的 dispatchData
         DispatchData dd = dispatchData.get();
         if (dd == null) {
             dd = new DispatchData();
@@ -466,6 +477,7 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
 
         try {
             // Map the URI
+            // 将本次解析出来的信息设置到url 上
             CharChunk uriCC = uriMB.getCharChunk();
             try {
                 uriCC.append(context.getPath());

@@ -143,7 +143,7 @@ import org.apache.tomcat.util.security.PrivilegedSetTccl;
  *
  * @author Craig R. McClanahan
  * @author Remy Maucherat
- * 标准上下文对象 首先继承字 容器基类    容器存在4个级别 分别是 host wrapper engine context  至于大小关系有点忘了 先看看具体实现吧
+ * 标准上下文对象 首先继承字 容器基类    容器存在4个级别 分别是 engine -> host -> context -> wrapper
  * 需要注意的就是 session 本身是 context 级别的 可以通过session 获取到关联的上下文对象
  */
 public class StandardContext extends ContainerBase
@@ -196,6 +196,7 @@ public class StandardContext extends ContainerBase
 
     /**
      * Lifecycle provider.
+     * 该对象内部 就是包含 newInstance 用于实例化对象
      */
     private InstanceManager instanceManager = null;
 
@@ -210,9 +211,13 @@ public class StandardContext extends ContainerBase
      * The set of application listener class names configured for this
      * application, in the order they were encountered in the resulting merged
      * web.xml file.
+     * 一组应用级别的监听器
      */
     private String applicationListeners[] = new String[0];
 
+    /**
+     * 并发访问 上面数组时 使用到的对象锁
+     */
     private final Object applicationListenersLock = new Object();
 
     /**
@@ -225,6 +230,7 @@ public class StandardContext extends ContainerBase
      * The list of instantiated application event listener objects. Note that
      * SCIs and other code may use the pluggability APIs to add listener
      * instances directly to this list before the application starts.
+     * 事件监听器  Object 类型
      */
     private List<Object> applicationEventListenersList = new CopyOnWriteArrayList<>();
 
@@ -240,6 +246,7 @@ public class StandardContext extends ContainerBase
 
     /**
      * The ordered set of ServletContainerInitializers for this web application.
+     * servlet容器 初始化对象  应该是只有内置的 Tomcat 对象会使用
      */
     private Map<ServletContainerInitializer,Set<Class<?>>> initializers =
         new LinkedHashMap<>();
@@ -247,6 +254,7 @@ public class StandardContext extends ContainerBase
 
     /**
      * The set of application parameters defined for this application.
+     * 该应用定义的 应用参数对象  内部包含一些描述用参数
      */
     private ApplicationParameter applicationParameters[] =
         new ApplicationParameter[0];
@@ -295,6 +303,7 @@ public class StandardContext extends ContainerBase
 
     /**
      * The ServletContext implementation associated with this Context.
+     * 内部维护的 servletContext 实现类
      */
     protected ApplicationContext context = null;
 
@@ -308,6 +317,7 @@ public class StandardContext extends ContainerBase
 
     /**
      * Should we attempt to use cookies for session id communication?
+     * 尝试从 cookie 中获取 session
      */
     private boolean cookies = true;
 
@@ -315,18 +325,21 @@ public class StandardContext extends ContainerBase
     /**
      * Should we allow the <code>ServletContext.getContext()</code> method
      * to access the context of other web applications in this server?
+     * 是否允许 在wrapper层 直接获取context
      */
     private boolean crossContext = false;
 
 
     /**
      * Encoded path.
+     * 获取编码后的 path
      */
     private String encodedPath = null;
 
 
     /**
      * Unencoded path for this web application.
+     * 未编码的 path 属性
      */
     private String path = null;
 
@@ -367,6 +380,7 @@ public class StandardContext extends ContainerBase
 
     /**
      * The document root for this web application.
+     * 该context 下的默认目录 内部包含了需要的 war 包
      */
     private String docBase = null;
 
@@ -377,6 +391,7 @@ public class StandardContext extends ContainerBase
     /**
      * The set of filter configurations (and associated filter instances) we
      * have initialized, keyed by filter name.
+     * 对应配置在 web.xml 的监听器
      */
     private HashMap<String, ApplicationFilterConfig> filterConfigs =
             new HashMap<>();
@@ -385,6 +400,7 @@ public class StandardContext extends ContainerBase
     /**
      * The set of filter definitions for this application, keyed by
      * filter name.
+     * 过滤器的定义信息
      */
     private HashMap<String, FilterDef> filterDefs = new HashMap<>();
 
@@ -394,30 +410,38 @@ public class StandardContext extends ContainerBase
      * they were defined in the deployment descriptor with additional mappings
      * added via the {@link ServletContext} possibly both before and after those
      * defined in the deployment descriptor.
+     * 上下文过滤器映射类
      */
     private final ContextFilterMaps filterMaps = new ContextFilterMaps();
 
     /**
      * Ignore annotations.
+     * 是否忽略注解
      */
     private boolean ignoreAnnotations = false;
 
 
     /**
      * The Loader implementation with which this Container is associated.
+     * 该对象是抽象出来 用于加载 war 的数据的
      */
     private Loader loader = null;
+    /**
+     * 该加载器对应的锁对象
+     */
     private final ReadWriteLock loaderLock = new ReentrantReadWriteLock();
 
 
     /**
      * The login configuration descriptor for this web application.
+     * 登录相关的配置
      */
     private LoginConfig loginConfig = null;
 
 
     /**
      * The Manager implementation with which this Container is associated.
+     * session池对象
      */
     protected Manager manager = null;
     private final ReadWriteLock managerLock = new ReentrantReadWriteLock();
@@ -619,7 +643,9 @@ public class StandardContext extends ContainerBase
      */
     private String namingContextName = null;
 
-
+    /**
+     * 对应项目下的 资源目录
+     */
     private WebResourceRoot resources;
     private final ReadWriteLock resourcesLock = new ReentrantReadWriteLock();
 
@@ -803,6 +829,9 @@ public class StandardContext extends ContainerBase
 
     private final Object namingToken = new Object();
 
+    /**
+     * 该对象 负责从url 中解析出cookie 相关的信息
+     */
     private CookieProcessor cookieProcessor;
 
     private boolean validateClientProvidedNewSessionId = true;
@@ -1363,6 +1392,7 @@ public class StandardContext extends ContainerBase
      * lifecycle listeners.
      *
      * @param listener The listener to add
+     *                 每次数组只扩容一个空位
      */
     public void addApplicationLifecycleListener(Object listener) {
         int len = applicationLifecycleListenersObjects.length;
@@ -1399,12 +1429,14 @@ public class StandardContext extends ContainerBase
 
     /**
      * @return the Locale to character set mapper for this Context.
+     * 获取字符集映射对象
      */
     public CharsetMapper getCharsetMapper() {
 
         // Create a mapper the first time it is requested
         if (this.charsetMapper == null) {
             try {
+                // 通过反射创建对象
                 Class<?> clazz = Class.forName(charsetMapperClass);
                 this.charsetMapper = (CharsetMapper) clazz.getConstructor().newInstance();
             } catch (Throwable t) {
@@ -1488,6 +1520,7 @@ public class StandardContext extends ContainerBase
      * Set the "use cookies for session ids" flag.
      *
      * @param cookies The new flag
+     *                更新cookie 的同时触发 mbean 对象
      */
     @Override
     public void setCookies(boolean cookies) {
@@ -1823,6 +1856,10 @@ public class StandardContext extends ContainerBase
         }
     }
 
+    /**
+     * 设置加载对象
+     * @param loader The newly associated loader
+     */
     @Override
     public void setLoader(Loader loader) {
 
@@ -1852,6 +1889,7 @@ public class StandardContext extends ContainerBase
             if (getState().isAvailable() && (loader != null) &&
                 (loader instanceof Lifecycle)) {
                 try {
+                    // 触发 loader.start  方法
                     ((Lifecycle) loader).start();
                 } catch (LifecycleException e) {
                     log.error("StandardContext.setLoader: start: ", e);
@@ -2180,6 +2218,7 @@ public class StandardContext extends ContainerBase
      * @return the parent class loader (if any) for this web application.
      * This call is meaningful only <strong>after</strong> a Loader has
      * been configured.
+     * 获取父类加载器
      */
     @Override
     public ClassLoader getParentClassLoader() {
@@ -2567,6 +2606,7 @@ public class StandardContext extends ContainerBase
      *  To avoid duplication.
      *
      * @return The work path
+     * 获取工作路径 应该就是 项目存放路径
      */
     public String getWorkPath() {
         if (getWorkDir() == null) {
@@ -2824,6 +2864,7 @@ public class StandardContext extends ContainerBase
      *
      * @exception IllegalArgumentException if the proposed container is
      *  not an implementation of Wrapper
+     *  为 context设置子级容器 也就是 wrapper
      */
     @Override
     public void addChild(Container child) {
@@ -2831,6 +2872,7 @@ public class StandardContext extends ContainerBase
         // Global JspServlet
         Wrapper oldJspServlet = null;
 
+        // 添加的子级容器 必须实现 wrapper 接口
         if (!(child instanceof Wrapper)) {
             throw new IllegalArgumentException
                 (sm.getString("standardContext.notWrapper"));
@@ -2846,6 +2888,7 @@ public class StandardContext extends ContainerBase
             }
         }
 
+        // 每个 container 有一个 有关子级容器的 映射对象 这里会设置到 映射对象中 同时还会触发 start() 方法
         super.addChild(child);
 
         if (isJspServlet && oldJspServlet != null) {
@@ -2906,6 +2949,7 @@ public class StandardContext extends ContainerBase
      * Add an error page for the specified error or Java exception.
      *
      * @param errorPage The error page definition to be added
+     *                  将错误页面设置到 context  之下
      */
     @Override
     public void addErrorPage(ErrorPage errorPage) {
@@ -3089,6 +3133,7 @@ public class StandardContext extends ContainerBase
      * @exception IllegalArgumentException if the name or value is missing,
      *  or if this context initialization parameter has already been
      *  registered
+     *  内部维护一组参数信息
      */
     @Override
     public void addParameter(String name, String value) {
@@ -3219,6 +3264,7 @@ public class StandardContext extends ContainerBase
      * Add a new welcome file to the set recognized by this Context.
      *
      * @param name New welcome file name
+     *             对应到 web.xml 的 welcome 标签
      */
     @Override
     public void addWelcomeFile(String name) {
@@ -3289,6 +3335,7 @@ public class StandardContext extends ContainerBase
      * the Java implementation class appropriate for this Context
      * implementation.  The constructor of the instantiated Wrapper
      * will have been called, but no properties will have been set.
+     * 创建 servlet 级别容器
      */
     @Override
     public Wrapper createWrapper() {
@@ -3303,9 +3350,11 @@ public class StandardContext extends ContainerBase
                 return null;
             }
         } else {
+            // 默认创建的是 standardWrapper
             wrapper = new StandardWrapper();
         }
 
+        // 创建同时将监听器设置到 wrapper 中
         synchronized (wrapperLifecyclesLock) {
             for (int i = 0; i < wrapperLifecycles.length; i++) {
                 try {
@@ -3736,11 +3785,13 @@ public class StandardContext extends ContainerBase
      *
      * @exception IllegalStateException if the <code>reloadable</code>
      *  property is set to <code>false</code>.
+     *  项目进行热部署
      */
     @Override
     public synchronized void reload() {
 
         // Validate our current component state
+        // 如果当前状态不可用 那么无法进行热部署
         if (!getState().isAvailable())
             throw new IllegalStateException
                 (sm.getString("standardContext.notStarted", getName()));
@@ -3750,9 +3801,11 @@ public class StandardContext extends ContainerBase
                     getName()));
 
         // Stop accepting requests temporarily.
+        // 设置成悬置状态 此时不允许接收新的请求
         setPaused(true);
 
         try {
+            // 开始停止 context
             stop();
         } catch (LifecycleException e) {
             log.error(
@@ -3760,12 +3813,14 @@ public class StandardContext extends ContainerBase
         }
 
         try {
+            // 之后进行重启
             start();
         } catch (LifecycleException e) {
             log.error(
                 sm.getString("standardContext.startingContext", getName()), e);
         }
 
+        // 解除暂停状态
         setPaused(false);
 
         if(log.isInfoEnabled())
@@ -3872,6 +3927,7 @@ public class StandardContext extends ContainerBase
                 (sm.getString("standardContext.notWrapper"));
         }
 
+        // 同时会触发 child.stop()
         super.removeChild(child);
 
     }
@@ -4531,6 +4587,7 @@ public class StandardContext extends ContainerBase
      * Configure and initialize the set of filters for this Context.
      * @return <code>true</code> if all filter initialization completed
      * successfully, or <code>false</code> otherwise.
+     * 相当于是准备工作 通过 filterDefs 构建对应的 filterConfig 对象 并设置到 容器中
      */
     public boolean filterStart() {
 
@@ -4541,12 +4598,14 @@ public class StandardContext extends ContainerBase
         boolean ok = true;
         synchronized (filterConfigs) {
             filterConfigs.clear();
+            // 获取所有过滤器描述信息
             for (Entry<String,FilterDef> entry : filterDefs.entrySet()) {
                 String name = entry.getKey();
                 if (getLogger().isDebugEnabled()) {
                     getLogger().debug(" Starting filter '" + name + "'");
                 }
                 try {
+                    // 通过 FilterDef 初始化 ApplicationFilterConfig  内部还会触发config.init()
                     ApplicationFilterConfig filterConfig =
                             new ApplicationFilterConfig(this, entry.getValue());
                     filterConfigs.put(name, filterConfig);
@@ -4568,6 +4627,7 @@ public class StandardContext extends ContainerBase
      * Finalize and release the set of filters for this Context.
      * @return <code>true</code> if all filter finalization completed
      * successfully, or <code>false</code> otherwise.
+     * 终止过滤器 对应上面
      */
     public boolean filterStop() {
 
@@ -4575,6 +4635,7 @@ public class StandardContext extends ContainerBase
             getLogger().debug("Stopping filters");
 
         // Release all Filter and FilterConfig instances
+        // 触发 config.destroy()
         synchronized (filterConfigs) {
             for (Entry<String, ApplicationFilterConfig> entry : filterConfigs.entrySet()) {
                 if (getLogger().isDebugEnabled())
@@ -4606,13 +4667,14 @@ public class StandardContext extends ContainerBase
      * for this Context.
      * @return <code>true</code> if all listeners wre
      * initialized successfully, or <code>false</code> otherwise.
+     * 启动监听器
      */
     public boolean listenerStart() {
 
         if (log.isDebugEnabled())
             log.debug("Configuring application event listeners");
 
-        // Instantiate the required listeners
+        // Instantiate the required listeners  获取当前应用下所有的监听器对象  应该是从 web.xml 中抽取出来的
         String listeners[] = findApplicationListeners();
         Object results[] = new Object[listeners.length];
         boolean ok = true;
@@ -4622,6 +4684,7 @@ public class StandardContext extends ContainerBase
                     listeners[i] + "'");
             try {
                 String listener = listeners[i];
+                // 根据全限定名 初始化对应的 对象
                 results[i] = getInstanceManager().newInstance(listener);
             } catch (Throwable t) {
                 t = ExceptionUtils.unwrapInvocationTargetException(t);
@@ -4639,6 +4702,7 @@ public class StandardContext extends ContainerBase
         // Sort listeners in two arrays
         ArrayList<Object> eventListeners = new ArrayList<>();
         ArrayList<Object> lifecycleListeners = new ArrayList<>();
+        // 根据监听器类型进行分派
         for (int i = 0; i < results.length; i++) {
             if ((results[i] instanceof ServletContextAttributeListener)
                 || (results[i] instanceof ServletRequestAttributeListener)
@@ -4658,6 +4722,7 @@ public class StandardContext extends ContainerBase
         // Put them these listeners after the ones defined in web.xml and/or
         // annotations then overwrite the list of instances with the new, full
         // list.
+        // 可能有些监听器是以实体类的形式 直接设置到 applicationEventListeners 中的 那么这里还要取出来设置到 eventListeners 中
         for (Object eventListener: getApplicationEventListeners()) {
             eventListeners.add(eventListener);
         }
@@ -4675,21 +4740,26 @@ public class StandardContext extends ContainerBase
         if (getLogger().isDebugEnabled())
             getLogger().debug("Sending application start events");
 
-        // Ensure context is not null
+        // Ensure context is not null  初始化 servletContext
         getServletContext();
+        // 代表不允许再创建 context 监听器了 因为已经完成了初始化
         context.setNewServletContextListenerAllowed(false);
 
+        // 如果实际上没有设置listener 就不需要做下面的处理了 并且还是返回true
         Object instances[] = getApplicationLifecycleListeners();
         if (instances == null || instances.length == 0) {
             return ok;
         }
 
+        // 生成一个 上下文事件
         ServletContextEvent event = new ServletContextEvent(getServletContext());
         ServletContextEvent tldEvent = null;
+        // 生成非插入事件
         if (noPluggabilityListeners.size() > 0) {
             noPluggabilityServletContext = new NoPluggabilityServletContext(getServletContext());
             tldEvent = new ServletContextEvent(noPluggabilityServletContext);
         }
+        // 如果存在生命周期相关的监听器 那么开始初始化  应该就是在这里触发了 spring MVC 的监听器
         for (int i = 0; i < instances.length; i++) {
             if (!(instances[i] instanceof ServletContextListener))
                 continue;
@@ -4721,6 +4791,7 @@ public class StandardContext extends ContainerBase
      * Send an application stop event to all interested listeners.
      * @return <code>true</code> if all events were sent successfully,
      * or <code>false</code> otherwise.
+     * 当应用发起了一个 停止事件时 要停止当前所有的监听器
      */
     public boolean listenerStop() {
 
@@ -4744,6 +4815,7 @@ public class StandardContext extends ContainerBase
                         (ServletContextListener) listeners[j];
                     try {
                         fireContainerEvent("beforeContextDestroyed", listener);
+                        // 触发监听器的销毁事件
                         if (noPluggabilityListeners.contains(listener)) {
                             listener.contextDestroyed(tldEvent);
                         } else {
@@ -4760,6 +4832,7 @@ public class StandardContext extends ContainerBase
                     }
                 }
                 try {
+                    // 销毁监听器
                     if (getInstanceManager() != null) {
                         getInstanceManager().destroyInstance(listeners[j]);
                     }
@@ -4796,6 +4869,7 @@ public class StandardContext extends ContainerBase
             }
         }
 
+        // 置空监听器引用
         setApplicationEventListeners(null);
         setApplicationLifecycleListeners(null);
 
@@ -4809,11 +4883,13 @@ public class StandardContext extends ContainerBase
     /**
      * Allocate resources, including proxy.
      * @throws LifecycleException if a start error occurs
+     * 开始启动资源 也就是项目目录下的资源
      */
     public void resourcesStart() throws LifecycleException {
 
         // Check current status in case resources were added that had already
         // been started
+        // 如果资源还没有启动 先进行启动
         if (!resources.getState().isAvailable()) {
             resources.start();
         }
@@ -4833,6 +4909,7 @@ public class StandardContext extends ContainerBase
     /**
      * Deallocate resources and destroy proxy.
      * @return <code>true</code> if no error occurred
+     * 触发资源的关闭方法
      */
     public boolean resourcesStop() {
 
@@ -4863,6 +4940,7 @@ public class StandardContext extends ContainerBase
      * @param children Array of wrappers for all currently defined
      *  servlets (including those not declared load on startup)
      * @return <code>true</code> if load on startup was considered successful
+     * 初始化所有 servlet
      */
     public boolean loadOnStartup(Container children[]) {
 
@@ -4870,6 +4948,7 @@ public class StandardContext extends ContainerBase
         TreeMap<Integer, ArrayList<Wrapper>> map = new TreeMap<>();
         for (int i = 0; i < children.length; i++) {
             Wrapper wrapper = (Wrapper) children[i];
+            // 按照加载级别 设置到 map 中
             int loadOnStartup = wrapper.getLoadOnStartup();
             if (loadOnStartup < 0)
                 continue;
@@ -4883,6 +4962,7 @@ public class StandardContext extends ContainerBase
         }
 
         // Load the collected "load on startup" servlets
+        // 触发所有 wrapper.load() 方法
         for (ArrayList<Wrapper> list : map.values()) {
             for (Wrapper wrapper : list) {
                 try {
@@ -4911,6 +4991,7 @@ public class StandardContext extends ContainerBase
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  启动context
      */
     @Override
     protected synchronized void startInternal() throws LifecycleException {
@@ -4925,6 +5006,7 @@ public class StandardContext extends ContainerBase
             broadcaster.sendNotification(notification);
         }
 
+        // 一旦触发 start 就重置 configured 属性
         setConfigured(false);
         boolean ok = true;
 
@@ -4935,9 +5017,11 @@ public class StandardContext extends ContainerBase
         }
 
         // Post work directory
+        // 设置工作目录 以及初始化 ServletContext 对象
         postWorkDirectory();
 
         // Add missing components as necessary
+        // 如果工程资源还没有创建的情况下 此时开始创建工程
         if (getResources() == null) {   // (1) Required by Loader
             if (log.isDebugEnabled())
                 log.debug("Configuring default Resources");
@@ -6033,6 +6117,7 @@ public class StandardContext extends ContainerBase
 
     /**
      * Set the appropriate context attribute for our work directory.
+     * 设置工作目录
      */
     private void postWorkDirectory() {
 
@@ -6044,39 +6129,49 @@ public class StandardContext extends ContainerBase
             String hostName = null;
             String engineName = null;
             String hostWorkDir = null;
+            // 获取 host 级别容器
             Container parentHost = getParent();
             if (parentHost != null) {
                 hostName = parentHost.getName();
+                // 获取host 级别的工作目录
                 if (parentHost instanceof StandardHost) {
                     hostWorkDir = ((StandardHost)parentHost).getWorkDir();
                 }
+                // 设置引擎名
                 Container parentEngine = parentHost.getParent();
                 if (parentEngine != null) {
                    engineName = parentEngine.getName();
                 }
             }
+            // 默认为 "-"
             if ((hostName == null) || (hostName.length() < 1))
                 hostName = "_";
             if ((engineName == null) || (engineName.length() < 1))
                 engineName = "_";
 
+            // 查找基础目录
             String temp = getBaseName();
             if (temp.startsWith("/"))
                 temp = temp.substring(1);
             temp = temp.replace('/', '_');
             temp = temp.replace('\\', '_');
+            // 默认为 ROOT
             if (temp.length() < 1)
                 temp = ContextName.ROOT_NAME;
+            // 拼接工作目录
             if (hostWorkDir != null ) {
                 workDir = hostWorkDir + File.separator + temp;
             } else {
+                // 默认情况下 工作目录为 work
                 workDir = "work" + File.separator + engineName +
                     File.separator + hostName + File.separator + temp;
             }
+            // 设置工作目录
             setWorkDir(workDir);
         }
 
         // Create this directory if necessary
+        // 如果当前路径不是绝对路径 那么将 catalinaHomePath 作为路径前缀
         File dir = new File(workDir);
         if (!dir.isAbsolute()) {
             String catalinaHomePath = null;
@@ -6088,15 +6183,17 @@ public class StandardContext extends ContainerBase
                         workDir, catalinaHomePath, getName()), e);
             }
         }
+        // 创建工作目录 如果目录已经存在则抛出异常
         if (!dir.mkdirs() && !dir.isDirectory()) {
             log.warn(sm.getString("standardContext.workCreateFail", dir,
                     getName()));
         }
 
-        // Set the appropriate servlet context attribute
+        // Set the appropriate servlet context attribute  如果servletContext 还没有初始化 则进行初始化
         if (context == null) {
             getServletContext();
         }
+        // 设置 temp 文件的路径 且指定为 只读属性
         context.setAttribute(ServletContext.TEMPDIR, dir);
         context.setAttributeReadOnly(ServletContext.TEMPDIR);
     }
@@ -6202,6 +6299,10 @@ public class StandardContext extends ContainerBase
         return result.toString();
     }
 
+    /**
+     * 初始化context 时触发
+     * @throws LifecycleException
+     */
     @Override
     protected void initInternal() throws LifecycleException {
         super.initInternal();

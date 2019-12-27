@@ -59,30 +59,64 @@ import org.apache.tomcat.util.res.StringManager;
  * org.apache.catalina.WebResourceRoot.ResourceSetType, String, String, String,
  * String)} represents the absolute path to a file.
  * </p>
+ * 代表内部存放一系列资源 standardContext 对象中会携带该对象
  */
 public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot {
 
     private static final Log log = LogFactory.getLog(StandardRoot.class);
     protected static final StringManager sm = StringManager.getManager(StandardRoot.class);
 
+    /**
+     * 内部包含的 上下文对象
+     */
     private Context context;
+    /**
+     * 是否允许链接???
+     */
     private boolean allowLinking = false;
+    /**
+     * 存放的资源信息  这里是准备阶段的资源
+     */
     private final List<WebResourceSet> preResources = new ArrayList<>();
+    /**
+     * 主要资源
+     */
     private WebResourceSet main;
+    /**
+     * 类信息资源
+     */
     private final List<WebResourceSet> classResources = new ArrayList<>();
+    /**
+     * jar 包资源
+     */
     private final List<WebResourceSet> jarResources = new ArrayList<>();
+    /**
+     * post 资源是什么 ???
+     */
     private final List<WebResourceSet> postResources = new ArrayList<>();
 
     private final Cache cache = new Cache(this);
+    /**
+     * 是否允许缓存
+     */
     private boolean cachingAllowed = true;
     private ObjectName cacheJmxName = null;
 
     private boolean trackLockedFiles = false;
+    /**
+     * 什么是链路资源???
+     */
     private final Set<TrackedWebResource> trackedResources =
             Collections.newSetFromMap(new ConcurrentHashMap<TrackedWebResource,Boolean>());
 
     // Constructs to make iteration over all WebResourceSets simpler
+    /**
+     * 主资源
+     */
     private final List<WebResourceSet> mainResources = new ArrayList<>();
+    /**
+     * 该对象内部维护了所有资源列表
+     */
     private final List<List<WebResourceSet>> allResources =
             new ArrayList<>();
     {
@@ -113,7 +147,14 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         return list(path, true);
     }
 
+    /**
+     * 通过指定路径 获取路径下所有资源
+     * @param path
+     * @param validate
+     * @return
+     */
     private String[] list(String path, boolean validate) {
+        // 首先校验路径
         if (validate) {
             path = validate(path);
         }

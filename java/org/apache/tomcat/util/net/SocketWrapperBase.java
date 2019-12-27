@@ -513,6 +513,7 @@ public abstract class SocketWrapperBase<E> {
      * @param from   The ByteBuffer containing the data to be written
      *
      * @throws IOException If an IO error occurs during the write
+     * 根据是否是阻塞模式 将数据写入到socket 中
      */
     public final void write(boolean block, ByteBuffer from) throws IOException {
         if (from == null || from.remaining() == 0) {

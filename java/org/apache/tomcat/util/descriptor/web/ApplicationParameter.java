@@ -29,6 +29,7 @@ import java.io.Serializable;
  * to modify the application deployment descriptor itself.
  *
  * @author Craig R. McClanahan
+ * 应用参数对象
  */
 public class ApplicationParameter implements Serializable {
 
@@ -39,6 +40,7 @@ public class ApplicationParameter implements Serializable {
 
     /**
      * The description of this environment entry.
+     * 有关环境的描述信息
      */
     private String description = null;
 

@@ -176,6 +176,9 @@ public abstract class AbstractProcessorLight implements Processor {
     }
 
 
+    /**
+     * 当 异步处理完成时 会清空内部所有的 分发对象
+     */
     protected void clearDispatches() {
         synchronized (dispatches) {
             dispatches.clear();

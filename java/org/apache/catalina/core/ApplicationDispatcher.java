@@ -167,7 +167,6 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
 
         /**
          * The outermost request that will be passed on to the invoked servlet.
-         * 外部请求???
          */
         ServletRequest outerRequest = null;
 
@@ -612,6 +611,13 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
     }
 
 
+    /**
+     * 异步分发请求
+     * @param request  The request object to pass to the dispatch target
+     * @param response The response object to pass to the dispatch target
+     * @throws ServletException
+     * @throws IOException
+     */
     @Override
     public void dispatch(ServletRequest request, ServletResponse response)
             throws ServletException, IOException {
@@ -631,6 +637,13 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
         }
     }
 
+    /**
+     * 开始分发请求
+     * @param request
+     * @param response
+     * @throws ServletException
+     * @throws IOException
+     */
     private void doDispatch(ServletRequest request, ServletResponse response)
             throws ServletException, IOException {
 
@@ -640,10 +653,13 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
         // Create a wrapped response to use for this request
         wrapResponse(state);
 
+        // 包装请求对象
         ApplicationHttpRequest wrequest = (ApplicationHttpRequest) wrapRequest(state);
         HttpServletRequest hrequest = state.hrequest;
 
+        // 标记分发类型为 异步
         wrequest.setAttribute(Globals.DISPATCHER_TYPE_ATTR, DispatcherType.ASYNC);
+        // 获取整合path 并设置到 request-path 属性上
         wrequest.setAttribute(Globals.DISPATCHER_REQUEST_PATH_ATTR, getCombinedPath());
         HttpServletMapping mapping;
         if (hrequest instanceof org.apache.catalina.servlet4preview.http.HttpServletRequest) {
@@ -966,6 +982,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
     /**
      * Create and return a response wrapper that has been inserted in the
      * appropriate spot in the response chain.
+     * 将状态包装成 res 对象
      */
     private ServletResponse wrapResponse(State state) {
 
@@ -973,6 +990,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
         ServletResponse previous = null;
         ServletResponse current = state.outerResponse;
         while (current != null) {
+            // 将 hRes 指向 outerRes
             if(state.hresponse == null && (current instanceof HttpServletResponse)) {
                 state.hresponse = (HttpServletResponse)current;
                 if(!state.including) // Forward only needs hresponse

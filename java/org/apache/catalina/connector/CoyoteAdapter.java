@@ -452,9 +452,10 @@ public class CoyoteAdapter implements Adapter {
             // Ignore
         } finally {
             AtomicBoolean error = new AtomicBoolean(false);
+            // 根据 processor.errorState 来判断是否出现了异常 并设置到  error变量中
             res.action(ActionCode.IS_ERROR, error);
 
-            // 通过hook 处理结果
+            // 判断请求是否是以 异步方式执行 且获取到了异常
             if (request.isAsyncCompleting() && error.get()) {
                 // Connection will be forcibly closed which will prevent
                 // completion happening at the usual point. Need to trigger
@@ -468,6 +469,7 @@ public class CoyoteAdapter implements Adapter {
             if (!async && postParseSuccess) {
                 // Log only if processing was invoked.
                 // If postParseRequest() failed, it has already logged it.
+                // 获取本次请求对应的 host 和 context
                 Context context = request.getContext();
                 Host host = request.getHost();
                 // If the context is null, it is likely that the endpoint was
@@ -479,6 +481,7 @@ public class CoyoteAdapter implements Adapter {
                 // processing and the request could not be mapped to a Context.
                 // Log via the host or engine in that case.
                 long time = System.currentTimeMillis() - req.getStartTime();
+                // 打印日志
                 if (context != null) {
                     context.logAccess(request, response, time, false);
                 } else if (response.isError()) {

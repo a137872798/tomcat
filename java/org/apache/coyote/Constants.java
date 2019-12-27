@@ -49,9 +49,12 @@ public final class Constants {
      */
     public static final int STAGE_PREPARE = 2;
     /**
-     * 代表开始处理 req 对象
+     * 代表开始处理 req 对象  包括通过 adapter 将connector 的数据交给container处理
      */
     public static final int STAGE_SERVICE = 3;
+    /**
+     * 代表req 处理完毕
+     */
     public static final int STAGE_ENDINPUT = 4;
     public static final int STAGE_ENDOUTPUT = 5;
     public static final int STAGE_KEEPALIVE = 6;

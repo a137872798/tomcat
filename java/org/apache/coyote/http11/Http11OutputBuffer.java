@@ -662,11 +662,13 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
 
         /**
          * Write chunk.
+         * 将数据写入到 socket
          */
         @Override
         public int doWrite(ByteBuffer chunk) throws IOException {
             try {
                 int len = chunk.remaining();
+                // 如果 writeListener 为 null 那么以阻塞方式 写入数据
                 socketWrapper.write(isBlocking(), chunk);
                 len -= chunk.remaining();
                 byteCount += len;

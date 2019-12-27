@@ -615,8 +615,11 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             asyncStateMachine.asyncStart((AsyncContextCallback) param);
             break;
         }
+        // 当异步请求处理完毕的时候触发
         case ASYNC_COMPLETE: {
+            // 清除所有待处理 dispatches
             clearDispatches();
+            // 如果asyncContext 确实显示处理完成了
             if (asyncStateMachine.asyncComplete()) {
                 processSocketEvent(SocketEvent.OPEN_READ, true);
             }

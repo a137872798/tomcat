@@ -28,6 +28,9 @@ import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * 缓存对象 维护某个资源信息
+ */
 public class Cache {
 
     private static final Log log = LogFactory.getLog(Cache.class);

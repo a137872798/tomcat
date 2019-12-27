@@ -58,6 +58,7 @@ import org.apache.tomcat.util.res.StringManager;
  *       (disabled by default)</li>
  * </ul>
  * All of the extensions may be controlled via configuration.
+ * jar包扫描实现类
  */
 public class StandardJarScanner implements JarScanner {
 

@@ -1920,12 +1920,17 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         return result.get();
     }
 
+    /**
+     * 判断异步请求是否完成
+     * @return
+     */
     public boolean isAsyncCompleting() {
         if (asyncContext == null) {
             return false;
         }
 
         AtomicBoolean result = new AtomicBoolean(false);
+        // 实际上触发 asyncStateMachine.isCompleting()
         coyoteRequest.action(ActionCode.ASYNC_IS_COMPLETING, result);
         return result.get();
     }

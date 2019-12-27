@@ -658,7 +658,7 @@ public class Http11Processor extends AbstractProcessor {
                 try {
                     // 进入 container 的处理阶段了
                     rp.setStage(org.apache.coyote.Constants.STAGE_SERVICE);
-                    // 这里将请求转发给 adapter  也就是适配器的作用是 连接 processor 和 connector 的桥梁
+                    // 这里将请求转发给 adapter  也就是适配器的作用是 连接 processor 和 connector 的桥梁  并且在内部已经处理完 req 和 res 并将res 写回到client
                     getAdapter().service(request, response);
                     // Handle when the response was committed before a serious
                     // error occurred.  Throwing a ServletException should both
@@ -667,6 +667,7 @@ public class Http11Processor extends AbstractProcessor {
                     // committed, so we can't try and set headers.
                     if(keepAlive && !getErrorState().isError() && !isAsync() &&
                             statusDropsConnection(response.getStatus())) {
+                        // 代表出现了异常 但是允许继续处理
                         setErrorState(ErrorState.CLOSE_CLEAN, null);
                     }
                 } catch (InterruptedIOException e) {
@@ -699,8 +700,10 @@ public class Http11Processor extends AbstractProcessor {
                 // If this is an async request then the request ends when it has
                 // been completed. The AsyncContext is responsible for calling
                 // endRequest() in that case.
+                // 非异步调用的情况 在 这里触发 endRequest
                 endRequest();
             }
+            // 代表结束有关 res 的处理
             rp.setStage(org.apache.coyote.Constants.STAGE_ENDOUTPUT);
 
             // If there was an error, make sure the request is counted as
@@ -711,6 +714,8 @@ public class Http11Processor extends AbstractProcessor {
 
             if (!isAsync() || getErrorState().isError()) {
                 request.updateCounters();
+                // 如果该异常允许继续读取数据 通过 HTTP11InputBuffer/HTTP11OuputBuffer 清理 req res 对象 并准备处理下一个请求
+                // 那么推测应该是有多个线程 往 多个 buffer 中填充数据 否则某个 servlet 处理 数据耗时久 其他请求不就不能被处理了吗
                 if (getErrorState().isIoAllowed()) {
                     inputBuffer.nextRequest();
                     outputBuffer.nextRequest();
@@ -726,15 +731,19 @@ public class Http11Processor extends AbstractProcessor {
                 }
             }
 
+            // 处理 keepalive 相关的步骤
             rp.setStage(org.apache.coyote.Constants.STAGE_KEEPALIVE);
 
             sendfileState = processSendfile(socketWrapper);
         }
 
+        // 代表处理完毕
         rp.setStage(org.apache.coyote.Constants.STAGE_ENDED);
 
+        // 如果出现了异常 将 socket 设置成close  如果处理每个请求都是短连接 那么应该有个地方在不断的创建 socket 对象 也就是那个 pool
         if (getErrorState().isError() || endpoint.isPaused()) {
             return SocketState.CLOSED;
+            // 如果是异步 返回  Long
         } else if (isAsync()) {
             return SocketState.LONG;
         } else if (isUpgrade()) {
@@ -1414,12 +1423,14 @@ public class Http11Processor extends AbstractProcessor {
      * No more input will be passed to the application. Remaining input will be
      * swallowed or the connection dropped depending on the error and
      * expectation status.
+     * 结束掉本次req 对象
      */
     private void endRequest() {
         if (getErrorState().isError()) {
             // If we know we are closing the connection, don't drain
             // input. This way uploading a 100GB file doesn't tie up the
             // thread if the servlet has rejected it.
+            // 拒绝继续读取数据
             inputBuffer.setSwallowInput(false);
         } else {
             // Need to check this again here in case the response was
@@ -1598,14 +1609,17 @@ public class Http11Processor extends AbstractProcessor {
      * Trigger sendfile processing if required.
      *
      * @return The state of send file processing
+     * 开始处理 sendFile 请求
      */
     private SendfileState processSendfile(SocketWrapperBase<?> socketWrapper) {
         openSocket = keepAlive;
         // Done is equivalent to sendfile not being used
         SendfileState result = SendfileState.DONE;
         // Do sendfile as needed: add socket to sendfile and end
+        // 如果此时存在sendfileData  那么开始发送文件
         if (sendfileData != null && !getErrorState().isError()) {
             if (keepAlive) {
+                // 如果现在可用空间为0 那么 处于打开状态
                 if (available(false) == 0) {
                     sendfileData.keepAliveState = SendfileKeepAliveState.OPEN;
                 } else {

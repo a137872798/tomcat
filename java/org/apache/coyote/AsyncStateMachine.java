@@ -294,19 +294,29 @@ public class AsyncStateMachine {
     }
 
 
+    /**
+     * 触发异步处理完成的操作
+     * @return
+     */
     public synchronized boolean asyncComplete() {
+        // 如果此时当前线程 不是容器线程 且状态处于starting 状态
         if (!ContainerThreadMarker.isContainerThread() && state == AsyncState.STARTING) {
+            // 将状态修改成 处理中 并返回false 代表异步处理还没有完成
             state = AsyncState.COMPLETE_PENDING;
             return false;
         }
 
+        // 将 req 和 res 的监听器清除
         clearNonBlockingListeners();
         boolean triggerDispatch = false;
+        // 代表此时已经处在 container 线程了 那么不需要做线程切换    此时切换成已完成
         if (state == AsyncState.STARTING || state == AsyncState.MUST_ERROR) {
             // Processing is on a container thread so no need to transfer
             // processing to a new container thread
             state = AsyncState.MUST_COMPLETE;
+        // 如果状态处于已启动
         } else if (state == AsyncState.STARTED) {
+            // 将状态修改成完成中
             state = AsyncState.COMPLETING;
             // A dispatch to a container thread is always required.
             // If on a non-container thread, need to get back onto a container
