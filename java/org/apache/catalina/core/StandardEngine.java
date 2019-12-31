@@ -61,6 +61,7 @@ public class StandardEngine extends ContainerBase implements Engine {
 
     /**
      * Create a new StandardEngine component with the default basic Valve.
+     * 当引擎 (最上级容器被创建时  还会创建阀门对象)
      */
     public StandardEngine() {
 
@@ -252,7 +253,7 @@ public class StandardEngine extends ContainerBase implements Engine {
     protected void initInternal() throws LifecycleException {
         // Ensure that a Realm is present before any attempt is made to start
         // one. This will create the default NullRealm if necessary.
-        // 触发 realm 的创建
+        // 触发 realm 的创建  该对象是权限认证相关的 先不看
         getRealm();
         // 初始化 startstop 线程池 用于启动 添加进来的 子容器
         super.initInternal();
@@ -265,7 +266,7 @@ public class StandardEngine extends ContainerBase implements Engine {
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
-     *  该方法使用 synchronized 修饰
+     *  当触发service的 start时 会触发该方法
      */
     @Override
     protected synchronized void startInternal() throws LifecycleException {

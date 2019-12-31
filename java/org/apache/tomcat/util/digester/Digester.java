@@ -766,7 +766,7 @@ public class Digester extends DefaultHandler2 {
      * to resolve/load classes that are defined in various rules.  If not
      * using Context ClassLoader, then the class-loading defaults to
      * using the calling-class' ClassLoader.
-     * 代表要从当前线程中获取对应的类加载器
+     *
      *
      * @param use determines whether to use Context ClassLoader.
      */
@@ -1705,9 +1705,7 @@ public class Digester extends DefaultHandler2 {
      * 开始添加一组 xml 解析规则 那么在解析到对应的元素时 就会按照xml对应标签生成实体
      */
     public void addObjectCreate(String pattern, String className, String attributeName) {
-
         addRule(pattern, new ObjectCreateRule(className, attributeName));
-
     }
 
 

@@ -35,6 +35,7 @@ import org.apache.juli.logging.LogFactory;
 
 /**
  * Represents a {@link org.apache.catalina.WebResourceSet} based on a directory.
+ * 代表一个基于目录的资源对象
  */
 public class DirResourceSet extends AbstractFileResourceSet {
 
@@ -82,6 +83,7 @@ public class DirResourceSet extends AbstractFileResourceSet {
             }
         }
 
+        // 使用root 初始化该对象时 同时触发start
         if (getRoot().getState().isAvailable()) {
             try {
                 start();

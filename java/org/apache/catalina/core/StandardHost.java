@@ -849,6 +849,7 @@ public class StandardHost extends ContainerBase implements Host {
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  当触发 host.start 时 会往下传播 触发该方法
      */
     @Override
     protected synchronized void startInternal() throws LifecycleException {
@@ -865,6 +866,7 @@ public class StandardHost extends ContainerBase implements Host {
                         break;
                     }
                 }
+                // 这里会将一个用于报告异常的阀门添加到管道中
                 if(!found) {
                     Valve valve =
                         (Valve) Class.forName(errorValve).getConstructor().newInstance();

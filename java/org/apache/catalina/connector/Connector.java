@@ -1029,8 +1029,7 @@ public class Connector extends LifecycleMBeanBase  {
 
 
     /**
-     * 当连接器 初始化时触发  这里想一下 connector的职能是什么? 接收 遵循某种协议的数据流 并转换成 req res 对象 之后转发给container进行处理
-     * 在tomcat 中 engine 就属于一种container
+     * 当启动 tomcat 时 从server 传递到 service时 最后会将包含的所有connector 全部初始化 就是通过initInternal方法
      * @throws LifecycleException
      */
     @Override
@@ -1042,7 +1041,7 @@ public class Connector extends LifecycleMBeanBase  {
         adapter = new CoyoteAdapter(this);
         protocolHandler.setAdapter(adapter);
 
-        // Make sure parseBodyMethodsSet has a default
+        // Make sure parseBodyMethodsSet has a default  需要解析请求体的方法集合 默认只包含POST
         if (null == parseBodyMethodsSet) {
             setParseBodyMethods(getParseBodyMethods());
         }

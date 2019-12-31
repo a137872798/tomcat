@@ -25,6 +25,9 @@ import org.apache.catalina.LifecycleException;
 import org.apache.tomcat.util.compat.JrePlatform;
 import org.apache.tomcat.util.http.RequestUtil;
 
+/**
+ * 文件资源骨架类
+ */
 public abstract class AbstractFileResourceSet extends AbstractResourceSet {
 
     protected static final String[] EMPTY_STRING_ARRAY = new String[0];

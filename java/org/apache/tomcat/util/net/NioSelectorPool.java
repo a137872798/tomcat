@@ -55,9 +55,6 @@ public class NioSelectorPool {
      */
     protected NioBlockingSelector blockingSelector;
 
-    /**
-     * 因为该选择器对象是被多线程共享的 所以使用 volatile 修饰
-     */
     protected volatile Selector SHARED_SELECTOR;
 
     /**
@@ -76,7 +73,13 @@ public class NioSelectorPool {
     protected ConcurrentLinkedQueue<Selector> selectors =
             new ConcurrentLinkedQueue<>();
 
+    /**
+     * 获取 共享选择器  默认情况下 选择器是被共享的 可能就是因为 IO 密集性即使增加选择器数量也不能显著提升性能
+     * @return
+     * @throws IOException
+     */
     protected Selector getSharedSelector() throws IOException {
+        // 创建选择器对象
         if (SHARED && SHARED_SELECTOR == null) {
             // double check 创建选择器对象
             synchronized (NioSelectorPool.class) {
@@ -166,11 +169,12 @@ public class NioSelectorPool {
     }
 
     /**
-     * 通过 sharedSelector 初始化 poller 对象
+     * 当触发 endpoint.bind 后会开启选择池
      * @throws IOException
      */
     public void open() throws IOException {
         enabled = true;
+        // 这里会初始化共享选择器对象
         getSharedSelector();
         if (SHARED) {
             blockingSelector = new NioBlockingSelector();

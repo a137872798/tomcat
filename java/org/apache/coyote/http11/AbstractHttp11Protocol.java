@@ -76,12 +76,12 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
 
 
     /**
-     * 进行初始化
+     * 当connector 的init 被调用时  会触发关联的 protocolHandler 的init
      * @throws Exception
      */
     @Override
     public void init() throws Exception {
-        // 找到内部 所有 upgradeProtocol   并进行配置
+        // 找到内部 所有 upgradeProtocol   并进行配置  升级相关的可以先不看
         for (UpgradeProtocol upgradeProtocol : upgradeProtocols) {
             configureUpgradeProtocol(upgradeProtocol);
         }

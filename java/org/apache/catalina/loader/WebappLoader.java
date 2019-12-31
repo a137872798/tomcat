@@ -58,6 +58,7 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @author Craig R. McClanahan
  * @author Remy Maucherat
+ * web应用级别的加载器对象
  */
 public class WebappLoader extends LifecycleMBeanBase
     implements Loader, PropertyChangeListener {
@@ -380,6 +381,7 @@ public class WebappLoader extends LifecycleMBeanBase
         if (log.isDebugEnabled())
             log.debug(sm.getString("webappLoader.starting"));
 
+        // 如果没有可以读取的资源 就无法进行加载
         if (context.getResources() == null) {
             log.info("No resources for " + context);
             setState(LifecycleState.STARTING);
@@ -390,12 +392,14 @@ public class WebappLoader extends LifecycleMBeanBase
         try {
 
             classLoader = createClassLoader();
+            // 设置资源和代理模式
             classLoader.setResources(context.getResources());
             classLoader.setDelegate(this.delegate);
 
-            // Configure our repositories
+            // Configure our repositories  设置类路径
             setClassPath();
 
+            // 设置权限
             setPermissions();
 
             ((Lifecycle) classLoader).start();
@@ -500,6 +504,7 @@ public class WebappLoader extends LifecycleMBeanBase
 
     /**
      * Create associated classLoader.
+     * 创建一个类加载器对象
      */
     private WebappClassLoaderBase createClassLoader()
         throws Exception {
@@ -557,6 +562,7 @@ public class WebappLoader extends LifecycleMBeanBase
     /**
      * Set the appropriate context attribute for our class path.  This
      * is required only because Jasper depends on it.
+     * 设置类路径
      */
     private void setClassPath() {
 
@@ -572,11 +578,13 @@ public class WebappLoader extends LifecycleMBeanBase
         // Assemble the class path information from our class loader chain
         ClassLoader loader = getClassLoader();
 
+        // 如果开启代理模式就获取 loader.parent
         if (delegate && loader != null) {
             // Skip the webapp loader for now as delegation is enabled
             loader = loader.getParent();
         }
 
+        // 这里跟 双亲委派不太一样 先尝试使用当前类加载器加载对象 失败时 才考虑使用父类  这样被创建的类都是尽可能被 子classLoader 持有 也就是做到了 加载器级别的隔离
         while (loader != null) {
             if (!buildClassPath(classpath, loader)) {
                 break;
@@ -599,6 +607,12 @@ public class WebappLoader extends LifecycleMBeanBase
     }
 
 
+    /**
+     * 构建资源路径
+     * @param classpath
+     * @param loader
+     * @return
+     */
     private boolean buildClassPath(StringBuilder classpath, ClassLoader loader) {
         if (loader instanceof URLClassLoader) {
             URL repositories[] = ((URLClassLoader) loader).getURLs();

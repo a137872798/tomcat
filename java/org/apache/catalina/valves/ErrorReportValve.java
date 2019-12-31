@@ -47,6 +47,7 @@ import org.apache.tomcat.util.security.Escape;
  * @author <a href="mailto:nicolaken@supereva.it">Nicola Ken Barozzi</a> Aisa
  * @author <a href="mailto:stefano@apache.org">Stefano Mazzocchi</a>
  * @author Yoav Shapira
+ * 当出现异常时 返回一个错误的页面 到client
  */
 public class ErrorReportValve extends ValveBase {
 
@@ -54,7 +55,7 @@ public class ErrorReportValve extends ValveBase {
 
     private boolean showServerInfo = true;
 
-    //------------------------------------------------------ Constructor
+    //------------------------------------------------------ Constructor  默认支持异步
     public ErrorReportValve() {
         super(true);
     }
@@ -77,9 +78,10 @@ public class ErrorReportValve extends ValveBase {
     @Override
     public void invoke(Request request, Response response) throws IOException, ServletException {
 
-        // Perform the request
+        // Perform the request   传播处理流程
         getNext().invoke(request, response);
 
+        // 当处理完成后检查是否出现异常
         if (response.isCommitted()) {
             if (response.setErrorReported()) {
                 // Error wasn't previously reported but we can't write an error

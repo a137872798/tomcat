@@ -2501,7 +2501,10 @@ public class StandardContext extends ContainerBase
         }
     }
 
-
+    /**
+     * 设置资源对象
+     * @param resources The newly associated Resources
+     */
     @Override
     public void setResources(WebResourceRoot resources) {
 
@@ -2514,10 +2517,12 @@ public class StandardContext extends ContainerBase
                     (sm.getString("standardContext.resourcesStart"));
             }
 
+            // 获取旧资源 如果与本次设置的资源相同 那么直接返回
             oldResources = this.resources;
             if (oldResources == resources)
                 return;
 
+            // 不同的情况下 置空之前的资源
             this.resources = resources;
             if (oldResources != null) {
                 oldResources.setContext(null);
@@ -5006,7 +5011,7 @@ public class StandardContext extends ContainerBase
             broadcaster.sendNotification(notification);
         }
 
-        // 一旦触发 start 就重置 configured 属性
+        // 初始化上下文时 设置成未配置状态
         setConfigured(false);
         boolean ok = true;
 
@@ -5027,6 +5032,7 @@ public class StandardContext extends ContainerBase
                 log.debug("Configuring default Resources");
 
             try {
+                // 将该context 所在目录作为根目录  生成一个用于读取内部资源的root 对象
                 setResources(new StandardRoot(this));
             } catch (IllegalArgumentException e) {
                 log.error(sm.getString("standardContext.resourcesInit"), e);
@@ -5034,21 +5040,27 @@ public class StandardContext extends ContainerBase
             }
         }
         if (ok) {
+            // 开始加载新的 root 目录下的资源
             resourcesStart();
         }
 
+        // 开始初始化应用加载对象
         if (getLoader() == null) {
+            // 包装父类加载器 应该就是 commonClassLoader 这样就可以共享 servlet.api 等 整个tomcat 容器必须的包了
             WebappLoader webappLoader = new WebappLoader(getParentClassLoader());
+            // 设置是否使用了代理
             webappLoader.setDelegate(getDelegate());
+            // 设置加载对象 同时触发 start/stop 方法
             setLoader(webappLoader);
         }
 
         // An explicit cookie processor hasn't been specified; use the default
+        // 创建 cookie 处理器 该对象是用来解析 数据流 并生成 cookie 对象的
         if (cookieProcessor == null) {
             cookieProcessor = new Rfc6265CookieProcessor();
         }
 
-        // Initialize character set mapper
+        // Initialize character set mapper   初始化字符集映射对象
         getCharsetMapper();
 
         // Validate required extensions
@@ -5088,7 +5100,7 @@ public class StandardContext extends ContainerBase
             log.debug("Processing standard container startup");
 
 
-        // Binding thread
+        // Binding thread  将类加载器绑定到当前线程上
         ClassLoader oldCCL = bindThread();
 
         try {
@@ -5096,6 +5108,7 @@ public class StandardContext extends ContainerBase
                 // Start our subordinate components, if any
                 Loader loader = getLoader();
                 if (loader instanceof Lifecycle) {
+                    // 开始加载 项目依赖的jar包和资源
                     ((Lifecycle) loader).start();
                 }
 
@@ -5116,6 +5129,7 @@ public class StandardContext extends ContainerBase
 
                 // By calling unbindThread and bindThread in a row, we setup the
                 // current Thread CCL to be the webapp classloader
+                // 这里又解除绑定
                 unbindThread(oldCCL);
                 oldCCL = bindThread();
 
@@ -5124,6 +5138,7 @@ public class StandardContext extends ContainerBase
                 logger = null;
                 getLogger();
 
+                // 获取realm 对象  该对象是角色验证用的 先忽略
                 Realm realm = getRealmInternal();
                 if(null != realm) {
                     if (realm instanceof Lifecycle) {
@@ -5151,6 +5166,7 @@ public class StandardContext extends ContainerBase
                 fireLifecycleEvent(Lifecycle.CONFIGURE_START_EVENT, null);
 
                 // Start our child containers, if not already started
+                // 启动下面的子容器
                 for (Container child : findChildren()) {
                     if (!child.getState().isAvailable()) {
                         child.start();
@@ -5158,12 +5174,12 @@ public class StandardContext extends ContainerBase
                 }
 
                 // Start the Valves in our pipeline (including the basic),
-                // if any
+                // if any   初始化阀门链
                 if (pipeline instanceof Lifecycle) {
                     ((Lifecycle) pipeline).start();
                 }
 
-                // Acquire clustered manager
+                // Acquire clustered manager   获取session池对象
                 Manager contextManager = null;
                 Manager manager = getManager();
                 if (manager == null) {
@@ -5180,6 +5196,7 @@ public class StandardContext extends ContainerBase
                             ok = false;
                         }
                     } else {
+                        // 初始化标准session 池 也就是每当 context 级别进行重启后 session池内的数据都会丢失
                         contextManager = new StandardManager();
                     }
                 }
@@ -5232,10 +5249,11 @@ public class StandardContext extends ContainerBase
                         JarScanner.class.getName(), getJarScanner());
             }
 
-            // Set up the context init params
+            // Set up the context init params  设置 context 初始化参数
             mergeParameters();
 
             // Call ServletContainerInitializers
+            // 获取初始化对象
             for (Map.Entry<ServletContainerInitializer, Set<Class<?>>> entry :
                 initializers.entrySet()) {
                 try {
@@ -5264,7 +5282,7 @@ public class StandardContext extends ContainerBase
             }
 
             try {
-                // Start manager
+                // Start manager  启动session池对象
                 Manager manager = getManager();
                 if (manager instanceof Lifecycle) {
                     ((Lifecycle) manager).start();
@@ -5409,6 +5427,7 @@ public class StandardContext extends ContainerBase
             mergedParams.put(names[i], findParameter(names[i]));
         }
 
+        // app级别的参数优先级比 param 级别的高
         ApplicationParameter params[] = findApplicationParameters();
         for (int i = 0; i < params.length; i++) {
             if (params[i].getOverride()) {
@@ -5422,6 +5441,7 @@ public class StandardContext extends ContainerBase
         }
 
         ServletContext sc = getServletContext();
+        // 将参数设置到 sc的 initParam 中
         for (Map.Entry<String,String> entry : mergedParams.entrySet()) {
             sc.setInitParameter(entry.getKey(), entry.getValue());
         }
@@ -5613,6 +5633,9 @@ public class StandardContext extends ContainerBase
     }
 
 
+    /**
+     * context 级别的后台任务 会定期执行
+     */
     @Override
     public void backgroundProcess() {
 
@@ -5815,9 +5838,11 @@ public class StandardContext extends ContainerBase
      * during : startup, shutdown and reloading of the context.
      *
      * @return the previous context class loader
+     * 绑定线程
      */
     protected ClassLoader bindThread() {
 
+        // 这里就是将 线程携带的上下文类加载器 更换成 tomcat 定制的类加载器 同时返回原始类加载器
         ClassLoader oldContextClassLoader = bind(false, null);
 
         if (isUseNaming()) {
@@ -5848,6 +5873,19 @@ public class StandardContext extends ContainerBase
     }
 
 
+    /**
+     * 绑定线程
+     * @param usePrivilegedAction
+     *          Should a {@link java.security.PrivilegedAction} be used when
+     *          obtaining the current thread context class loader and setting
+     *          the new one?
+     * @param originalClassLoader
+     *          The current class loader if known to save this method having to
+     *          look it up
+     *
+     * @return
+     * 将传入的类加载器绑定到当前线程中   也就是在经过 hostValve 的时候类加载器已经偷偷被换掉了 这样就做到了应用级别的隔离
+     */
     @Override
     public ClassLoader bind(boolean usePrivilegedAction, ClassLoader originalClassLoader) {
         Loader loader = getLoader();
@@ -5856,6 +5894,7 @@ public class StandardContext extends ContainerBase
             webApplicationClassLoader = loader.getClassLoader();
         }
 
+        // 获取 applicationClassLoader
         if (originalClassLoader == null) {
             if (usePrivilegedAction) {
                 PrivilegedAction<ClassLoader> pa = new PrivilegedGetTccl();
@@ -5872,8 +5911,10 @@ public class StandardContext extends ContainerBase
             return null;
         }
 
+        // 获取线程绑定相关的监听器 用于用户拓展 一般是不设置的
         ThreadBindingListener threadBindingListener = getThreadBindingListener();
 
+        // 将当前线程绑定的 classLoader  修改成 tomcat内部定制的类加载器 并返回原始类加载器
         if (usePrivilegedAction) {
             PrivilegedAction<Void> pa = new PrivilegedSetTccl(webApplicationClassLoader);
             AccessController.doPrivileged(pa);
@@ -5984,10 +6025,12 @@ public class StandardContext extends ContainerBase
     @Override
     public boolean fireRequestInitEvent(ServletRequest request) {
 
+        // 当预备接收某个请求时 触发监听器对象
         Object instances[] = getApplicationEventListeners();
 
         if ((instances != null) && (instances.length > 0)) {
 
+            // 将上下文和 req 封装成事件  该监听器需要由用户来实现 先不考虑
             ServletRequestEvent event =
                     new ServletRequestEvent(getServletContext(), request);
 
@@ -6121,17 +6164,19 @@ public class StandardContext extends ContainerBase
      */
     private void postWorkDirectory() {
 
-        // Acquire (or calculate) the work directory path
+        // Acquire (or calculate) the work directory path  可能没有设置
         String workDir = getWorkDir();
         if (workDir == null || workDir.length() == 0) {
 
             // Retrieve our parent (normally a host) name
+            // 根据 host信息进行设置
             String hostName = null;
             String engineName = null;
             String hostWorkDir = null;
             // 获取 host 级别容器
             Container parentHost = getParent();
             if (parentHost != null) {
+                // 可能是 localhost
                 hostName = parentHost.getName();
                 // 获取host 级别的工作目录
                 if (parentHost instanceof StandardHost) {

@@ -75,6 +75,9 @@ public class StandardWrapper extends ContainerBase
 
     private final Log log = LogFactory.getLog(StandardWrapper.class); // must not be static
 
+    /**
+     * 默认支持的请求方式
+     */
     protected static final String[] DEFAULT_SERVLET_METHODS = new String[] {
                                                     "GET", "HEAD", "POST" };
 
@@ -87,6 +90,7 @@ public class StandardWrapper extends ContainerBase
     public StandardWrapper() {
 
         super();
+        // 创建阀门对象 以及设置处理链
         swValve=new StandardWrapperValve();
         pipeline.setBasic(swValve);
         broadcaster = new NotificationBroadcasterSupport();
@@ -102,6 +106,7 @@ public class StandardWrapper extends ContainerBase
      * milliseconds since the epoch), or zero if the servlet is available.
      * If this value equals Long.MAX_VALUE, the unavailability of this
      * servlet is considered permanent.
+     * 记录 wrapper 变成可用的时间戳
      */
     protected long available = 0L;
 
@@ -119,31 +124,36 @@ public class StandardWrapper extends ContainerBase
 
     /**
      * The facade associated with this wrapper.
+     * 通过 门面对象 避免一些方法直接暴露给用户
      */
     protected final StandardWrapperFacade facade = new StandardWrapperFacade(this);
 
 
     /**
      * The (single) possibly uninitialized instance of this servlet.
+     * 单例模式创建
      */
     protected volatile Servlet instance = null;
 
 
     /**
      * Flag that indicates if this instance has been initialized
+     * 代表该实例对象已经完成初始化
      */
     protected volatile boolean instanceInitialized = false;
 
 
     /**
      * The load-on-startup order value (negative value means load on
-     * first call) for this servlet.
+     * first call) for this servlet
+     * 代表 servlet 的初始化顺序  如果为 -1 就是立即进行初始化.
      */
     protected int loadOnStartup = -1;
 
 
     /**
      * Mappings associated with the wrapper.
+     * 该wrapper 关联的映射对象
      */
     protected final ArrayList<String> mappings = new ArrayList<>();
 
@@ -151,6 +161,7 @@ public class StandardWrapper extends ContainerBase
     /**
      * The initialization parameters for this servlet, keyed by
      * parameter name.
+     * 初始化参数
      */
     protected HashMap<String, String> parameters = new HashMap<>();
 
@@ -165,6 +176,7 @@ public class StandardWrapper extends ContainerBase
 
     /**
      * The run-as identity for this servlet.
+     * 运行方式???
      */
     protected String runAs = null;
 
@@ -175,18 +187,21 @@ public class StandardWrapper extends ContainerBase
 
     /**
      * The fully qualified servlet class name for this servlet.
+     * servlet 全限定名
      */
     protected String servletClass = null;
 
 
     /**
      * Does this servlet implement the SingleThreadModel interface?
+     * 是否使用单线程模型
      */
     protected volatile boolean singleThreadModel = false;
 
 
     /**
      * Are we unloading our servlet instance at the moment?
+     * 此时 servlet 是否处在无法加载的情况
      */
     protected volatile boolean unloading = false;
 
@@ -205,12 +220,14 @@ public class StandardWrapper extends ContainerBase
 
     /**
      * Stack containing the STM instances.
+     * 存放servlet 的栈结构
      */
     protected Stack<Servlet> instancePool = null;
 
 
     /**
      * Wait time for servlet unload in ms.
+     * 等待卸载的时间间隔
      */
     protected long unloadDelay = 2000;
 
@@ -232,7 +249,7 @@ public class StandardWrapper extends ContainerBase
      */
     protected boolean swallowOutput = false;
 
-    // To support jmx attributes
+    // To support jmx attributes  默认阀门对象
     protected StandardWrapperValve swValve;
     protected long loadTime=0;
     protected int classLoadTime=0;
@@ -330,6 +347,7 @@ public class StandardWrapper extends ContainerBase
     /**
      * @return the load-on-startup order value (negative value means
      * load on first call).
+     * 如果 loadOnstartup 为负数代表具有最高的优先级
      */
     @Override
     public int getLoadOnStartup() {
@@ -551,8 +569,10 @@ public class StandardWrapper extends ContainerBase
     @Override
     public String[] getServletMethods() throws ServletException {
 
+        // 先创建 servlet 单例对象
         instance = loadServlet();
 
+        // 如果传入的类不是  HttpServlet的子类 使用默认的 servletMethod  POST HEAD GET
         Class<? extends Servlet> servletClazz = instance.getClass();
         if (!javax.servlet.http.HttpServlet.class.isAssignableFrom(
                                                         servletClazz)) {
@@ -563,6 +583,8 @@ public class StandardWrapper extends ContainerBase
         allow.add("TRACE");
         allow.add("OPTIONS");
 
+        // 判断该servlet 实现了哪些方法  并根据实现的方法 设置对应的 method  实际上一般情况下 servlet 编程是 每个servlet 针对某些请求
+        // 而 mvc 框架使用了一个具备自动映射能力的 servlet
         Method[] methods = getAllDeclaredMethods(servletClazz);
         for (int i=0; methods != null && i<methods.length; i++) {
             Method m = methods[i];
@@ -618,6 +640,7 @@ public class StandardWrapper extends ContainerBase
      * Execute a periodic task, such as reloading, etc. This method will be
      * invoked inside the classloading context of this container. Unexpected
      * throwables will be caught and logged.
+     * servlet 级别的后台任务
      */
     @Override
     public void backgroundProcess() {
@@ -658,6 +681,7 @@ public class StandardWrapper extends ContainerBase
      * of the Container hierarchy.
      *
      * @param child Child container to be added
+     *              最低级容器不支持 继续添加子容器了
      */
     @Override
     public void addChild(Container child) {
@@ -673,6 +697,7 @@ public class StandardWrapper extends ContainerBase
      *
      * @param name Name of this initialization parameter to add
      * @param value Value of this initialization parameter to add
+     *              添加初始化参数
      */
     @Override
     public void addInitParameter(String name, String value) {
@@ -692,6 +717,7 @@ public class StandardWrapper extends ContainerBase
      * Add a mapping associated with the Wrapper.
      *
      * @param mapping The new wrapper mapping
+     *                添加映射关系
      */
     @Override
     public void addMapping(String mapping) {
@@ -787,6 +813,7 @@ public class StandardWrapper extends ContainerBase
                 }
             }
 
+            // 如果是 singleThreadModel 模式 那么将 当前实例保存到 对象池中
             if (singleThreadModel) {
                 if (newInstance) {
                     // Have to do this outside of the sync above to prevent a
@@ -809,9 +836,11 @@ public class StandardWrapper extends ContainerBase
             }
         }
 
+        // 创建对象并设置到 对象池中
         synchronized (instancePool) {
             while (countAllocated.get() >= nInstances) {
                 // Allocate a new instance if possible, or else wait
+                // 当少于最大限度时 继续创建新对象 并设置到池中
                 if (nInstances < maxInstances) {
                     try {
                         instancePool.push(loadServlet());
@@ -824,6 +853,7 @@ public class StandardWrapper extends ContainerBase
                     }
                 } else {
                     try {
+                        // 已经创建了足够的对象 阻塞等待对象归还
                         instancePool.wait();
                     } catch (InterruptedException e) {
                         // Ignore
@@ -847,6 +877,7 @@ public class StandardWrapper extends ContainerBase
      * @param servlet The servlet to be returned
      *
      * @exception ServletException if a deallocation error occurs
+     * 将某个 servlet 从池中移除
      */
     @Override
     public void deallocate(Servlet servlet) throws ServletException {
@@ -872,6 +903,7 @@ public class StandardWrapper extends ContainerBase
      * if any; otherwise return <code>null</code>.
      *
      * @param name Name of the requested initialization parameter
+     *             通过key 查找参数
      */
     @Override
     public String findInitParameter(String name) {
@@ -985,12 +1017,15 @@ public class StandardWrapper extends ContainerBase
      * @exception ServletException if the servlet init() method threw
      *  an exception
      * @exception ServletException if some other loading problem occurs
+     * 加载
      */
     @Override
     public synchronized void load() throws ServletException {
+        // 首先获取 servlet 对象
         instance = loadServlet();
 
         if (!instanceInitialized) {
+            // 如果还没有进行初始化 那么初始化  核心就是调用 servlet.init()
             initServlet(instance);
         }
 
@@ -1126,6 +1161,11 @@ public class StandardWrapper extends ContainerBase
     }
 
 
+    /**
+     * 初始化 servlet 对象
+     * @param servlet
+     * @throws ServletException
+     */
     private synchronized void initServlet(Servlet servlet)
             throws ServletException {
 
@@ -1174,6 +1214,7 @@ public class StandardWrapper extends ContainerBase
      * Remove the specified initialization parameter from this servlet.
      *
      * @param name Name of the initialization parameter to remove
+     *             将某个参数移除
      */
     @Override
     public void removeInitParameter(String name) {
@@ -1234,6 +1275,7 @@ public class StandardWrapper extends ContainerBase
      *
      * @param unavailable The exception that occurred, or <code>null</code>
      *  to mark this servlet as permanently unavailable
+     *                    根据异常 标记当前servlet 不可用的时间长度
      */
     @Override
     public void unavailable(UnavailableException unavailable) {
@@ -1262,19 +1304,24 @@ public class StandardWrapper extends ContainerBase
      *
      * @exception ServletException if an exception is thrown by the
      *  destroy() method
+     *  卸载 该servlet 应该是在应用终止时触发
      */
     @Override
     public synchronized void unload() throws ServletException {
 
         // Nothing to do if we have never loaded the instance
+        // 当采用单例模式 且 实例为null 直接返回
         if (!singleThreadModel && (instance == null))
             return;
+        // 设置卸载标识
         unloading = true;
 
         // Loaf a while if the current instance is allocated
         // (possibly more than once if non-STM)
+        // 如果分配出去的数量大于 0
         if (countAllocated.get() > 0) {
             int nRetries = 0;
+            // 获取一个合适的等待卸载的时间
             long delay = unloadDelay / 20;
             while ((nRetries < 21) && (countAllocated.get() > 0)) {
                 if ((nRetries % 10) == 0) {
@@ -1291,6 +1338,7 @@ public class StandardWrapper extends ContainerBase
             }
         }
 
+        // 当上面分配的 servlet 全部卸载后
         if (instanceInitialized) {
             PrintStream out = System.out;
             if (swallowOutput) {
@@ -1306,6 +1354,7 @@ public class StandardWrapper extends ContainerBase
                         SecurityUtil.remove(instance);
                     }
                 } else {
+                    // 销毁实例
                     instance.destroy();
                 }
 
@@ -1352,6 +1401,7 @@ public class StandardWrapper extends ContainerBase
             Registry.getRegistry(null, null).unregisterComponent(jspMonitorON);
         }
 
+        // 遍历将所有元素 移除
         if (singleThreadModel && (instancePool != null)) {
             try {
                 while (!instancePool.isEmpty()) {
@@ -1547,6 +1597,11 @@ public class StandardWrapper extends ContainerBase
     }
 
 
+    /**
+     * 获取servlet 支持的所有方法
+     * @param c
+     * @return
+     */
     protected Method[] getAllDeclaredMethods(Class<?> c) {
 
         if (c.equals(javax.servlet.http.HttpServlet.class)) {
@@ -1560,6 +1615,7 @@ public class StandardWrapper extends ContainerBase
             return parentMethods;
         }
 
+        // 将所有方法填装到数组中并返回
         if ((parentMethods != null) && (parentMethods.length > 0)) {
             Method[] allMethods =
                 new Method[parentMethods.length + thisMethods.length];
@@ -1584,6 +1640,7 @@ public class StandardWrapper extends ContainerBase
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  启动该servlet
      */
     @Override
     protected synchronized void startInternal() throws LifecycleException {
@@ -1596,9 +1653,10 @@ public class StandardWrapper extends ContainerBase
             broadcaster.sendNotification(notification);
         }
 
-        // Start up this component
+        // Start up this component   启动关联组件
         super.startInternal();
 
+        // available = 0 代表当前处在可用状态
         setAvailable(0L);
 
         // Send j2ee.state.running notification
@@ -1618,10 +1676,12 @@ public class StandardWrapper extends ContainerBase
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  终止该servlet
      */
     @Override
     protected synchronized void stopInternal() throws LifecycleException {
 
+        // 一旦终止 将不可用标记成最大值
         setAvailable(Long.MAX_VALUE);
 
         // Send j2ee.state.stopping notification
@@ -1634,13 +1694,14 @@ public class StandardWrapper extends ContainerBase
 
         // Shut down our servlet instance (if it has been initialized)
         try {
+            // 进行卸载 主要是调用 servlet.destroy()
             unload();
         } catch (ServletException e) {
             getServletContext().log(sm.getString
                       ("standardWrapper.unloadException", getName()), e);
         }
 
-        // Shut down this component
+        // Shut down this component  终止相关组件
         super.stopInternal();
 
         // Send j2ee.state.stopped notification

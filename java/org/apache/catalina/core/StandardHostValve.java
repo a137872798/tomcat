@@ -57,7 +57,8 @@ final class StandardHostValve extends ValveBase {
     // Saves a call to getClassLoader() on very request. Under high load these
     // calls took just long enough to appear as a hot spot (although a very
     // minor one) in a profiler.
-    // 这里获取了 host 对应的类加载器 推测是 commonClassLoader
+    // 之前解析server.xml 文件时 指定了使用commonClassLoader 进行加载 而等到首次初始化 StandardHost 时 触发了HostValve 的加载 这时 使用的是 appClassLoader 进行加载
+    // 因为在没有指定类加载器的情况 默认是使用appClassLoader TODO 如何做隔离还要看 jar包是在什么时候加载的
     private static final ClassLoader MY_CLASSLOADER =
             StandardHostValve.class.getClassLoader();
 
@@ -84,6 +85,7 @@ final class StandardHostValve extends ValveBase {
     }
 
     //------------------------------------------------------ Constructor
+    // 代表默认是支持异步的
     public StandardHostValve() {
         super(true);
     }
@@ -110,18 +112,19 @@ final class StandardHostValve extends ValveBase {
      *
      * @exception IOException if an input/output error occurred
      * @exception ServletException if a servlet error occurred
-     * hostValve 处理  req/res
+     * host 级别的阀门对象
      */
     @Override
     public final void invoke(Request request, Response response)
         throws IOException, ServletException {
 
-        // Select the Context to be used for this Request
+        // Select the Context to be used for this Request  首先确保传入的请求已经路由到一个指定的context
         Context context = request.getContext();
         if (context == null) {
             return;
         }
 
+        // 根据当前valve 特性来判断是否支持异步调用
         if (request.isAsyncSupported()) {
             request.setAsyncSupported(context.getPipeline().isAsyncSupported());
         }
@@ -130,10 +133,11 @@ final class StandardHostValve extends ValveBase {
         boolean asyncAtStart = request.isAsync();
 
         try {
-            // 这里将 创建 HostValve 的类加载器绑定到 context 上
+            // 这里将 创建 HostValve 的类加载器绑定到 context 上   默认情况下都是 appClassLoader 这样并没有做到隔离啊 如果多个 host 那么会共用这个appClassLoader
             context.bind(Globals.IS_SECURITY_ENABLED, MY_CLASSLOADER);
 
-            // 如果不支持异步req  且 传播init 事件失败 拒绝处理本次请求
+            // 如果是异步请求 那么触发监听器应该不是在这里
+            // 而如果不是异步请求 在监听器处理事件时  如果出现异常就不准备继续处理请求了  req 的处理也结束
             if (!asyncAtStart && !context.fireRequestInitEvent(request.getRequest())) {
                 // Don't fire listeners during async processing (the listener
                 // fired for the request that called startAsync()).
@@ -147,7 +151,7 @@ final class StandardHostValve extends ValveBase {
             // application defined error pages so DO NOT forward them to the the
             // application for processing.
             try {
-                // 如果当前res 还没有标记异常 传播到 context 级别 并继续处理 注意在 session 是绑定在context级别的
+                // res 还没有被标记成异常时 才允许往下传播  也就是errorState != 1
                 if (!response.isErrorReportRequired()) {
                     context.getPipeline().getFirst().invoke(request, response);
                 }
@@ -160,7 +164,7 @@ final class StandardHostValve extends ValveBase {
                 // 当捕获到异常时 如果发现 res 还没有指定异常结果 则设置异常属性
                 if (!response.isErrorReportRequired()) {
                     request.setAttribute(RequestDispatcher.ERROR_EXCEPTION, t);
-                    // 处理异常对象
+                    // 处理异常对象  一般业务层异常会在mvc 层被处理 这里的异常可以忽略
                     throwable(request, response, t);
                 }
             }
@@ -168,7 +172,7 @@ final class StandardHostValve extends ValveBase {
             // Now that the request/response pair is back under container
             // control lift the suspension so that the error handling can
             // complete and/or the container can flush any remaining data
-            // 当处理完成后 将悬置标识设置为false 代表已经处理完毕了
+            // 悬置设置成 false 代表可以处理res的剩余数据了
             response.setSuspended(false);
 
             // 尝试获取异常对象 如果在 wrapper层消化了异常 那么这里应该没有结果
@@ -185,7 +189,9 @@ final class StandardHostValve extends ValveBase {
                 // If an error has occurred that prevents further I/O, don't waste time
                 // producing an error report that will never be read
                 AtomicBoolean result = new AtomicBoolean(false);
+                // 内部逻辑是判断 当出现异常时 是否要将结果返回
                 response.getCoyoteResponse().action(ActionCode.IS_IO_ALLOWED, result);
+                // 如果需要将结果写到client 才处理
                 if (result.get()) {
                     if (t != null) {
                         throwable(request, response, t);
@@ -195,7 +201,7 @@ final class StandardHostValve extends ValveBase {
                 }
             }
 
-            // 当一个req 被处理完毕后 会将该req 进行销毁
+            // 触发监听器
             if (!request.isAsync() && !asyncAtStart) {
                 context.fireRequestDestroyEvent(request.getRequest());
             }
@@ -207,7 +213,7 @@ final class StandardHostValve extends ValveBase {
                 request.getSession(false);
             }
 
-            // 恢复类加载器
+            // 恢复类加载器  也就是当请求传播到context时 类加载器应该做了切换
             context.unbind(Globals.IS_SECURITY_ENABLED, MY_CLASSLOADER);
         }
     }

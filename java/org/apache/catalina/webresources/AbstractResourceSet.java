@@ -38,7 +38,7 @@ public abstract class AbstractResourceSet extends LifecycleBase
     private String base;
     private String internalPath = "";
     /**
-     * 应用山
+     * 应用
      */
     private String webAppMount;
 

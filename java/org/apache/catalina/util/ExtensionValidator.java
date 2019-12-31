@@ -58,7 +58,7 @@ public final class ExtensionValidator {
     private static volatile ArrayList<Extension> containerAvailableExtensions =
             null;
     /**
-     * 如果某些jar 包存在清单 那么保存到 list中
+     * ManifestResource 是用于解析jar包的 这里保存了 catalina 级别所有共享的jar包
      */
     private static final ArrayList<ManifestResource> containerManifestResources =
             new ArrayList<>();
@@ -124,6 +124,7 @@ public final class ExtensionValidator {
      *
      * @return true if all required extensions satisfied
      * @throws IOException Error reading resources needed for validation
+     * 校验应用资源
      */
     public static synchronized boolean validateApplication(
                                            WebResourceRoot resources,

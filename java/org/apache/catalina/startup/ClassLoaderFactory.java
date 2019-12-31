@@ -148,6 +148,7 @@ public final class ClassLoaderFactory {
      * @return the new class loader
      *
      * @exception Exception if an error occurs constructing the class loader
+     * 通过指定的一组 jar/url 和 父类加载器来初始化 类加载器
      */
     public static ClassLoader createClassLoader(List<Repository> repositories,
                                                 final ClassLoader parent)
@@ -161,7 +162,7 @@ public final class ClassLoaderFactory {
 
         if (repositories != null) {
             for (Repository repository : repositories)  {
-                // 如果资源是 url 将字符串构建成 url对象
+                // 如果资源是 url 那么可以直接将string 转换成url
                 if (repository.getType() == RepositoryType.URL) {
                     URL url = buildClassLoaderUrl(repository.getLocation());
                     if (log.isDebugEnabled())

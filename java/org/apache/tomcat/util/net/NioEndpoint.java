@@ -66,7 +66,7 @@ import org.apache.tomcat.util.net.jsse.JSSESupport;
  *
  * @author Mladen Turk
  * @author Remy Maucherat
- * 基于 java5 nio 的 端点对象  还有一个改良版 nio2Endpoint  使用的socket 类型是 NioChannel
+ * 基于 java5 nio 的 端点对象  使用的socket 类型是 NioChannel
  */
 public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
 
@@ -85,7 +85,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
     // ----------------------------------------------------------------- Fields
 
     /**
-     * 使用该对象 维护 selector 内部还有一个 poller 对象 会通过轮询选择器
+     * 内部包含一个选择器池
      */
     private NioSelectorPool selectorPool = new NioSelectorPool();
 
@@ -96,19 +96,19 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
     private volatile ServerSocketChannel serverSock = null;
 
     /**
-     * 用于 阻塞请求停止的线程
+     * 用于 阻塞请求停止的线程  等待stop 完全结束
      */
     private volatile CountDownLatch stopLatch = null;
 
     /**
      * Cache for poller events
-     * 缓存 pollerEvent 对象 避免被GC 回收
+     * 缓存 pollerEvent 对象 避免被GC 回收  该并发容器 大部分的方法都是使用 synchronized
      */
     private SynchronizedStack<PollerEvent> eventCache;
 
     /**
      * Bytebuffer cache, each channel holds a set of buffers (two, except for SSL holds four)
-     * 保存 NioChannel 对象   该对象内部封装了 JDK channel
+     * 保存 NioChannel 对象   该对象内部封装了 JDK channel   这个管道 保存的是 对端 client 的信息吗， 便于直接向对端写入数据
      */
     private SynchronizedStack<NioChannel> nioChannels;
 
@@ -261,17 +261,18 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
 
     /**
      * Initialize the endpoint.
-     * 初始化 端点对象
+     * 当触发 connector 的init 后 会传播到 endpoint 的 init 之后会触发 bind 方法 开启socket 监听
      */
     @Override
     public void bind() throws Exception {
 
         // 如果没有 使用从 jvm 处获得的channel 那么就需要创建一个新的channel
         if (!getUseInheritedChannel()) {
+            // 创建一个 nio 管道对象 该对象可以从 buffer 中读取client 传来的数据
             serverSock = ServerSocketChannel.open();
             // 将socket 设置到 prop 中
             socketProperties.setProperties(serverSock.socket());
-            // 从server.xml 中读取 地址信息 并生成对应的 InetSocketAddress 对象
+            // 从server.xml 中读取 port 并生成对应的 InetSocketAddress 对象 这里的ip 会使用本地ip
             InetSocketAddress addr = (getAddress() != null ? new InetSocketAddress(getAddress(), getPort()) : new InetSocketAddress(getPort()));
             // 将socket 绑定到目标地址 同时指定了最大连接数
             serverSock.socket().bind(addr, getAcceptCount());
@@ -286,14 +287,17 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
                 throw new IllegalArgumentException(sm.getString("endpoint.init.bind.inherited"));
             }
         }
-        // 将模式修改成 阻塞模式
+        // 这里强制将 套接字设置成阻塞模式
         serverSock.configureBlocking(true); //mimic APR behavior
 
-        // Initialize thread count defaults for acceptor, poller
+        // Initialize thread count defaults for acceptor, poller   初始化 接收器线程数 和 轮询线程数 因为io密集型不能通过 增加线程数来显著提升性能 那么这里是通过单线程监听选择器的方式处理?
+        // 并且这里还是使用阻塞模式
+        // acceptorThreadCount 默认为1
         if (acceptorThreadCount == 0) {
             // FIXME: Doesn't seem to work that well with multiple accept threads
             acceptorThreadCount = 1;
         }
+        // 该数量默认为cpu 内核数2倍
         if (pollerThreadCount <= 0) {
             //minimum one poller thread
             pollerThreadCount = 1;
@@ -304,7 +308,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
         // Initialize SSL if needed   ssl 相关先不看
         initialiseSsl();
 
-        // 开启内部 池化对象  注意如果 pool 对象内部没有 共享selector 那么 不会创建 BlockPoller
+        // 开启内部 池化对象
         selectorPool.open();
     }
 

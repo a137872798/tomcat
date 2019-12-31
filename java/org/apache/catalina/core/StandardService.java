@@ -46,7 +46,7 @@ import org.apache.tomcat.util.res.StringManager;
  * not required.
  *
  * @author Craig R. McClanahan
- * 标准service 实现
+ * 标准service 实现   当 server 初始化后 会触发该对象的init 方法
  */
 
 public class StandardService extends LifecycleMBeanBase implements Service {
@@ -409,6 +409,7 @@ public class StandardService extends LifecycleMBeanBase implements Service {
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  启动服务组件  一个server下面可以有多个 service  而每个service 又对应一个connector 和一套container 也就是 每个service 对应一个服务端口 可以提供某种业务
      */
     @Override
     protected void startInternal() throws LifecycleException {
@@ -418,6 +419,7 @@ public class StandardService extends LifecycleMBeanBase implements Service {
         setState(LifecycleState.STARTING);
 
         // Start our defined Container first
+        // 启动最上层容器 engine 它内部携带一个 用于初始化子容器的线程池 会往下传播 并进行初始化
         if (engine != null) {
             synchronized (engine) {
                 engine.start();
@@ -525,13 +527,16 @@ public class StandardService extends LifecycleMBeanBase implements Service {
     /**
      * Invoke a pre-startup initialization. This is used to allow connectors
      * to bind to restricted ports under Unix operating environments.
+     * 当 server 初始化完毕后会触发该方法  在server 层主要就是将 catalina 级别所有的jar包保存起来
      */
     @Override
     protected void initInternal() throws LifecycleException {
 
         super.initInternal();
 
-        // engine 会在解析xml的时候被设置  TODO 先不看 engine相关的
+        // 在service 中存在2个核心组件   一个是 engine 它是顶层container 往下分别是 host context wrapper  还有一个组件是 connector 负责接收数据流并解析成req res 对象 并通过一个 adapter对象将
+        // req res 转交给 container 处理
+        // 在 engine.init() 中 主要是开启了一个用于启动和关闭子容器的线程池 以及初始化了一个engine 管道， 该管道只是将数据流传播到下层(host) 对应的管道
         if (engine != null) {
             engine.init();
         }
@@ -547,12 +552,13 @@ public class StandardService extends LifecycleMBeanBase implements Service {
             executor.init();
         }
 
-        // Initialize mapper listener  TODO 先看连接器
+        // Initialize mapper listener
+        // 初始化映射监听器
         mapperListener.init();
 
-        // Initialize our defined Connectors
+        // Initialize our defined Connectors   开始初始化 connector 对象 该对象内部封装了 socket 的逻辑
         synchronized (connectorsLock) {
-            // 遍历 该service 下所有的连接器 并进行初始化
+            // 遍历 该service 下所有的连接器 并进行初始化  这里只需要关注 http1.1  apr 跟操作系统相关  http2 基于异步io
             for (Connector connector : connectors) {
                 try {
                     connector.init();

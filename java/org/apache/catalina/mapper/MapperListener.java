@@ -84,6 +84,7 @@ public class MapperListener extends LifecycleMBeanBase
      * Create mapper listener.
      *
      * @param service The service this listener is associated with
+     *                创建service 对象时 会创建该对象
      */
     public MapperListener(Service service) {
         this.service = service;

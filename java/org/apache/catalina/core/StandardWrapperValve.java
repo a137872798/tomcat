@@ -53,7 +53,7 @@ import org.apache.tomcat.util.res.StringManager;
 final class StandardWrapperValve
     extends ValveBase {
 
-    //------------------------------------------------------ Constructor
+    //------------------------------------------------------ Constructor  默认支持异步处理
     public StandardWrapperValve() {
         super(true);
     }

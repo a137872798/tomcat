@@ -1398,8 +1398,9 @@ public abstract class AbstractEndpoint<S> {
      * @throws Exception
      */
     public void init() throws Exception {
-        // 如果设置了在 init 阶段进行绑定
+        // 如果设置了在 init 阶段进行绑定   为什么绑定端口 要设置成可以在init 中进行 而不是在start中进行
         if (bindOnInit) {
+            // 绑定指定的端口 便于之后开始监听连接
             bind();
             bindState = BindState.BOUND_ON_INIT;
         }

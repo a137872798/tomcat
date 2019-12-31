@@ -38,7 +38,7 @@ import org.apache.tomcat.util.collections.SynchronizedStack;
 import org.apache.tomcat.util.net.NioEndpoint.NioSocketWrapper;
 
 /**
- * 内部包含一个 poller 对象 用于轮询selector 上注册的 key  该对象可能会存在于一个 pool 中
+ * 内部包含一个 poller 对象 用于轮询selector 上注册的 key  上层通过调用api(read/write) 将读写事件注册到选择器上 之后进行处理
  */
 public class NioBlockingSelector {
 
@@ -71,13 +71,15 @@ public class NioBlockingSelector {
     }
 
     /**
-     * 开启某个选择器对象
+     * 通过外部传入的选择器对象进行初始化
      * @param selector
      */
     public void open(Selector selector) {
         sharedSelector = selector;
+        // 创建轮询选择器的 poller 对象
         poller = new BlockPoller();
         poller.selector = sharedSelector;
+        // 作为守护线程启动
         poller.setDaemon(true);
         poller.setName("NioBlockingSelector.BlockPoller-" + (threadCounter.getAndIncrement()));
         // 启动轮询对象
@@ -406,14 +408,14 @@ public class NioBlockingSelector {
         }
 
         /**
-         * poller 监听选择器逻辑
+         * 当 endpoint 触发 bind 后 获取selector 对象 并使用一个 blockingPoller 开始轮询该套接字
          */
         @Override
         public void run() {
             // 配合 run 变量起到安全退出任务的作用
             while (run) {
                 try {
-                    // 每次从selector 阻塞状态解除的时候 消耗一定时间来执行cpu 任务
+                    // 开始获取所有待处理的任务 刚初始化时 还没有可以处理的任务  该对象应该是只负责 read/write 的 而连接事件在别的地方处理
                     events();
                     int keyCount = 0;
                     try {

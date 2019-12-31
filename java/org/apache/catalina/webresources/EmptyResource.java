@@ -29,7 +29,13 @@ import org.apache.catalina.WebResourceRoot;
 public class EmptyResource implements WebResource {
 
     private final WebResourceRoot root;
+    /**
+     * 该资源所在的目录
+     */
     private final String webAppPath;
+    /**
+     * 资源对应的文件
+     */
     private final File file;
 
     public EmptyResource(WebResourceRoot root, String webAppPath) {

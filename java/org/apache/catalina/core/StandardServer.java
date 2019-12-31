@@ -56,7 +56,7 @@ import org.apache.tomcat.util.res.StringManager;
 /**
  * Standard implementation of the <b>Server</b> interface, available for use
  * (but not required) when deploying and starting Catalina.
- * 首个被tomcat 加载的类就是 该类 tomcat的启动分为2步 一步是解析xml文件并初始化tomcat核心组件 第二步就是启动相关组件
+ * 首个被tomcat 加载的类就是该类 ，tomcat的启动分为2步 一步是解析xml文件并初始化tomcat核心组件 第二步就是启动相关组件
  * @author Craig R. McClanahan
  */
 public final class StandardServer extends LifecycleMBeanBase implements Server {
@@ -112,6 +112,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
 
     /**
      * The port number on which we wait for shutdown commands.
+     * 默认监听终止的端口是 8005
      */
     private int port = 8005;
 
@@ -757,6 +758,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  触发 catalina.start 后 最先传播到这里
      */
     @Override
     protected void startInternal() throws LifecycleException {
@@ -769,6 +771,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
         // Start our defined Services
         synchronized (servicesLock) {
             for (int i = 0; i < services.length; i++) {
+                // 主要就是往下触发所有的service
                 services[i].start();
             }
         }
@@ -825,12 +828,13 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
 
         // Populate the extension validator with JARs from common and shared
         // class loaders
+        // 上面都是 mbean 相关的 可以忽略 主要看下面的逻辑
         if (getCatalina() != null) {
             // 获取 commonClassLoader
             ClassLoader cl = getCatalina().getParentClassLoader();
             // Walk the class loader hierarchy. Stop at the system class loader.
             // This will add the shared (if present) and common class loaders
-            // 一般来说进入到这里 该classLoader 是 commonClassLoader
+            // 一般来说进入到这里 该classLoader 是 commonClassLoader  且 instanceof UrlClassLoader 为 true
             while (cl != null && cl != ClassLoader.getSystemClassLoader()) {
                 if (cl instanceof URLClassLoader) {
                     URL[] urls = ((URLClassLoader) cl).getURLs();
@@ -855,7 +859,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
                 cl = cl.getParent();
             }
         }
-        // Initialize our defined Services  初始化server 下的所有service  到这一步会触发监听器
+        // Initialize our defined Services  初始化server 下的所有service
         for (int i = 0; i < services.length; i++) {
             services[i].init();
         }

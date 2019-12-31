@@ -33,13 +33,23 @@ import org.apache.catalina.util.LifecycleBase;
  * and behaves as if it has no resources available. This is  primarily used in
  * embedded mode when the web application is configured entirely
  * programmatically and does not use any static resources from the file system.
+ * 空资源容器对象
  */
 public class EmptyResourceSet extends LifecycleBase implements WebResourceSet {
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
 
+    /**
+     * 该资源内部存放的是哪个 root 下的资源
+     */
     private WebResourceRoot root;
+    /**
+     * 内部的资源是否只能通过classLoader 进行加载
+     */
     private boolean classLoaderOnly;
+    /**
+     * 是否只允许静态资源
+     */
     private boolean staticOnly;
 
     public EmptyResourceSet(WebResourceRoot root) {

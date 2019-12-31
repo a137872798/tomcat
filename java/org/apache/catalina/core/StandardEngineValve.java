@@ -88,12 +88,12 @@ final class StandardEngineValve extends ValveBase {
                               request.getServerName()));
             return;
         }
-        // 如果host 本身不支持异步处理 那么 将req 修改成不支持异步
         if (request.isAsyncSupported()) {
             request.setAsyncSupported(host.getPipeline().isAsyncSupported());
         }
 
-        // Ask this Host to process this request   使用 host关联的pipeline 处理 req res
+        // Ask this Host to process this request
+        // 将请求从 engine 级别传播到host 级别
         host.getPipeline().getFirst().invoke(request, response);
 
     }

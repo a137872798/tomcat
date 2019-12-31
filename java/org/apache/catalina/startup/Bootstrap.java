@@ -65,19 +65,21 @@ public final class Bootstrap {
         // Will always be non-null
         String userDir = System.getProperty("user.dir");
 
-        // Home first   首先尝试从环境变量中获取tomcat的位置
+        // Home first  获取tomcat 的安装目录
         String home = System.getProperty(Globals.CATALINA_HOME_PROP);
         File homeFile = null;
 
         if (home != null) {
             File f = new File(home);
             try {
+                // 获取规范化名称
                 homeFile = f.getCanonicalFile();
             } catch (IOException ioe) {
                 homeFile = f.getAbsoluteFile();
             }
         }
 
+        // 下面这2段可以不看 基本就是从tomcat的安装目录开始
         if (homeFile == null) {
             // First fall-back. See if current directory is a bin directory
             // in a normal Tomcat install
@@ -103,12 +105,12 @@ public final class Bootstrap {
             }
         }
 
-        // 读取到地址后设置到 全局变量中
+        // 设置 catalinaHome / 也就是 tomcat 的安装目录
         catalinaHomeFile = homeFile;
         System.setProperty(
                 Globals.CATALINA_HOME_PROP, catalinaHomeFile.getPath());
 
-        // Then base
+        // Then base   获取base 目录 如果没有指定 则将安装目录作为base 目录 一般情况下二者就是相同的
         String base = System.getProperty(Globals.CATALINA_BASE_PROP);
         if (base == null) {
             catalinaBaseFile = catalinaHomeFile;
@@ -151,7 +153,7 @@ public final class Bootstrap {
                 // no config file, default to this loader - we might be in a 'single' env.
                 commonLoader = this.getClass().getClassLoader();
             }
-            // 实际上 下面2个引用指向的就是commonLoader
+            // 实际上 下面2个引用指向的就是commonLoader(一个 URLClassLoader 对象)  当它的子类尝试调用loadClass 时 会从 urls中找到servlet catalina 相关的jar包并进行加载 这样这些类就可以在 catalina 中进行共享
             catalinaLoader = createClassLoader("server", commonLoader);
             sharedLoader = createClassLoader("shared", commonLoader);
         } catch (Throwable t) {
@@ -175,12 +177,13 @@ public final class Bootstrap {
 
         // 间接调用 CatalinaProperties 会触发虚拟机的加载，同时触发 static块
         // .loader 属性代表了该类加载器允许加载的jar包范围
+        // 默认情况下是这段 common.loader="${catalina.base}/lib","${catalina.base}/lib/*.jar","${catalina.home}/lib","${catalina.home}/lib/*.jar"  而 base 默认和 home 路径相同
         String value = CatalinaProperties.getProperty(name + ".loader");
         // 目前 server.loader shared.loader 属性都为空 代表它们 和 commonLoader 指向同一个类加载器
         if ((value == null) || (value.equals("")))
             return parent;
 
-        // 替换占位符
+        // 将 catalina.base/catalina.home 换成实际路径
         value = replace(value);
 
         List<Repository> repositories = new ArrayList<>();
@@ -194,6 +197,7 @@ public final class Bootstrap {
                 // 优先将路径转换成 URL
                 @SuppressWarnings("unused")
                 URL url = new URL(repository);
+                // 将 url 封装成 存储对象 并设置到list中
                 repositories.add(new Repository(repository, RepositoryType.URL));
                 continue;
             } catch (MalformedURLException e) {
@@ -212,7 +216,8 @@ public final class Bootstrap {
             }
         }
 
-        // 构建类加载器
+        // 构建类加载器  该类加载器会在启动的时候就加载 指定路径下所有的jar包 这样以该类加载器为子类的类加载器就能共享这些jar包了
+        // 实际上生成的是 URLClassLoader 该对象在初始化时可以指定一个路径 之后重写 findClass loadClass 而尝试加载的类会去绑定的一组url 中寻找
         return ClassLoaderFactory.createClassLoader(repositories, parent);
     }
 
@@ -270,7 +275,7 @@ public final class Bootstrap {
      */
     public void init() throws Exception {
 
-        // 初始化类加载器
+        // 初始化类加载器  这里会将共享的jar 包设置到 urlClassLoader 并作为一个 commonClassLoader
         initClassLoaders();
 
         // 将当前线程 绑定的类加载器设置成 catalinaLoader  此时 catalinaLoader = commonLoader
@@ -282,8 +287,7 @@ public final class Bootstrap {
         // Load our startup class and call its process() method
         if (log.isDebugEnabled())
             log.debug("Loading startup class");
-        // 开始加载核心类  catalina 此时使用的加载策略还是双亲委派 不过该classLoader 并没有指定parent 属性 也就是原本可能会被 applicationClassloader加载的
-        // 类在该类加载器下 会单独加载一份
+
         Class<?> startupClass = catalinaLoader.loadClass("org.apache.catalina.startup.Catalina");
         Object startupInstance = startupClass.getConstructor().newInstance();
 
@@ -424,6 +428,7 @@ public final class Bootstrap {
      * Set flag.
      * @param await <code>true</code> if the daemon should block
      * @throws Exception Reflection error
+     * 设置成等待状态
      */
     public void setAwait(boolean await)
         throws Exception {
@@ -469,6 +474,7 @@ public final class Bootstrap {
         synchronized (daemonLock) {
             if (daemon == null) {
                 // Don't set daemon until init() has completed
+                // 初始化 catalina.home 和 catalina.base
                 Bootstrap bootstrap = new Bootstrap();
                 try {
                     // 在tomcat中每个核心类都继承一个生命周期接口 LifeCycle  同一通过 init方法进行初始化
@@ -483,6 +489,7 @@ public final class Bootstrap {
                 // When running as a service the call to stop will be on a new
                 // thread so make sure the correct class loader is used to
                 // prevent a range of class not found exceptions.
+                // 将 commonClassLoader 绑定在启动的主线程上
                 Thread.currentThread().setContextClassLoader(daemon.catalinaLoader);
             }
         }
@@ -507,6 +514,7 @@ public final class Bootstrap {
             // 如果是 start 指令 当前线程会阻塞等待catalina加载完成
             } else if (command.equals("start")) {
                 daemon.setAwait(true);
+                // 开始加载数据 应该就是解析 server.xml 文件
                 daemon.load(args);
                 daemon.start();
                 // 解除阻塞后 如果 server 创建失败 则 通过code1 退出程序

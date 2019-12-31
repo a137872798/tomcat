@@ -55,7 +55,7 @@ public enum ErrorState {
      */
     private final int severity;
     /**
-     * 当出现了该异常后是否还能进行正常的io 操作 比如 继续读取关于某个req 的数据流
+     * 代表出现异常时是否允许将结果协会到client
      */
     private final boolean ioAllowed;
     /**

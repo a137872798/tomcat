@@ -154,7 +154,7 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
      * @return
      */
     private String[] list(String path, boolean validate) {
-        // 首先校验路径
+        // 首先校验路径   该方法内部还会替换转义符
         if (validate) {
             path = validate(path);
         }
@@ -166,6 +166,7 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         HashSet<String> result = new LinkedHashSet<>();
         for (List<WebResourceSet> list : allResources) {
             for (WebResourceSet webResourceSet : list) {
+                // 将不仅仅允许使用 classLoader 加载的资源返回
                 if (!webResourceSet.getClassLoaderOnly()) {
                     String[] entries = webResourceSet.list(path);
                     for (String entry : entries) {
@@ -178,6 +179,7 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
     }
 
 
+    // 以set 形式返回
     @Override
     public Set<String> listWebAppPaths(String path) {
         path = validate(path);
@@ -205,19 +207,36 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
             return false;
         }
 
+        // 在主资源目录下创建子目录
         boolean mkdirResult = main.mkdir(path);
 
         if (mkdirResult && isCachingAllowed()) {
             // Remove the entry from the cache so the new directory is visible
+            // 如果允许缓存的情况下  先从旧缓存中移除
             cache.removeCacheEntry(path);
         }
         return mkdirResult;
     }
 
+    /**
+     * 将数据流中的数据写入到指定目录
+     * @param path      The path to be used for the new Resource. It is relative
+     *                  to the root of the web application and must start with
+     *                  '/'.
+     * @param is        The InputStream that will provide the content for the
+     *                  new Resource.
+     * @param overwrite If <code>true</code> and the resource already exists it
+     *                  will be overwritten. If <code>false</code> and the
+     *                  resource already exists the write will fail.  如果文件存在的话是否进行覆盖
+     *
+     * @return
+     */
     @Override
     public boolean write(String path, InputStream is, boolean overwrite) {
+        // 校验路径 和做转义工作
         path = validate(path);
 
+        // 在 preResources 中如果存在该路径 直接返回 不进行写入
         if (!overwrite && preResourceExists(path)) {
             return false;
         }
@@ -247,6 +266,13 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         return getResource(path, true, false);
     }
 
+    /**
+     * 尝试获取资源
+     * @param path
+     * @param validate
+     * @param useClassLoaderResources
+     * @return
+     */
     protected WebResource getResource(String path, boolean validate,
             boolean useClassLoaderResources) {
         if (validate) {
@@ -260,6 +286,8 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         }
     }
 
+
+    // /WEB-INF/classes 下主要是存放项目   同级还有lib 目录 用于存放依赖的jar包
 
     @Override
     public WebResource getClassLoaderResource(String path) {
@@ -310,6 +338,12 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         return result;
     }
 
+    /**
+     * 根据路径找到 指定资源
+     * @param path
+     * @param useClassLoaderResources
+     * @return
+     */
     protected final WebResource getResourceInternal(String path,
             boolean useClassLoaderResources) {
         WebResource result = null;
@@ -441,6 +475,7 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         // file.
         File file = new File(base);
 
+        // 根据文件类型存储在不同的容器中
         if (file.isFile()) {
             if (archivePath != null) {
                 // Must be a JAR nested inside a WAR if archivePath is non-null
@@ -740,10 +775,16 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         TomcatURLStreamHandlerFactory.register();
     }
 
+    /**
+     * 调用该方法  开始进行整个 根目录下数据的解析
+     * @throws LifecycleException
+     */
     @Override
     protected void startInternal() throws LifecycleException {
+        // 先清除之前的缓存
         mainResources.clear();
 
+        // 根据 root 目录创建main 对象
         main = createMainResourceSet();
 
         mainResources.add(main);
@@ -770,22 +811,32 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         setState(LifecycleState.STARTING);
     }
 
+    /**
+     * 创建主资源容器对象
+     * @return
+     */
     protected WebResourceSet createMainResourceSet() {
+        // docBase 重新指定了项目目录路径   如 Context docBase="/home/vmims/project/vmims"
         String docBase = context.getDocBase();
 
         WebResourceSet mainResourceSet;
         if (docBase == null) {
             mainResourceSet = new EmptyResourceSet(this);
         } else {
+            // 基于根目录定位到文件
             File f = new File(docBase);
             if (!f.isAbsolute()) {
+                // 拼接上context的路径 (如果 docBase 不是绝对路径的话)
                 f = new File(((Host)context.getParent()).getAppBaseFile(), f.getPath());
             }
+            // 如果是一个目录对象
             if (f.isDirectory()) {
                 mainResourceSet = new DirResourceSet(this, "/", f.getAbsolutePath(), "/");
+                // 也允许是war包对象
             } else if(f.isFile() && docBase.endsWith(".war")) {
                 mainResourceSet = new WarResourceSet(this, "/", f.getAbsolutePath());
             } else {
+                // 其余情况抛出异常
                 throw new IllegalArgumentException(
                         sm.getString("standardRoot.startInvalidMain",
                                 f.getAbsolutePath()));

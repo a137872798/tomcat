@@ -65,7 +65,7 @@ public class CatalinaProperties {
 
         InputStream is = null;
         try {
-            // 读取catalina.config文件
+            // 读取catalina.config文件  一般是不需要设置的
             String configUrl = System.getProperty("catalina.config");
             if (configUrl != null) {
                 is = (new URL(configUrl)).openStream();
@@ -81,7 +81,7 @@ public class CatalinaProperties {
                 File home = new File(Bootstrap.getCatalinaBase());
                 // 获取下面的conf 文件
                 File conf = new File(home, "conf");
-                // 获取属性文件
+                // 获取属性文件  默认情况就是这种   这个配置文件中记录了所有的公共jar包
                 File propsFile = new File(conf, "catalina.properties");
                 is = new FileInputStream(propsFile);
             } catch (Throwable t) {
@@ -89,7 +89,7 @@ public class CatalinaProperties {
             }
         }
 
-        // 还是没有获取到就从一个默认路径中加载
+        // 一般在 读取 catalina.prop 后 就不需要解析其他参数了 这里可以忽略
         if (is == null) {
             try {
                 is = CatalinaProperties.class.getResourceAsStream

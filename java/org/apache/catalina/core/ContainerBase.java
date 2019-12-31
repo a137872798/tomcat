@@ -918,13 +918,13 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
 
     /**
-     * 针对container 进行初始化
+     * 容器级别的基类对象 在触发init 后 都会执行该方法 该方法将初始化的逻辑往下传递
      * @throws LifecycleException
      */
     @Override
     protected void initInternal() throws LifecycleException {
         BlockingQueue<Runnable> startStopQueue = new LinkedBlockingQueue<>();
-        // 初始化时 创建 start/stop 相关的线程池对象
+        // 初始化时 创建 start/stop 相关的线程池对象  此时还没有提交任务
         startStopExecutor = new ThreadPoolExecutor(
                 getStartStopThreadsInternal(),
                 getStartStopThreadsInternal(), 10, TimeUnit.SECONDS,
@@ -942,7 +942,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
-     *  启动容器 方法
+     *  往下创建相关子级容器
      */
     @Override
     protected synchronized void startInternal() throws LifecycleException {
@@ -960,10 +960,11 @@ public abstract class ContainerBase extends LifecycleMBeanBase
             ((Lifecycle) realm).start();
         }
 
-        // Start our child containers, if any  获取所有子容器 并提交启动任务
+        // Start our child containers, if any  获取所有子容器 并提交启动任务  可能是考虑到等待多个子容器启动比较耗时 所以使用一个线程池 配合 alive = true 使得线程能够被回收
         Container children[] = findChildren();
         List<Future<Void>> results = new ArrayList<>();
         for (int i = 0; i < children.length; i++) {
+            // StartChild 内部只是执行start 方法
             results.add(startStopExecutor.submit(new StartChild(children[i])));
         }
 
@@ -1178,12 +1179,12 @@ public abstract class ContainerBase extends LifecycleMBeanBase
      * Execute a periodic task, such as reloading, etc. This method will be
      * invoked inside the classloading context of this container. Unexpected
      * throwables will be caught and logged.
-     * 触发一次后台任务
+     * 相当于每个 容器根据自己需要创建了一个 后台任务 实际上感觉有点强耦合
      */
     @Override
     public void backgroundProcess() {
 
-        // 如果当前 container 已经处在不可用的状态 比如调用过 stop destroy 等等
+        // 如果当前 container 已经处在不可用的状态 比如调用过 stop destroy 等等 那么直接返回
         if (!getState().isAvailable())
             return;
 
@@ -1333,6 +1334,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
     /**
      * Start the background thread that will periodically check for
      * session timeouts.
+     * 注意该方法是存在于 containerBase 层的 也就是每个容器在触发start 方法时 都会开启一个后台任务
      */
     protected void threadStart() {
 
@@ -1440,7 +1442,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
             try {
                 // 如果当前容器 是context
                 if (container instanceof Context) {
-                    // 获取加载器对象
+                    // 注意 在context 层上绑定了一个loader 每个context 就是在这一层做了类加载器隔离的
                     Loader loader = ((Context) container).getLoader();
                     // Loader will be null for FailedContext instances
                     if (loader == null) {
@@ -1449,7 +1451,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
                     // Ensure background processing for Contexts and Wrappers
                     // is performed under the web app's class loader
-                    // TODO 啥意思啊 这里将类加载器 置空
+                    // 将类加载器置空后 触发一个后台处理
                     originalClassLoader = ((Context) container).bind(false, null);
                 }
                 // 触发一次后台任务
@@ -1464,7 +1466,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
                 ExceptionUtils.handleThrowable(t);
                 log.error("Exception invoking periodic operation: ", t);
             } finally {
-                // TODO 恢复类加载器
+                // 恢复类加载器
                 if (container instanceof Context) {
                     ((Context) container).unbind(false, originalClassLoader);
                }
