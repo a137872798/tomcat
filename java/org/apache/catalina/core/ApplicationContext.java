@@ -1012,6 +1012,9 @@ public class ApplicationContext implements org.apache.catalina.servlet4preview.S
     }
 
 
+    /**
+     * 设置支持的cookie 模式
+     */
     private void populateSessionTrackingModes() {
         // URL re-writing is always enabled by default
         defaultSessionTrackingModes = EnumSet.of(SessionTrackingMode.URL);

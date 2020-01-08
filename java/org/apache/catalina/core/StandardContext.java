@@ -6182,7 +6182,7 @@ public class StandardContext extends ContainerBase
                 if (parentHost instanceof StandardHost) {
                     hostWorkDir = ((StandardHost)parentHost).getWorkDir();
                 }
-                // 设置引擎名
+                // 设置引擎名   默认就是catalina
                 Container parentEngine = parentHost.getParent();
                 if (parentEngine != null) {
                    engineName = parentEngine.getName();
