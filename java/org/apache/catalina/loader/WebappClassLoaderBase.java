@@ -213,6 +213,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         this.parent = p;
 
         ClassLoader j = String.class.getClassLoader();
+        // 因为 bootstrapClassLoader 无法获得 所以这里会变成 appClassLoader
         if (j == null) {
             j = getSystemClassLoader();
             while (j.getParent() != null) {
@@ -236,6 +237,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * see {@link WebappLoader#createClassLoader()}
      *
      * @param parent Our parent class loader
+     *               通过一个 父类加载器进行初始化
      */
     protected WebappClassLoaderBase(ClassLoader parent) {
 
@@ -437,6 +439,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * Set associated resources.
      * @param resources the resources from which the classloader will
      *     load the classes
+     *                  设置需要加载的资源
      */
     public void setResources(WebResourceRoot resources) {
         this.resources = resources;
@@ -1508,13 +1511,14 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      * Start the class loader.
      *
      * @exception LifecycleException if a lifecycle error occurs
+     * 启动类加载器 也就是使用该对象去加载context 级别的资源 这样就可以起到隔离作用
      */
     @Override
     public void start() throws LifecycleException {
 
         state = LifecycleState.STARTING_PREP;
 
-        // 获取项目下所有资源
+        // 获取项目内部的类
         WebResource[] classesResources = resources.getResources("/WEB-INF/classes");
         for (WebResource classes : classesResources) {
             if (classes.isDirectory() && classes.canRead()) {

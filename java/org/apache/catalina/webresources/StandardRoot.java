@@ -166,8 +166,8 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         HashSet<String> result = new LinkedHashSet<>();
         for (List<WebResourceSet> list : allResources) {
             for (WebResourceSet webResourceSet : list) {
-                // 将不仅仅允许使用 classLoader 加载的资源返回
                 if (!webResourceSet.getClassLoaderOnly()) {
+                    // 返回指定路径下的资源
                     String[] entries = webResourceSet.list(path);
                     for (String entry : entries) {
                         result.add(entry);
@@ -351,6 +351,7 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         WebResource mainEmpty = null;
         for (List<WebResourceSet> list : allResources) {
             for (WebResourceSet webResourceSet : list) {
+                // 找到匹配资源
                 if (!useClassLoaderResources &&  !webResourceSet.getClassLoaderOnly() ||
                         useClassLoaderResources && !webResourceSet.getStaticOnly()) {
                     result = webResourceSet.getResource(path);
@@ -419,11 +420,18 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         return listResources(path, true);
     }
 
+    /**
+     * 获取 context 下所有jar包
+     * @param path
+     * @param validate
+     * @return
+     */
     protected WebResource[] listResources(String path, boolean validate) {
         if (validate) {
             path = validate(path);
         }
 
+        // 实际上就是 File.list
         String[] resources = list(path, false);
         WebResource[] result = new WebResource[resources.length];
         for (int i = 0; i < resources.length; i++) {
@@ -447,6 +455,19 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
                 baseLocation.getArchivePath(), internalPath);
     }
 
+    /**
+     * 根据资源类型匹配资源 并追加到context的资源路径中
+     * @param type          The type of {@link WebResourceSet} to create
+     * @param webAppMount   The path within the web application that the
+     *                          resources should be published at. It must start
+     *                          with '/'.
+     * @param base          The location of the resources
+     * @param archivePath   The path within the resource to the archive where
+     *                          the content is to be found. If there is no
+     *                          archive then this should be <code>null</code>.
+     * @param internalPath  The path within the archive (or the resource if the
+     *                          archivePath is <code>null</code> where the
+     */
     @Override
     public void createWebResourceSet(ResourceSetType type, String webAppMount,
             String base, String archivePath, String internalPath) {
@@ -784,7 +805,7 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         // 先清除之前的缓存
         mainResources.clear();
 
-        // 根据 root 目录创建main 对象
+        // 根据 root 目录创建main 对象   这里允许资源是一个war包
         main = createMainResourceSet();
 
         mainResources.add(main);

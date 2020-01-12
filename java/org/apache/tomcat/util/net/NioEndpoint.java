@@ -287,11 +287,11 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
                 throw new IllegalArgumentException(sm.getString("endpoint.init.bind.inherited"));
             }
         }
-        // 这里强制将 套接字设置成阻塞模式
+        // 服务端套接字一般是设置成阻塞模式 这样调用 accept() 不会立即返回
         serverSock.configureBlocking(true); //mimic APR behavior
 
-        // Initialize thread count defaults for acceptor, poller   初始化 接收器线程数 和 轮询线程数 因为io密集型不能通过 增加线程数来显著提升性能 那么这里是通过单线程监听选择器的方式处理?
-        // 并且这里还是使用阻塞模式
+        // Initialize thread count defaults for acceptor, poller
+        // 初始化 接收器线程数 和 轮询线程数 因为io密集型不能通过 增加线程数来显著提升性能 那么这里是通过单线程监听选择器的方式处理?
         // acceptorThreadCount 默认为1
         if (acceptorThreadCount == 0) {
             // FIXME: Doesn't seem to work that well with multiple accept threads
@@ -308,7 +308,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
         // Initialize SSL if needed   ssl 相关先不看
         initialiseSsl();
 
-        // 开启内部 池化对象
+        // 开启selector
         selectorPool.open();
     }
 

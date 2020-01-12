@@ -35,7 +35,7 @@ import org.apache.juli.logging.LogFactory;
 
 /**
  * Represents a {@link org.apache.catalina.WebResourceSet} based on a directory.
- * 代表一个基于目录的资源对象
+ * 代表一个基于目录的资源对象  当启动context 时  会根据 docBase的位置初始化资源 除了文件夹也允许是war包
  */
 public class DirResourceSet extends AbstractFileResourceSet {
 
@@ -54,7 +54,7 @@ public class DirResourceSet extends AbstractFileResourceSet {
      *
      * @param root          The {@link WebResourceRoot} this new
      *                          {@link org.apache.catalina.WebResourceSet} will
-     *                          be added to.
+     *                          be added to.     传入根对象
      * @param webAppMount   The path within the web application at which this
      *                          {@link org.apache.catalina.WebResourceSet} will
      *                          be mounted. For example, to add a directory of
@@ -73,11 +73,13 @@ public class DirResourceSet extends AbstractFileResourceSet {
         setWebAppMount(webAppMount);
         setBase(base);
 
+        // 如果需要加载资源文件
         if (root.getContext().getAddWebinfClassesResources()) {
             File f = new File(base, internalPath);
             f = new File(f, "/WEB-INF/classes/META-INF/resources");
 
             if (f.isDirectory()) {
+                // 将对应资源追加到 context 的资源列表中
                 root.createWebResourceSet(ResourceSetType.RESOURCE_JAR, "/",
                          f.getAbsolutePath(), null, "/");
             }
@@ -93,7 +95,13 @@ public class DirResourceSet extends AbstractFileResourceSet {
         }
     }
 
-
+    /**
+     * 通过指定路径找到资源
+     * @param path  The path for the resource of interest relative to the root
+     *              of the web application. It must start with '/'.
+     *
+     * @return
+     */
     @Override
     public WebResource getResource(String path) {
         checkPath(path);
@@ -116,6 +124,13 @@ public class DirResourceSet extends AbstractFileResourceSet {
         }
     }
 
+    /**
+     * 获取指定路径下所有资源
+     * @param path  The path for the resource of interest relative to the root
+     *              of the web application. It must start with '/'.
+     *
+     * @return
+     */
     @Override
     public String[] list(String path) {
         checkPath(path);

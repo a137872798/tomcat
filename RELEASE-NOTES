@@ -69,7 +69,7 @@ without notice between point releases.
 =============
 Bundled APIs:
 =============
-A standard installation of Tomcat @VERSION_MAJOR_MINOR@ makes all of the following APIs available
+A  installation of Tomcat @VERSION_MAJOR_MINOR@ makes all of the following APIs available
 for use by web applications (by placing them in "lib"):
 * annotations-api.jar (Annotations package)
 * catalina.jar (Tomcat Catalina implementation)

@@ -761,6 +761,7 @@ public class Catalina {
             if (shutdownHook == null) {
                 shutdownHook = new CatalinaShutdownHook();
             }
+            // 当程序意外终止时能确保调用 stop
             Runtime.getRuntime().addShutdownHook(shutdownHook);
 
             // If JULI is being used, disable JULI's shutdown hook since
@@ -773,7 +774,9 @@ public class Catalina {
             }
         }
 
+        // 当启动 tomcat 后会开启一个用于监听终止应用的端口
         if (await) {
+            // 当收到 SHUTDOWN 指令时才会从内部的循环退出
             await();
             stop();
         }
@@ -825,6 +828,7 @@ public class Catalina {
 
     /**
      * Await and shutdown.
+     * 阻塞当前线程 并等待程序终止
      */
     public void await() {
 
@@ -913,6 +917,7 @@ public class Catalina {
 
     /**
      * Shutdown hook which will perform a clean shutdown of Catalina if needed.
+     * 当程序被关闭时会执行该钩子
      */
     protected class CatalinaShutdownHook extends Thread {
 

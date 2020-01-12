@@ -374,6 +374,7 @@ public class WebappLoader extends LifecycleMBeanBase
      *
      * @exception LifecycleException if this component detects a fatal error
      *  that prevents this component from being used
+     *  启动类加载器  tomcat 就是使用该对象隔离类的
      */
     @Override
     protected void startInternal() throws LifecycleException {
@@ -381,7 +382,7 @@ public class WebappLoader extends LifecycleMBeanBase
         if (log.isDebugEnabled())
             log.debug(sm.getString("webappLoader.starting"));
 
-        // 如果没有可以读取的资源 就无法进行加载
+        // 资源必须确认被加载完毕  该类加载器就是用来加载 资源中的jar包的
         if (context.getResources() == null) {
             log.info("No resources for " + context);
             setState(LifecycleState.STARTING);
@@ -402,6 +403,7 @@ public class WebappLoader extends LifecycleMBeanBase
             // 设置权限
             setPermissions();
 
+            // 将项目 的class 以及依赖 lib 设置到 一个容器中
             ((Lifecycle) classLoader).start();
 
             String contextName = context.getName();
@@ -578,13 +580,13 @@ public class WebappLoader extends LifecycleMBeanBase
         // Assemble the class path information from our class loader chain
         ClassLoader loader = getClassLoader();
 
-        // 如果开启代理模式就获取 loader.parent
+        // delegate 代表使用父类加载器进行加载 默认是 false
         if (delegate && loader != null) {
             // Skip the webapp loader for now as delegation is enabled
             loader = loader.getParent();
         }
 
-        // 这里跟 双亲委派不太一样 先尝试使用当前类加载器加载对象 失败时 才考虑使用父类  这样被创建的类都是尽可能被 子classLoader 持有 也就是做到了 加载器级别的隔离
+        // 依次往上生成class 路径
         while (loader != null) {
             if (!buildClassPath(classpath, loader)) {
                 break;
@@ -603,6 +605,7 @@ public class WebappLoader extends LifecycleMBeanBase
         this.classpath = classpath.toString();
 
         // Store the assembled class path as a servlet context attribute
+        // 设置本cotext 对应的 class路径
         servletContext.setAttribute(Globals.CLASS_PATH_ATTR, this.classpath);
     }
 

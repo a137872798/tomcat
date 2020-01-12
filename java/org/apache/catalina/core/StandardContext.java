@@ -5040,22 +5040,22 @@ public class StandardContext extends ContainerBase
             }
         }
         if (ok) {
-            // 开始加载新的 root 目录下的资源
+            // 开始加载新的 root 目录下的资源  这里先不看 实际上就是解析出 WEB-INF 下的资源以及jar包
             resourcesStart();
         }
 
-        // 开始初始化应用加载对象
+        // 开始初始化应用加载对象  context 级别的jar包都是由该对象去加载的 就是这里实现了类加载器的分离管理
         if (getLoader() == null) {
             // 包装父类加载器 应该就是 commonClassLoader 这样就可以共享 servlet.api 等 整个tomcat 容器必须的包了
             WebappLoader webappLoader = new WebappLoader(getParentClassLoader());
-            // 设置是否使用了代理
+            // 是否使用双亲委派模式  也就是优先尝试使用父类加载器加载  这里默认为false 也就是直接尝试使用 Loader去加载 而忽略 parentClassLoader
             webappLoader.setDelegate(getDelegate());
-            // 设置加载对象 同时触发 start/stop 方法
+            // 设置加载对象 同时触发 start 方法  将项目的class 和 lib 都设置到一个容器中
             setLoader(webappLoader);
         }
 
         // An explicit cookie processor hasn't been specified; use the default
-        // 创建 cookie 处理器 该对象是用来解析 数据流 并生成 cookie 对象的
+        // 创建 cookie 处理器 用于从请求头中解析出 cookie
         if (cookieProcessor == null) {
             cookieProcessor = new Rfc6265CookieProcessor();
         }
@@ -6228,7 +6228,6 @@ public class StandardContext extends ContainerBase
                         workDir, catalinaHomePath, getName()), e);
             }
         }
-        // 创建工作目录 如果目录已经存在则抛出异常
         if (!dir.mkdirs() && !dir.isDirectory()) {
             log.warn(sm.getString("standardContext.workCreateFail", dir,
                     getName()));
