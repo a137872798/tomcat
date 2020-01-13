@@ -943,7 +943,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     // ------------------------------------------------------------- Common code
 
     /**
-     * 这里创建的 processor 的对象 已经明确是 Http11Processor了
+     * 该对象负责处理 从client接收到的事件
      * @return
      */
     @Override

@@ -1076,6 +1076,7 @@ public class Connector extends LifecycleMBeanBase  {
      * Begin processing requests via this Connector.
      *
      * @exception LifecycleException if a fatal startup error occurs
+     * 启动连接器对象 在init中 endpoint 已经完成了端口的绑定
      */
     @Override
     protected void startInternal() throws LifecycleException {

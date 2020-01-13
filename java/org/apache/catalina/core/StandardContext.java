@@ -5050,7 +5050,7 @@ public class StandardContext extends ContainerBase
             WebappLoader webappLoader = new WebappLoader(getParentClassLoader());
             // 是否使用双亲委派模式  也就是优先尝试使用父类加载器加载  这里默认为false 也就是直接尝试使用 Loader去加载 而忽略 parentClassLoader
             webappLoader.setDelegate(getDelegate());
-            // 设置加载对象 同时触发 start 方法  将项目的class 和 lib 都设置到一个容器中
+            // 设置加载对象 首次调用start 此时isAvailable 还是false 不会触发内部的start
             setLoader(webappLoader);
         }
 
@@ -5060,12 +5060,13 @@ public class StandardContext extends ContainerBase
             cookieProcessor = new Rfc6265CookieProcessor();
         }
 
-        // Initialize character set mapper   初始化字符集映射对象
+        // Initialize character set mapper   初始化字符集映射对象 默认为ISO8859-1
         getCharsetMapper();
 
         // Validate required extensions
         boolean dependencyCheck = true;
         try {
+            // 这里先忽略
             dependencyCheck = ExtensionValidator.validateApplication
                 (getResources(), this);
         } catch (IOException ioe) {
@@ -5100,7 +5101,7 @@ public class StandardContext extends ContainerBase
             log.debug("Processing standard container startup");
 
 
-        // Binding thread  将类加载器绑定到当前线程上
+        // Binding thread  切换类加载器 并返回原来线程上绑定的类加载器
         ClassLoader oldCCL = bindThread();
 
         try {
@@ -5131,6 +5132,7 @@ public class StandardContext extends ContainerBase
                 // current Thread CCL to be the webapp classloader
                 // 这里又解除绑定
                 unbindThread(oldCCL);
+                // 这时又更换成 context 级别的类加载器
                 oldCCL = bindThread();
 
                 // Initialize logger again. Other components might have used it
@@ -5240,6 +5242,7 @@ public class StandardContext extends ContainerBase
                 }
                 getServletContext().setAttribute(
                         InstanceManager.class.getName(), getInstanceManager());
+                // 增加类加载器与该对象的关联关系
                 InstanceManagerBindings.bind(getLoader().getClassLoader(), getInstanceManager());
             }
 
@@ -5282,7 +5285,7 @@ public class StandardContext extends ContainerBase
             }
 
             try {
-                // Start manager  启动session池对象
+                // Start manager  启动session池对象  上面set的时候不是已经start过了吗
                 Manager manager = getManager();
                 if (manager instanceof Lifecycle) {
                     ((Lifecycle) manager).start();
@@ -5336,13 +5339,14 @@ public class StandardContext extends ContainerBase
         // The WebResources implementation caches references to JAR files. On
         // some platforms these references may lock the JAR files. Since web
         // application start is likely to have read from lots of JARs, trigger
-        // a clean-up now.
+        // a clean-up now.  针对文件是空实现
         getResources().gc();
 
         // Reinitializing if something went wrong
         if (!ok) {
             setState(LifecycleState.FAILED);
         } else {
+            // 将状态修改成启动中
             setState(LifecycleState.STARTING);
         }
     }
@@ -5884,10 +5888,10 @@ public class StandardContext extends ContainerBase
      *          look it up
      *
      * @return
-     * 将传入的类加载器绑定到当前线程中   也就是在经过 hostValve 的时候类加载器已经偷偷被换掉了 这样就做到了应用级别的隔离
      */
     @Override
     public ClassLoader bind(boolean usePrivilegedAction, ClassLoader originalClassLoader) {
+        // context级别用来隔离的类加载器
         Loader loader = getLoader();
         ClassLoader webApplicationClassLoader = null;
         if (loader != null) {
@@ -5919,6 +5923,7 @@ public class StandardContext extends ContainerBase
             PrivilegedAction<Void> pa = new PrivilegedSetTccl(webApplicationClassLoader);
             AccessController.doPrivileged(pa);
         } else {
+            // 将context 级别的类加载器绑定到当前线程
             Thread.currentThread().setContextClassLoader(webApplicationClassLoader);
         }
         if (threadBindingListener != null) {

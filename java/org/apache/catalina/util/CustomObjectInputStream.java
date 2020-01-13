@@ -44,9 +44,6 @@ public final class CustomObjectInputStream extends ObjectInputStream {
 
     private static final StringManager sm = StringManager.getManager(CustomObjectInputStream.class);
 
-    /**
-     * 该map 是用来维护什么的???  注意这个对象是全局变量
-     */
     private static final WeakHashMap<ClassLoader, Set<String>> reportedClassCache =
             new WeakHashMap<>();
 
@@ -55,9 +52,7 @@ public final class CustomObjectInputStream extends ObjectInputStream {
      * 该对象本身关联的classLoader
      */
     private final ClassLoader classLoader;
-    /**
-     * 被报告的 class ?   在 reportedClassCache 中应该就是以 classLoader 为key  reportedClasses 为value
-     */
+
     private final Set<String> reportedClasses;
     private final Log log;
 

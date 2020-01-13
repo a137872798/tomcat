@@ -420,18 +420,21 @@ public class StandardService extends LifecycleMBeanBase implements Service {
 
         // Start our defined Container first
         // 启动最上层容器 engine 它内部携带一个 用于初始化子容器的线程池 会往下传播 并进行初始化
+        // 在context 这层会初始化独有的类加载器 并且在资源目录下 (包括class，lib，resource) 会通过该类加载器进行加载
         if (engine != null) {
             synchronized (engine) {
                 engine.start();
             }
         }
 
+        // 初始化线程池
         synchronized (executors) {
             for (Executor executor: executors) {
                 executor.start();
             }
         }
 
+        // 启动映射监听器  这时会
         mapperListener.start();
 
         // Start our defined Connectors second
@@ -440,6 +443,7 @@ public class StandardService extends LifecycleMBeanBase implements Service {
                 try {
                     // If it has already failed, don't try and start it
                     if (connector.getState() != LifecycleState.FAILED) {
+                        // 开始启动连接对象
                         connector.start();
                     }
                 } catch (Exception e) {

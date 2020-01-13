@@ -55,6 +55,9 @@ import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.collections.ManagedConcurrentWeakHashMap;
 import org.apache.tomcat.util.res.StringManager;
 
+/**
+ * 默认的实例管理对象
+ */
 public class DefaultInstanceManager implements InstanceManager {
 
     // Used when there are no annotations in a class
@@ -110,10 +113,10 @@ public class DefaultInstanceManager implements InstanceManager {
     private final Map<String, String> postConstructMethods;
     private final Map<String, String> preDestroyMethods;
 
-    public DefaultInstanceManager(Context context,
-            Map<String, Map<String, String>> injectionMap,
-            org.apache.catalina.Context catalinaContext,
-            ClassLoader containerClassLoader) {
+    public DefaultInstanceManager(Context context,   // naming 相关的  先不管
+            Map<String, Map<String, String>> injectionMap,   // naming相关的
+            org.apache.catalina.Context catalinaContext,  // 上下文对象
+            ClassLoader containerClassLoader) {    // 加载context的类加载器 一般就是 commonClassLoader
         classLoader = catalinaContext.getLoader().getClassLoader();
         privileged = catalinaContext.getPrivileged();
         this.containerClassLoader = containerClassLoader;

@@ -1451,7 +1451,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase
 
                     // Ensure background processing for Contexts and Wrappers
                     // is performed under the web app's class loader
-                    // 将类加载器置空后 触发一个后台处理
+                    // 切换成context 绑定的类加载器
                     originalClassLoader = ((Context) container).bind(false, null);
                 }
                 // 触发一次后台任务

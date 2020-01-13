@@ -855,6 +855,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                         new PrivilegedFindClassByName(name);
                     clazz = AccessController.doPrivileged(dp);
                 } else {
+                    // 首先通过该对象查找class 而不是委托给父类
                     clazz = findClassInternal(name);
                 }
             } catch(AccessControlException ace) {
@@ -2281,7 +2282,9 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         ResourceEntry entry = resourceEntries.get(path);
         WebResource resource = null;
 
+        // 代表该资源还没有被加载
         if (entry == null) {
+            // 通过path 定位到资源
             resource = resources.getClassLoaderResource(path);
 
             if (!resource.exists()) {
@@ -2309,6 +2312,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         if (clazz != null)
             return clazz;
 
+        // 通过指定类加载器加载资源
         synchronized (getClassLoadingLock(name)) {
             clazz = entry.loadedClass;
             if (clazz != null)
@@ -2398,6 +2402,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
 
             try {
+                // 通过该对象加载jar包
                 clazz = defineClass(name, binaryContent, 0,
                         binaryContent.length, new CodeSource(codeBase, certificates));
             } catch (UnsupportedClassVersionError ucve) {

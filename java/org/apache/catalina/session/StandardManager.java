@@ -203,13 +203,13 @@ public class StandardManager extends ManagerBase {
             log.debug(sm.getString("standardManager.loading", pathname));
         }
         Loader loader = null;
-        // TODO 加载session 也跟类加载器相关 ???
         ClassLoader classLoader = null;
         Log logger = null;
         try (FileInputStream fis = new FileInputStream(file.getAbsolutePath());
                 BufferedInputStream bis = new BufferedInputStream(fis)) {
             // 从context 中获取加载器
             Context c = getContext();
+            // 获取context 关联的类加载器
             loader = c.getLoader();
             logger = c.getLogger();
             if (loader != null) {

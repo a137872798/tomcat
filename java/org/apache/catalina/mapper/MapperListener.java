@@ -104,10 +104,13 @@ public class MapperListener extends LifecycleMBeanBase
             return;
         }
 
+        // 设置默认主机
         findDefaultHost();
 
+        // 设置监听器
         addListeners(engine);
 
+        // 挨个将容器设置到mapper 中 这样就可以通过 请求的url 找到处理的servlet 了
         Container[] conHosts = engine.findChildren();
         for (Container conHost : conHosts) {
             Host host = (Host) conHost;
@@ -148,7 +151,7 @@ public class MapperListener extends LifecycleMBeanBase
     }
 
     // --------------------------------------------- Container Listener methods
-
+    // 当监听到事件时触发
     @Override
     public void containerEvent(ContainerEvent event) {
 
@@ -157,6 +160,7 @@ public class MapperListener extends LifecycleMBeanBase
             addListeners(child);
             // If child is started then it is too late for life-cycle listener
             // to register the child so register it here
+            // 发现出现了新的 容器 那么添加对应的映射关系
             if (child.getState().isAvailable()) {
                 if (child instanceof Host) {
                     registerHost((Host) child);
@@ -261,7 +265,7 @@ public class MapperListener extends LifecycleMBeanBase
 
 
     // ------------------------------------------------------ Protected Methods
-
+    // 查找 engine 的默认主机在 host 级别是否能找到 能找到就设置
     private void findDefaultHost() {
 
         Engine engine = service.getContainer();

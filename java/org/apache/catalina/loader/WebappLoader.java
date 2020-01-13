@@ -281,6 +281,7 @@ public class WebappLoader extends LifecycleMBeanBase
      * Execute a periodic task, such as reloading, etc. This method will be
      * invoked inside the classloading context of this container. Unexpected
      * throwables will be caught and logged.
+     * 后台任务会定期执行 也就是发现要进行热部署时 重启上下文
      */
     @Override
     public void backgroundProcess() {
@@ -292,6 +293,7 @@ public class WebappLoader extends LifecycleMBeanBase
                     context.reload();
                 }
             } finally {
+                // 这时 loader 已经是一个新对象了
                 if (context != null && context.getLoader() != null) {
                     Thread.currentThread().setContextClassLoader
                         (context.getLoader().getClassLoader());

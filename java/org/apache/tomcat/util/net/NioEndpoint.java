@@ -342,7 +342,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
             initializeConnectionLatch();
 
             // Start poller threads
-            // 根据线程数生成对应的 poller
+            // 根据线程数生成对应的 poller  该对象会不断轮询绑定在上面的感兴趣的事件
             pollers = new Poller[getPollerThreadCount()];
             for (int i = 0; i < pollers.length; i++) {
                 pollers[i] = new Poller();
@@ -512,7 +512,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
             // 从缓存的栈结构中弹出一个channel
             NioChannel channel = nioChannels.pop();
             if (channel == null) {
-                // 将 channel 对象包装成一个 bufferHandler
+                // 该对象内部包含了 bytebuffer  对象
                 SocketBufferHandler bufhandler = new SocketBufferHandler(
                         socketProperties.getAppReadBufSize(),
                         socketProperties.getAppWriteBufSize(),
@@ -809,9 +809,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
     }
 
     /**
-     * Poller class.
-     * 该对象也是用于 轮询选择器的 ， 那么和 pool 内部的 blockPoller 对象有什么区别呢
-     * 每个对象在创建时 内部会创建一个新的选择器对象 而 pool内部的 blockPoller 是使用 共享的selector
+     * 该对象 每个都会维护一个选择器  而在 shardSelector 中 多个channel 使用一个选择器
      */
     public class Poller implements Runnable {
 
@@ -874,7 +872,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
         }
 
         /**
-         * 将某个事件 传入到 队列中
+         * 将某个事件 传入到 队列中    一旦acceptor 接受到client的连接后 就会对socket注册read事件 并设置到poller上
          *
          * @param event
          */
@@ -1971,6 +1969,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
                     if (event == null) {
                         state = getHandler().process(socketWrapper, SocketEvent.OPEN_READ);
                     } else {
+                        // 处理读取事件
                         state = getHandler().process(socketWrapper, event);
                     }
                     if (state == SocketState.CLOSED) {

@@ -956,7 +956,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
             // dispatched. Because of delays in the dispatch process, the
             // timeout may no longer be required. Check here and avoid
             // unnecessary processing.
-            // 如果当前超时了 TODO  返回一个 OPEN 啥意思???
+            // 先不看超时
             if (SocketEvent.TIMEOUT == status &&
                     (processor == null ||
                             !processor.isAsync() && !processor.isUpgrade() ||
@@ -976,17 +976,17 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
                 return SocketState.CLOSED;
             }
 
-            // 当当前线程标记成 true (代表已分配)
+            // 当当前线程标记成 true (代表已分配)  进入到这里时 已经使用了 tomcat的线程池了 而不是io线程
             ContainerThreadMarker.set();
 
             try {
-                // 如果没有找到 processor
+                // 某个socket 刚接收到数据流时  processor 还没有设置
                 if (processor == null) {
                     // 这里获取协议对象
                     String negotiatedProtocol = wrapper.getNegotiatedProtocol();
                     // OpenSSL typically returns null whereas JSSE typically
                     // returns "" when no protocol is negotiated
-                    // 导航到的协议一定是 upgradeProcessor 吗 ???
+                    // 先忽略
                     if (negotiatedProtocol != null && negotiatedProtocol.length() > 0) {
                         UpgradeProtocol upgradeProtocol =
                                 getProtocol().getNegotiatedProtocol(negotiatedProtocol);
@@ -1046,7 +1046,6 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
 
                 SocketState state = SocketState.CLOSED;
                 do {
-                    // connector 像是一个代理对象 这里在寻找合适的处理对象  因为wrapper 内部的 socket 会有对应的processor
                     state = processor.process(wrapper, status);
 
                     // 如果处理完的状态为升级状态

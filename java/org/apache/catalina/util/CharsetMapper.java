@@ -67,6 +67,7 @@ public class CharsetMapper {
      *
      * @exception IllegalArgumentException if the specified properties
      *  resource could not be loaded for any reason.
+     *  prop文件中就是写了 ISO8859-1
      */
     public CharsetMapper(String name) {
         try (InputStream stream = this.getClass().getResourceAsStream(name)) {

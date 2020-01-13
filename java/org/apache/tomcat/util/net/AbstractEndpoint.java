@@ -1327,6 +1327,7 @@ public abstract class AbstractEndpoint<S> {
      * @param dispatch      Should the processing be performed on a new
      *                      container thread     处理逻辑是否需要被派发到 container线程
      * @return if processing was triggered successfully
+     * 在endpoint 启动后会开启一个 acceptor 的接收线程 之后注册到 poller上 并监听读事件 当读取到数据流时 进入到这里
      */
     public boolean processSocket(SocketWrapperBase<S> socketWrapper,
                                  SocketEvent event, boolean dispatch) {
@@ -1345,7 +1346,7 @@ public abstract class AbstractEndpoint<S> {
                 sc.reset(socketWrapper, event);
             }
             Executor executor = getExecutor();
-            // 如果允许分发到线程池 那么在线程池中处理 否则在当前线程处理
+            // 如果允许分发到线程池 那么在线程池中处理 否则在当前线程处理  就是在这里 通过selector读取到的数据 通过业务线程来处理
             if (dispatch && executor != null) {
                 executor.execute(sc);
             } else {
