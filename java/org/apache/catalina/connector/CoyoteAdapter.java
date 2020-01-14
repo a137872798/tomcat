@@ -163,7 +163,6 @@ public class CoyoteAdapter implements Adapter {
         AsyncContextImpl asyncConImpl = request.getAsyncContextInternal();
 
         // requestProcessor 实际上是一个 requestInfo对象  该对象会统计所有处理过的req处理时长  之类  同时类似于一个门面类 来操作内部属性
-        // 获取当前线程维护的变量名  为什么要这么做 线程模式是怎样 ???
         req.getRequestProcessor().setWorkerThreadName(THREAD_NAME.get());
 
         try {
@@ -172,14 +171,14 @@ public class CoyoteAdapter implements Adapter {
                 // Error or timeout
                 // Lift any suspension (e.g. if sendError() was used by an async
                 // request) to allow the response to be written to the client
-                // 如果不支持 异步 这里将suspend 设置成false 是为何 ???  悬置状态意味着什么???
                 response.setSuspended(false);
             }
 
             // 如果当前发生超时
             if (status==SocketEvent.TIMEOUT) {
-                // 如果 异步对象本身没有超时 则清除 error状态
+                // 将 异步对象修改成超时  如果成功会返回false
                 if (!asyncConImpl.timeout()) {
+                    // 这里触发 Async_error 就是修改 asyncContext 内部的状态
                     asyncConImpl.setErrorState(null, false);
                 }
                 // 如果要处理的是异常事件
@@ -213,7 +212,7 @@ public class CoyoteAdapter implements Adapter {
             }
 
             // Check to see if non-blocking writes or reads are being used
-            // isAsyncDispatching同样是通过 一个hook 处理  这里是啥意思 ???
+            // 如果请求不支持异步分发
             if (!request.isAsyncDispatching() && request.isAsync()) {
                 // 获取读写监听器
                 WriteListener writeListener = res.getWriteListener();

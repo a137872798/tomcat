@@ -231,6 +231,10 @@ public class AsyncStateMachine {
         return generation.get();
     }
 
+    /**
+     * 该本次请求修改成异步模式  也就是在处理业务时 转交给servlet线程 节省tomcat线程资源
+     * @param asyncCtxt
+     */
     public synchronized void asyncStart(AsyncContextCallback asyncCtxt) {
         if (state == AsyncState.DISPATCHED) {
             generation.incrementAndGet();
@@ -420,6 +424,10 @@ public class AsyncStateMachine {
     }
 
 
+    /**
+     * 触发异步异常 比如处理请求超时
+     * @return
+     */
     public synchronized boolean asyncError() {
         clearNonBlockingListeners();
         if (state == AsyncState.STARTING) {

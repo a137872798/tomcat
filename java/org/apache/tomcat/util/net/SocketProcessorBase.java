@@ -47,13 +47,13 @@ public abstract class SocketProcessorBase<S> implements Runnable {
 
     @Override
     public final void run() {
+        // 这里加锁是因为该对象可能会同时以 写事件和读事件触发
         synchronized (socketWrapper) {
             // It is possible that processing may be triggered for read and
             // write at the same time. The sync above makes sure that processing
             // does not occur in parallel. The test below ensures that if the
             // first event to be processed results in the socket being closed,
             // the subsequent events are not processed.
-            // 只要socket 对象没有被关闭就会不断触发 run 方法
             if (socketWrapper.isClosed()) {
                 return;
             }

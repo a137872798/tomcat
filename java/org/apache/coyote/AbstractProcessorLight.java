@@ -56,6 +56,7 @@ public abstract class AbstractProcessorLight implements Processor {
 
         SocketState state = SocketState.CLOSED;
         Iterator<DispatchType> dispatches = null;
+        // 进入该方法后 在没有处理完数据流前会不断的自旋 比如 接收到read事件 返回Long 代表数据不足 这里还是会继续进入自旋
         do {
             // dispatches  后面会变成 成员变量.dispatches
             if (dispatches != null) {
@@ -74,6 +75,7 @@ public abstract class AbstractProcessorLight implements Processor {
                 // Do nothing here, just wait for it to get recycled
                 // 如果是 异步 或者是升级
             } else if (isAsync() || isUpgrade() || state == SocketState.ASYNC_END) {
+                // 如果是  Timeout 返回的 state 是 LONG
                 state = dispatch(status);
                 state = checkForPipelinedData(state, socketWrapper);
                 // 如果传入的事件 是 写事件  将状态改为 long
@@ -112,6 +114,7 @@ public abstract class AbstractProcessorLight implements Processor {
                 // dispatches to process.  这里初始化 dispatches  之后迭代器不为null 会处理下面所有的 dispatchType
                 dispatches = getIteratorAndClearDispatches();
             }
+            // 代表再次进入循环的条件
         } while (state == SocketState.ASYNC_END ||
                 dispatches != null && state != SocketState.CLOSED);
 

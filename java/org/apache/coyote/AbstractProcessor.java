@@ -311,7 +311,6 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             getLog().error(sm.getString("http11processor.request.process"), t);
         }
 
-        // 代表本次处理结束了 也就是现在 tomcat 默认都是异步处理的???
         rp.setStage(org.apache.coyote.Constants.STAGE_ENDED);
 
         SocketState state;
@@ -321,7 +320,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             request.updateCounters();
             // 代表当前已经结束处理
             state = SocketState.CLOSED;
-            // 如果当前正在异步处理中 返回状态为 LONG  好像是长轮询的意思
+            // 如果当前正在异步处理中 返回状态为 LONG
         } else if (isAsync()) {
             state = SocketState.LONG;
         } else {
@@ -672,6 +671,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
                 return;
             }
             long timeout = ((Long) param).longValue();
+            // 设置异步处理的超时时间
             setAsyncTimeout(timeout);
             break;
         }
@@ -782,7 +782,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
         // Avoid multiple timeouts
         // 代表本次调用已经超时了吧
         setAsyncTimeout(-1);
-        // 获取 当前异步状态机的 序号 TODO  好像每开始一个新的异步任务就会加1
+        // 获取 当前异步状态机的 序号
         asyncTimeoutGeneration = asyncStateMachine.getCurrentGeneration();
         // 处理超时事件
         processSocketEvent(SocketEvent.TIMEOUT, true);

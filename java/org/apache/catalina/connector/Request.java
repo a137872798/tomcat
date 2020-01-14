@@ -1830,7 +1830,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
     }
 
     /**
-     * 使用异步方式处理req
+     * 使用异步方式处理req  这里会释放tomcat 的io线程 转交给servlet线程处理 之后自行通知到tomcat 返回数据流
      * @param request
      * @param response
      * @return
@@ -1855,6 +1855,7 @@ public class Request implements org.apache.catalina.servlet4preview.http.HttpSer
         // 启动上下文 并设置超时处理时间
         asyncContext.setStarted(getContext(), request, response,
                 request==getRequest() && response==getResponse().getResponse());
+        // 设置超时时间 也就是留给servlet处理的时间是有限的
         asyncContext.setTimeout(getConnector().getAsyncTimeout());
 
         return asyncContext;

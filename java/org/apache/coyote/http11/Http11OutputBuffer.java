@@ -348,7 +348,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
 
 
     /**
-     * 通过 wrapper 对该对象进行初始化
+     * 通过 wrapper 对该对象进行初始化  当写入数据时 就是往该socket写入
      * @param socketWrapper
      */
     public void init(SocketWrapperBase<?> socketWrapper) {

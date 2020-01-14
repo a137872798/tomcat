@@ -945,7 +945,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
             // 从包装器中获取真正的 套接字
             S socket = wrapper.getSocket();
 
-            // 获取套接字对应的 processor 对象
+            // 获取套接字对应的 processor 对象  当某个client 首次收到数据时 processor 还没有创建 之后对应的channel(socket) 总是使用一个processor
             Processor processor = connections.get(socket);
             if (getLog().isDebugEnabled()) {
                 getLog().debug(sm.getString("abstractConnectionHandler.connectionsGet",
@@ -956,7 +956,8 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
             // dispatched. Because of delays in the dispatch process, the
             // timeout may no longer be required. Check here and avoid
             // unnecessary processing.
-            // 先不看超时
+            // 当接收某个请求 并标记成异步时 ， 会添加到一个等待队列中 之后通过后台扫描超时任务 如果发现该任务超时 那么以 TIMEOUT 事件触发该动作
+            // 这里代表出现了预期外的情况 忽略本次触发的超时事件
             if (SocketEvent.TIMEOUT == status &&
                     (processor == null ||
                             !processor.isAsync() && !processor.isUpgrade() ||
@@ -967,7 +968,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
 
             if (processor != null) {
                 // Make sure an async timeout doesn't fire
-                // 将proce 从 等待处理的队列中移除
+                // 将proce 从 等待处理的队列中移除  该队列是配合后台线程扫描的 用来判断任务是否超时  如果存在就进行移除 避免多次触发
                 getProtocol().removeWaitingProcessor(processor);
                 // 如果是断开连接或异常 返回closed
             } else if (status == SocketEvent.DISCONNECT || status == SocketEvent.ERROR) {
@@ -1046,6 +1047,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
 
                 SocketState state = SocketState.CLOSED;
                 do {
+                    // processor 默认是非异步状态 DISPATCHER   这里返回本次处理的结果
                     state = processor.process(wrapper, status);
 
                     // 如果处理完的状态为升级状态
@@ -1114,18 +1116,18 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
                     }
                 } while (state == SocketState.UPGRADING);
 
-                // 如果是 long 状态???
+                // Long 状态代表本次的数据流不足以解析
                 if (state == SocketState.LONG) {
                     // In the middle of processing a request/response. Keep the
                     // socket associated with the processor. Exact requirements
-                    // depend on type of long poll  什么长轮询???
+                    // depend on type of long poll
+                    // 继续将 read 事件注册到poller上 等待读取更多的数据
                     longPoll(wrapper, processor);
-                    // 如果支持异步处理
+                    // 如果本次开启了异步处理  将processor 添加到等待队列中  添加到等待队列中是为了配合后台线程扫描是否超时
                     if (processor.isAsync()) {
-                        // 添加到 等待队列中 谁来消费啊???
                         getProtocol().addWaitingProcessor(processor);
                     }
-                    // 如果是处理 open 事件  将套接字从 映射容器中移除
+                    // 代表虽然本次读取数据完成 但是还是要保留套接字 应该就是 http层的长连接实现
                 } else if (state == SocketState.OPEN) {
                     // In keep-alive but between requests. OK to recycle
                     // processor. Continue to poll for the next request.

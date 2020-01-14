@@ -162,6 +162,7 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
      */
     public boolean timeout() {
         AtomicBoolean result = new AtomicBoolean();
+        // 为异步上下文设置一个超时异常
         request.getCoyoteRequest().action(ActionCode.ASYNC_TIMEOUT, result);
         // Avoids NPEs during shutdown. A call to recycle will null this field.
         Context context = this.context;
@@ -373,10 +374,18 @@ public class AsyncContextImpl implements AsyncContext, AsyncContextCallback {
         return result.get();
     }
 
+    /**
+     * 设置启动异步处理
+     * @param context
+     * @param request
+     * @param response
+     * @param originalRequestResponse
+     */
     public void setStarted(Context context, ServletRequest request,
             ServletResponse response, boolean originalRequestResponse) {
 
         synchronized (asyncContextLock) {
+            // 触发异步处理的动作  主要就是将 asyncContext 打上一个 异步的标识
             this.request.getCoyoteRequest().action(
                     ActionCode.ASYNC_START, this);
 

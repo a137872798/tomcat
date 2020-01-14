@@ -827,7 +827,7 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
     void init(SocketWrapperBase<?> socketWrapper) {
 
         wrapper = socketWrapper;
-        // 将自身作为 应用级buffer 设置到 socketWrapper 中 这里要好好研究它们之间的关系
+        // 将 inputBuffer 设置到 wrapper 中 这样 socket的数据会先流向inputBuffer 中 req 对象没有直接从socket拉取数据流 而是通过 该 inputBuffer 对象
         wrapper.setAppReadBufHandler(this);
 
         // 计算合适大小 并开始初始化容器

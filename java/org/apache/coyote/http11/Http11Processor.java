@@ -218,8 +218,10 @@ public class Http11Processor extends AbstractProcessor {
 
         inputBuffer = new Http11InputBuffer(request, protocol.getMaxHttpHeaderSize(),
                 protocol.getRejectIllegalHeaderName(), httpParser);
+        // requse 此时是一个空对象 当需要读取数据时 会从inputBuffer 中获取
         request.setInputBuffer(inputBuffer);
 
+        // 用于向socket输出数据的buffer
         outputBuffer = new Http11OutputBuffer(response, protocol.getMaxHttpHeaderSize(),
                 protocol.getSendReasonPhrase());
         response.setOutputBuffer(outputBuffer);
@@ -511,7 +513,7 @@ public class Http11Processor extends AbstractProcessor {
 
 
     /**
-     * 应该是将套接字内部的数据流处理成 req res 并交由container 处理
+     * 将套接字内部的数据流处理成 req res 并交由container 处理
      * @param socketWrapper The connection to process
      *
      * @return
@@ -540,7 +542,7 @@ public class Http11Processor extends AbstractProcessor {
 
             // Parsing the request header
             try {
-                // 尝试从socket 中开始解析请求行
+                // 尝试从socket 中开始解析请求行  tomcat 默认使用的是堆byteBuffer
                 if (!inputBuffer.parseRequestLine(keptAlive)) {
                     // 这里返回 -1 TODO 代表解析到了 HTTP/2.0 的东西 这里先跳过
                     if (inputBuffer.getParsingRequestLinePhase() == -1) {
@@ -752,6 +754,7 @@ public class Http11Processor extends AbstractProcessor {
             if (sendfileState == SendfileState.PENDING) {
                 return SocketState.SENDFILE;
             } else {
+                // 代表需要保持 socket 打开状态 本次读取的数据流不够解析
                 if (openSocket) {
                     if (readComplete) {
                         return SocketState.OPEN;

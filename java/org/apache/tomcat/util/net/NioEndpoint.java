@@ -683,7 +683,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
 
 
     /**
-     * 关闭 socket  比如某个短连接 那么在处理完后 就要关闭
+     * 关闭 socket
      *
      * @param socket
      * @param key
@@ -774,7 +774,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
                         // processed. Count down the connections at this point
                         // since it won't have been counted down when the socket
                         // closed.
-                        // 减少连接数 也就是tomcat 是可以设置最大连接数的??? 或者说这个 最大 指的是同一时间 每当 socket 处理完相关事件后就会释放连接(推测)
+                        // 当绑定的client channel 已经不存在时
                         socket.socketWrapper.getEndpoint().countDownConnection();
                         // 标记本socket 对象已经被关闭
                         ((NioSocketWrapper) socket.socketWrapper).closed = true;
@@ -1590,6 +1590,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
 
         /**
          * 将 readBuffer 的数据转移到 to 中
+         * 每次从socket 获取 应该是属于用户态到内核态 所以性能损耗大
          * @param block
          * @param to
          * @return
@@ -1597,7 +1598,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
          */
         @Override
         public int read(boolean block, ByteBuffer to) throws IOException {
-            // 直接从readBufffer 中读取数据
+            // 直接从socketWrapper 的缓存中读取数据
             int nRead = populateReadBuffer(to);
             // 成功读取 直接返回
             if (nRead > 0) {
@@ -1612,6 +1613,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
             }
 
             // The socket read buffer capacity is socket.appReadBufSize
+            // 该对象在 socketWrapper中 从socket中读取数据
             int limit = socketBufferHandler.getReadBuffer().capacity();
             // 代表 容量超过了 readBuffer 的大小
             if (to.remaining() >= limit) {
@@ -1625,7 +1627,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
                 // 更新读取时间
                 updateLastRead();
             } else {
-                // Fill the read buffer as best we can.
+                // Fill the read buffer as best we can.  将数据先从socket 读取到 socketWrapper内部的bytebuffer  这样就将 socketWrapper关联的byteBuffer 作为了一个缓存 而不用每次从channel中读取数据
                 nRead = fillReadBuffer(block);
                 if (log.isDebugEnabled()) {
                     log.debug("Socket: [" + this + "], Read into buffer: [" + nRead + "]");
@@ -1679,7 +1681,8 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
             int nRead;
             // 获取 NioChannel 对象 该对象内部包含 jdk niochannel
             NioChannel channel = getSocket();
-            // 如果是阻塞模式
+            // 如果是阻塞模式  这里使用了2套选择器模式 外层接收的client 连接都会绑在 poller 上 每当准备好读取事件时 生成channel 对应的processor对象
+            // 之后在process 方法中 处理读事件 触发service 进入到这里 通过一个 selectorPool 来轮询读取数据流
             if (block) {
                 Selector selector = null;
                 try {
@@ -1969,7 +1972,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel> {
                     if (event == null) {
                         state = getHandler().process(socketWrapper, SocketEvent.OPEN_READ);
                     } else {
-                        // 处理读取事件
+                        // 处理读取事件  可能会返回 Long 代表需要更多数据 此时也会在poller 上注册读事件 等待接收更多的数据  也可能返回OPEN 应该是代表不关闭套接字(也就是开启长连接)
                         state = getHandler().process(socketWrapper, event);
                     }
                     if (state == SocketState.CLOSED) {
